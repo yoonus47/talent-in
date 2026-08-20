@@ -8,14 +8,14 @@
   --muted: #fafafa;
   --muted-foreground: #8e8e8e;
   --border: #dbdbdb;
-  --primary: #0095f6;
+  --primary: #4f46e5;
   --primary-foreground: #ffffff;
-  --primary-hover: #1877f2;
+  --primary-hover: #4338ca;
   --accent: #dd2a7b;
   --accent-foreground: #ffffff;
   --destructive: #ed4956;
   --destructive-foreground: #ffffff;
-  --ring: #0095f6;
+  --ring: #4f46e5;
 
   /* Instagram's icon/story-ring gradient — used sparingly (wordmark, CTA glow) */
   --gradient-instagram: linear-gradient(
@@ -61,12 +61,12 @@
   --muted: #121212;
   --muted-foreground: #a8a8a8;
   --border: #262626;
-  --primary: #0095f6;
+  --primary: #6366f1;
   --primary-foreground: #ffffff;
-  --primary-hover: #1ca1f5;
+  --primary-hover: #818cf8;
   --accent: #f77737;
   --accent-foreground: #ffffff;
-  --ring: #0095f6;
+  --ring: #6366f1;
 }
 
 body {

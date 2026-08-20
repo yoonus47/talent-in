@@ -93,13 +93,13 @@ async function getFeedItems(authorIds: string[], currentUserId: string): Promise
   const [{ data: basePosts }, { data: shareRows }] = await Promise.all([
     supabase
       .from("posts")
-      .select("*, profiles(id, username, full_name, avatar_url)")
+      .select("*, profiles!posts_user_id_fkey(id, username, full_name, avatar_url)")
       .in("user_id", authorIds)
       .order("created_at", { ascending: false })
       .limit(50),
     supabase
       .from("shares")
-      .select("*, profiles(id, username, full_name, avatar_url)")
+      .select("*, profiles!shares_user_id_fkey(id, username, full_name, avatar_url)")
       .in("user_id", authorIds)
       .order("created_at", { ascending: false })
       .limit(50),
@@ -117,7 +117,7 @@ async function getFeedItems(authorIds: string[], currentUserId: string): Promise
     extraPostIds.length > 0
       ? await supabase
           .from("posts")
-          .select("*, profiles(id, username, full_name, avatar_url)")
+          .select("*, profiles!posts_user_id_fkey(id, username, full_name, avatar_url)")
           .in("id", extraPostIds)
       : { data: [] };
 
@@ -130,7 +130,9 @@ async function getFeedItems(authorIds: string[], currentUserId: string): Promise
     supabase.from("likes").select("post_id, user_id").in("post_id", allPostIds),
     supabase
       .from("comments")
-      .select("id, post_id, content, created_at, profiles(username, full_name, avatar_url)")
+      .select(
+        "id, post_id, content, created_at, profiles!comments_user_id_fkey(username, full_name, avatar_url)",
+      )
       .in("post_id", allPostIds)
       .order("created_at", { ascending: true }),
     supabase.from("shares").select("post_id, user_id").in("post_id", allPostIds),
