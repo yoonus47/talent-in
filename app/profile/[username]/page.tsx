@@ -10,7 +10,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { PostCard } from "@/components/post-card";
+import { FeedList } from "@/components/feed-list";
 import { cn } from "@/lib/utils";
 
 export default async function ProfilePage({
@@ -26,7 +26,7 @@ export default async function ProfilePage({
   if (!profile) notFound();
 
   const isOwnProfile = profile.id === viewer.id;
-  const [{ followers, following, isFollowing }, posts] = await Promise.all([
+  const [{ followers, following, isFollowing }, items] = await Promise.all([
     getFollowStats(profile.id, viewer.id),
     getUserPosts(profile.id, viewer.id),
   ]);
@@ -90,12 +90,12 @@ export default async function ProfilePage({
         </div>
       </Card>
 
-      {posts.length === 0 ? (
+      {items.length === 0 ? (
         <Card className="p-8 text-center text-sm text-muted-foreground">
           {isOwnProfile ? "You haven't posted yet." : `${profile.full_name} hasn't posted yet.`}
         </Card>
       ) : (
-        posts.map((post) => <PostCard key={post.id} post={post} />)
+        <FeedList items={items} />
       )}
     </div>
   );

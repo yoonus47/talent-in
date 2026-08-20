@@ -1,5 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Profile } from "@/lib/types/database";
+import type {
+  ChallengeAttempt,
+  DailyChallengeQuestion,
+  Profile,
+  QuizResult,
+} from "@/lib/types/database";
 
 /** Current authenticated user's profile row, or null if not onboarded yet. */
 export async function getCurrentProfile(): Promise<Profile | null> {
@@ -21,6 +26,12 @@ export async function getCurrentProfile(): Promise<Profile | null> {
 
 export type FeedAuthor = Pick<Profile, "username" | "full_name" | "avatar_url">;
 
+const UNKNOWN_AUTHOR: FeedAuthor = {
+  username: "unknown",
+  full_name: "Unknown",
+  avatar_url: null,
+};
+
 export type FeedComment = {
   id: string;
   content: string;
@@ -36,15 +47,19 @@ export type FeedPost = {
   author: FeedAuthor & { id: string };
   likeCount: number;
   likedByMe: boolean;
+  shareCount: number;
+  sharedByMe: boolean;
   comments: FeedComment[];
 };
 
+export type FeedItem =
+  | { type: "post"; post: FeedPost; sortAt: string }
+  | { type: "share"; sharer: FeedAuthor & { id: string }; post: FeedPost; sortAt: string };
+
 /**
  * Posts from people the current user follows, plus their own — newest first.
- * A handful of queries rather than deep PostgREST embeds, so it stays easy
- * to reason about at MVP scale.
  */
-export async function getFeedPosts(currentUserId: string): Promise<FeedPost[]> {
+export async function getFeedPosts(currentUserId: string): Promise<FeedItem[]> {
   const supabase = await createClient();
 
   const { data: following } = await supabase
@@ -54,45 +69,78 @@ export async function getFeedPosts(currentUserId: string): Promise<FeedPost[]> {
 
   const authorIds = [currentUserId, ...(following?.map((f) => f.following_id) ?? [])];
 
-  return getPostsByAuthorIds(authorIds, currentUserId);
+  return getFeedItems(authorIds, currentUserId);
 }
 
-/** All posts by a single author — used on their profile page. */
+/** Posts + reposts by a single author — used on their profile page. */
 export async function getUserPosts(
   authorId: string,
   currentUserId: string,
-): Promise<FeedPost[]> {
-  return getPostsByAuthorIds([authorId], currentUserId);
+): Promise<FeedItem[]> {
+  return getFeedItems([authorId], currentUserId);
 }
 
-async function getPostsByAuthorIds(
-  authorIds: string[],
-  currentUserId: string,
-): Promise<FeedPost[]> {
+/**
+ * Builds the feed for a set of "followed" author ids: their own posts, plus
+ * anything they've shared (even if the original post's author isn't in the
+ * list) — merged and sorted by whichever timestamp is more recent, the post
+ * or the share. A handful of queries rather than deep PostgREST embeds, so
+ * it stays easy to reason about at MVP scale.
+ */
+async function getFeedItems(authorIds: string[], currentUserId: string): Promise<FeedItem[]> {
   const supabase = await createClient();
 
-  const { data: posts } = await supabase
-    .from("posts")
-    .select("*, profiles(id, username, full_name, avatar_url)")
-    .in("user_id", authorIds)
-    .order("created_at", { ascending: false })
-    .limit(50);
+  const [{ data: basePosts }, { data: shareRows }] = await Promise.all([
+    supabase
+      .from("posts")
+      .select("*, profiles(id, username, full_name, avatar_url)")
+      .in("user_id", authorIds)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("shares")
+      .select("*, profiles(id, username, full_name, avatar_url)")
+      .in("user_id", authorIds)
+      .order("created_at", { ascending: false })
+      .limit(50),
+  ]);
 
-  if (!posts || posts.length === 0) return [];
+  const posts = basePosts ?? [];
+  const shares = shareRows ?? [];
 
-  const postIds = posts.map((p) => p.id);
+  const knownPostIds = new Set(posts.map((p) => p.id));
+  const extraPostIds = [...new Set(shares.map((s) => s.post_id))].filter(
+    (id) => !knownPostIds.has(id),
+  );
 
-  const [{ data: likes }, { data: comments }] = await Promise.all([
-    supabase.from("likes").select("post_id, user_id").in("post_id", postIds),
+  const { data: extraPosts } =
+    extraPostIds.length > 0
+      ? await supabase
+          .from("posts")
+          .select("*, profiles(id, username, full_name, avatar_url)")
+          .in("id", extraPostIds)
+      : { data: [] };
+
+  const allPostRows = [...posts, ...(extraPosts ?? [])];
+  if (allPostRows.length === 0) return [];
+
+  const allPostIds = allPostRows.map((p) => p.id);
+
+  const [{ data: likes }, { data: comments }, { data: shareCounts }] = await Promise.all([
+    supabase.from("likes").select("post_id, user_id").in("post_id", allPostIds),
     supabase
       .from("comments")
       .select("id, post_id, content, created_at, profiles(username, full_name, avatar_url)")
-      .in("post_id", postIds)
+      .in("post_id", allPostIds)
       .order("created_at", { ascending: true }),
+    supabase.from("shares").select("post_id, user_id").in("post_id", allPostIds),
   ]);
 
-  return posts.map((post) => {
+  const feedPostById = new Map<string, FeedPost>();
+
+  for (const post of allPostRows) {
     const postLikes = likes?.filter((l) => l.post_id === post.id) ?? [];
+    const postShares = shareCounts?.filter((s) => s.post_id === post.id) ?? [];
     const postComments =
       comments
         ?.filter((c) => c.post_id === post.id)
@@ -100,21 +148,15 @@ async function getPostsByAuthorIds(
           id: c.id,
           content: c.content,
           created_at: c.created_at,
-          author: (c.profiles as unknown as FeedAuthor) ?? {
-            username: "unknown",
-            full_name: "Unknown",
-            avatar_url: null,
-          },
+          author: (c.profiles as unknown as FeedAuthor) ?? UNKNOWN_AUTHOR,
         })) ?? [];
 
     const author = (post.profiles as unknown as FeedAuthor & { id: string }) ?? {
       id: post.user_id,
-      username: "unknown",
-      full_name: "Unknown",
-      avatar_url: null,
+      ...UNKNOWN_AUTHOR,
     };
 
-    return {
+    feedPostById.set(post.id, {
       id: post.id,
       content: post.content,
       image_url: post.image_url,
@@ -122,9 +164,32 @@ async function getPostsByAuthorIds(
       author,
       likeCount: postLikes.length,
       likedByMe: postLikes.some((l) => l.user_id === currentUserId),
+      shareCount: postShares.length,
+      sharedByMe: postShares.some((s) => s.user_id === currentUserId),
       comments: postComments,
+    });
+  }
+
+  const items: FeedItem[] = [];
+
+  for (const post of posts) {
+    const feedPost = feedPostById.get(post.id);
+    if (feedPost) items.push({ type: "post", post: feedPost, sortAt: post.created_at });
+  }
+
+  for (const share of shares) {
+    const feedPost = feedPostById.get(share.post_id);
+    if (!feedPost) continue;
+    const sharer = (share.profiles as unknown as FeedAuthor & { id: string }) ?? {
+      id: share.user_id,
+      ...UNKNOWN_AUTHOR,
     };
-  });
+    items.push({ type: "share", sharer, post: feedPost, sortAt: share.created_at });
+  }
+
+  items.sort((a, b) => new Date(b.sortAt).getTime() - new Date(a.sortAt).getTime());
+
+  return items.slice(0, 50);
 }
 
 export async function getProfileByUsername(username: string): Promise<Profile | null> {
@@ -162,4 +227,78 @@ export async function getFollowStats(profileId: string, viewerId: string) {
     following: following ?? 0,
     isFollowing: Boolean(viewerFollow),
   };
+}
+
+/** Today's 5 daily-challenge questions — answer key withheld server-side. */
+export async function getTodayChallenge(): Promise<DailyChallengeQuestion[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_daily_challenge");
+  if (error) {
+    console.error("get_daily_challenge failed:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
+function todayDateString() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** The current user's attempt for today's challenge, if they've done it. */
+export async function getTodayAttempt(userId: string): Promise<ChallengeAttempt | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("challenge_attempts")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("challenge_date", todayDateString())
+    .maybeSingle();
+  return data;
+}
+
+export type ChallengeStats = { totalPoints: number; currentStreak: number };
+
+/** Total points earned, and current daily-challenge streak (in days). */
+export async function getChallengeStats(userId: string): Promise<ChallengeStats> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("challenge_attempts")
+    .select("challenge_date, score")
+    .eq("user_id", userId)
+    .order("challenge_date", { ascending: false })
+    .limit(365);
+
+  const attempts = data ?? [];
+  const totalPoints = attempts.reduce((sum, a) => sum + a.score, 0);
+  const completedDates = new Set(attempts.map((a) => a.challenge_date));
+
+  // Consecutive days with a completed attempt, counting back from today —
+  // but if today isn't done yet, start counting from yesterday so the
+  // streak doesn't look broken until the day actually ends.
+  const cursor = new Date();
+  cursor.setHours(0, 0, 0, 0);
+  if (!completedDates.has(cursor.toISOString().slice(0, 10))) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  let currentStreak = 0;
+  while (completedDates.has(cursor.toISOString().slice(0, 10))) {
+    currentStreak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  return { totalPoints, currentStreak };
+}
+
+/** Most recent career-quiz result, if the user has taken it. */
+export async function getLatestQuizResult(userId: string): Promise<QuizResult | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("quiz_results")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data;
 }

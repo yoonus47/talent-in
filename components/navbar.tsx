@@ -9,6 +9,7 @@ export async function Navbar() {
 
   const links = [
     { href: "/feed", label: "Feed" },
+    { href: "/dashboard", label: "Dashboard" },
     { href: "/discover", label: "Discover" },
     { href: "/quiz", label: "Career Quiz" },
     { href: `/profile/${profile.username}`, label: "Profile" },

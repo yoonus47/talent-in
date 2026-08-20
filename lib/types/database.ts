@@ -15,6 +15,23 @@ export type ContentCategory =
 
 export type ContentType = "article" | "video" | "quiz_link";
 
+export type ChallengeSubject = "math" | "science";
+
+export type DailyChallengeQuestion = {
+  id: string;
+  subject: ChallengeSubject;
+  question: string;
+  options: string[];
+};
+
+export type DailyChallengeAnswer = { question_id: string; selected_index: number };
+
+export type DailyChallengeResult = {
+  score: number;
+  total: number;
+  results: { question_id: string; correct: boolean }[];
+};
+
 export interface Database {
   public: {
     Tables: {
@@ -185,6 +202,72 @@ export interface Database {
         Update: never;
         Relationships: [];
       };
+      shares: {
+        Row: { id: string; user_id: string; post_id: string; created_at: string };
+        Insert: {
+          id?: string;
+          user_id: string;
+          post_id: string;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "shares_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "shares_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: false;
+            referencedRelation: "posts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      challenge_questions: {
+        Row: {
+          id: string;
+          subject: ChallengeSubject;
+          question: string;
+          options: string[];
+          correct_index: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          subject: ChallengeSubject;
+          question: string;
+          options: string[];
+          correct_index: number;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
+      challenge_attempts: {
+        Row: {
+          id: string;
+          user_id: string;
+          challenge_date: string;
+          score: number;
+          total: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          challenge_date: string;
+          score: number;
+          total: number;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
       reports: {
         Row: {
           id: string;
@@ -209,7 +292,16 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      get_daily_challenge: {
+        Args: Record<PropertyKey, never>;
+        Returns: DailyChallengeQuestion[];
+      };
+      submit_daily_challenge: {
+        Args: { p_answers: DailyChallengeAnswer[] };
+        Returns: DailyChallengeResult;
+      };
+    };
   };
 }
 
@@ -218,3 +310,5 @@ export type Post = Database["public"]["Tables"]["posts"]["Row"];
 export type ContentItem = Database["public"]["Tables"]["content_items"]["Row"];
 export type QuizQuestion = Database["public"]["Tables"]["quiz_questions"]["Row"];
 export type QuizResult = Database["public"]["Tables"]["quiz_results"]["Row"];
+export type Share = Database["public"]["Tables"]["shares"]["Row"];
+export type ChallengeAttempt = Database["public"]["Tables"]["challenge_attempts"]["Row"];

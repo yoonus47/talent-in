@@ -1,8 +1,10 @@
--- Talent In — seed data for the content hub and career quiz.
--- Run after 0001_init.sql. Safe to re-run (clears and re-inserts).
+-- Talent In — seed data for the content hub, career quiz, and daily challenge.
+-- Run after 0001_init.sql and 0002_dashboard_and_share.sql. Safe to re-run
+-- (clears and re-inserts).
 
 delete from public.quiz_questions;
 delete from public.content_items;
+delete from public.challenge_questions;
 
 -- ── content_items ───────────────────────────────────────────────────────
 insert into public.content_items (title, description, type, category, url, thumbnail_url) values
@@ -77,3 +79,21 @@ insert into public.quiz_questions (question, options, "order") values
   ]'::jsonb,
   5
 );
+
+-- ── challenge_questions ─────────────────────────────────────────────────
+-- `options` is a plain array of strings; `correct_index` is 0-based.
+-- Roughly class 9-12 difficulty, mixed math/science. `get_daily_challenge()`
+-- picks 5 of these deterministically each day.
+insert into public.challenge_questions (subject, question, options, correct_index) values
+('math', 'What is the value of x in 2x + 5 = 17?', '["4", "5", "6", "7"]'::jsonb, 2),
+('math', 'What is the square root of 144?', '["11", "12", "13", "14"]'::jsonb, 1),
+('math', 'A train travels 300 km in 5 hours. What is its average speed?', '["50 km/h", "55 km/h", "60 km/h", "65 km/h"]'::jsonb, 0),
+('math', 'What is the value of pi (π), rounded to two decimal places?', '["3.14", "3.16", "3.12", "3.18"]'::jsonb, 0),
+('math', 'If a triangle has angles of 90° and 45°, what is the third angle?', '["30°", "35°", "45°", "50°"]'::jsonb, 2),
+('math', 'What is 15% of 200?', '["20", "25", "30", "35"]'::jsonb, 2),
+('science', 'What is the powerhouse of the cell?', '["Nucleus", "Ribosome", "Mitochondria", "Golgi body"]'::jsonb, 2),
+('science', 'Which gas do plants absorb from the atmosphere for photosynthesis?', '["Oxygen", "Nitrogen", "Carbon dioxide", "Hydrogen"]'::jsonb, 2),
+('science', 'What is the chemical symbol for Sodium?', '["So", "Sd", "Na", "S"]'::jsonb, 2),
+('science', 'What force pulls objects toward the center of the Earth?', '["Magnetism", "Gravity", "Friction", "Tension"]'::jsonb, 1),
+('science', 'What is the SI unit of electric current?', '["Volt", "Watt", "Ohm", "Ampere"]'::jsonb, 3),
+('science', 'Which part of the human body is primarily responsible for pumping blood?', '["Lungs", "Liver", "Heart", "Kidneys"]'::jsonb, 2);

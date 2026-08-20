@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { Heart, MessageCircle } from "lucide-react";
+import { Heart, MessageCircle, Repeat2 } from "lucide-react";
 import type { FeedPost } from "@/lib/data";
-import { addComment, toggleLike } from "@/lib/actions/posts";
+import { addComment, toggleLike, toggleShare } from "@/lib/actions/posts";
 import { Avatar } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -47,6 +47,18 @@ export function PostCard({ post }: { post: FeedPost }) {
           <MessageCircle className="h-4 w-4" />
           {post.comments.length}
         </span>
+        <form action={toggleShare.bind(null, post.id, post.sharedByMe)}>
+          <button
+            type="submit"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
+          >
+            <Repeat2
+              className="h-4 w-4"
+              color={post.sharedByMe ? "var(--primary)" : "currentColor"}
+            />
+            {post.shareCount}
+          </button>
+        </form>
       </div>
 
       {post.comments.length > 0 && (

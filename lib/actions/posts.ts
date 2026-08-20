@@ -5,6 +5,12 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { commentSchema, postSchema } from "@/lib/validation";
 
+/** Posts/likes/comments/shares render on both the feed and profile pages. */
+function revalidatePostSurfaces() {
+  revalidatePath("/feed");
+  revalidatePath("/profile/[username]", "page");
+}
+
 export async function createPost(formData: FormData) {
   const supabase = await createClient();
   const {
@@ -19,7 +25,7 @@ export async function createPost(formData: FormData) {
     .from("posts")
     .insert({ user_id: user.id, content: parsed.data.content });
 
-  if (!error) revalidatePath("/feed");
+  if (!error) revalidatePostSurfaces();
 }
 
 export async function deletePost(postId: string) {
@@ -30,7 +36,7 @@ export async function deletePost(postId: string) {
   if (!user) redirect("/login");
 
   await supabase.from("posts").delete().eq("id", postId).eq("user_id", user.id);
-  revalidatePath("/feed");
+  revalidatePostSurfaces();
 }
 
 export async function toggleLike(postId: string, isLiked: boolean) {
@@ -46,7 +52,23 @@ export async function toggleLike(postId: string, isLiked: boolean) {
     await supabase.from("likes").insert({ post_id: postId, user_id: user.id });
   }
 
-  revalidatePath("/feed");
+  revalidatePostSurfaces();
+}
+
+export async function toggleShare(postId: string, isShared: boolean) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  if (isShared) {
+    await supabase.from("shares").delete().eq("post_id", postId).eq("user_id", user.id);
+  } else {
+    await supabase.from("shares").insert({ post_id: postId, user_id: user.id });
+  }
+
+  revalidatePostSurfaces();
 }
 
 export async function addComment(postId: string, formData: FormData) {
@@ -63,5 +85,5 @@ export async function addComment(postId: string, formData: FormData) {
     .from("comments")
     .insert({ post_id: postId, user_id: user.id, content: parsed.data.content });
 
-  revalidatePath("/feed");
+  revalidatePostSurfaces();
 }
