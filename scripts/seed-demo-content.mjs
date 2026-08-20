@@ -42,8 +42,8 @@ if (!url || !serviceKey || serviceKey === "your-service-role-key" || serviceKey.
   process.exit(1);
 }
 
-// Change this if you signed up with a different email than the one on file.
-const YOUR_EMAIL = "mdyoonus2026@gmail.com";
+// Change this if you signed up with a different email than the one below.
+const YOUR_EMAIL = "mdyoonus2020@gmail.com";
 
 const admin = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
