@@ -5,6 +5,7 @@ import type {
   Profile,
   QuizResult,
 } from "@/lib/types/database";
+import type { ReactionType } from "@/lib/reactions";
 
 /** Current authenticated user's profile row, or null if not onboarded yet. */
 export async function getCurrentProfile(): Promise<Profile | null> {
@@ -45,11 +46,18 @@ export type FeedPost = {
   image_url: string | null;
   created_at: string;
   author: FeedAuthor & { id: string };
-  likeCount: number;
-  likedByMe: boolean;
+  reactionCounts: Record<ReactionType, number>;
+  myReaction: ReactionType | null;
   shareCount: number;
   sharedByMe: boolean;
   comments: FeedComment[];
+};
+
+const EMPTY_REACTION_COUNTS: Record<ReactionType, number> = {
+  fire: 0,
+  cheers: 0,
+  smart: 0,
+  respect: 0,
 };
 
 export type FeedItem =
@@ -126,8 +134,8 @@ async function getFeedItems(authorIds: string[], currentUserId: string): Promise
 
   const allPostIds = allPostRows.map((p) => p.id);
 
-  const [{ data: likes }, { data: comments }, { data: shareCounts }] = await Promise.all([
-    supabase.from("likes").select("post_id, user_id").in("post_id", allPostIds),
+  const [{ data: reactions }, { data: comments }, { data: shareCounts }] = await Promise.all([
+    supabase.from("reactions").select("post_id, user_id, reaction_type").in("post_id", allPostIds),
     supabase
       .from("comments")
       .select(
@@ -141,7 +149,10 @@ async function getFeedItems(authorIds: string[], currentUserId: string): Promise
   const feedPostById = new Map<string, FeedPost>();
 
   for (const post of allPostRows) {
-    const postLikes = likes?.filter((l) => l.post_id === post.id) ?? [];
+    const postReactions = reactions?.filter((r) => r.post_id === post.id) ?? [];
+    const reactionCounts = { ...EMPTY_REACTION_COUNTS };
+    for (const r of postReactions) reactionCounts[r.reaction_type] += 1;
+    const myReaction = postReactions.find((r) => r.user_id === currentUserId)?.reaction_type ?? null;
     const postShares = shareCounts?.filter((s) => s.post_id === post.id) ?? [];
     const postComments =
       comments
@@ -164,8 +175,8 @@ async function getFeedItems(authorIds: string[], currentUserId: string): Promise
       image_url: post.image_url,
       created_at: post.created_at,
       author,
-      likeCount: postLikes.length,
-      likedByMe: postLikes.some((l) => l.user_id === currentUserId),
+      reactionCounts,
+      myReaction,
       shareCount: postShares.length,
       sharedByMe: postShares.some((s) => s.user_id === currentUserId),
       comments: postComments,

@@ -1,6 +1,5 @@
 import Image from "next/image";
-import { cn } from "@/lib/utils";
-import { initials } from "@/lib/utils";
+import { cn, initials, neonAvatarColor } from "@/lib/utils";
 
 export function Avatar({
   name,
@@ -28,11 +27,14 @@ export function Avatar({
 
   return (
     <div
-      className={cn(
-        "flex items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground",
-        className,
-      )}
-      style={{ width: size, height: size, fontSize: size * 0.4 }}
+      className={cn("flex items-center justify-center rounded-full font-semibold", className)}
+      style={{
+        width: size,
+        height: size,
+        fontSize: size * 0.4,
+        backgroundColor: neonAvatarColor(name),
+        color: "#0a0a0a",
+      }}
       aria-label={name}
     >
       {initials(name) || "?"}

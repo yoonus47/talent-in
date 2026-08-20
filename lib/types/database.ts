@@ -7,6 +7,9 @@
  * once the project is linked).
  */
 
+import type { ReactionType } from "@/lib/reactions";
+export type { ReactionType };
+
 export type ContentCategory =
   | "career_guidance"
   | "upskilling"
@@ -103,10 +106,20 @@ export interface Database {
           },
         ];
       };
-      likes: {
-        Row: { post_id: string; user_id: string; created_at: string };
-        Insert: { post_id: string; user_id: string; created_at?: string };
-        Update: never;
+      reactions: {
+        Row: {
+          post_id: string;
+          user_id: string;
+          reaction_type: ReactionType;
+          created_at: string;
+        };
+        Insert: {
+          post_id: string;
+          user_id: string;
+          reaction_type?: ReactionType;
+          created_at?: string;
+        };
+        Update: { reaction_type?: ReactionType };
         Relationships: [];
       };
       comments: {

@@ -15,6 +15,28 @@ export function initials(name: string) {
     .join("");
 }
 
+// A handful of neon shades — bright enough to pop on both light and dark
+// backgrounds, dark text reads fine on all of them.
+const NEON_COLORS = [
+  "#ff2d95", // neon pink
+  "#39ff14", // neon green
+  "#00e5ff", // neon cyan
+  "#f9f002", // neon yellow
+  "#ff6f00", // neon orange
+  "#bc13fe", // neon purple
+  "#04d9ff", // neon blue
+  "#ff073a", // neon red
+];
+
+/** Deterministically picks a neon color for a user's avatar fallback. */
+export function neonAvatarColor(seed: string) {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+  return NEON_COLORS[hash % NEON_COLORS.length];
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   career_guidance: "Career Guidance",
   upskilling: "Upskilling",

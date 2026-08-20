@@ -31,6 +31,13 @@ export const onboardingSchema = z.object({
 
 export const postSchema = z.object({
   content: z.string().trim().min(1, "Say something first").max(1000),
+  imageUrl: z
+    .string()
+    .trim()
+    .url("Enter a valid image URL")
+    .max(2000)
+    .optional()
+    .or(z.literal("")),
 });
 
 export const commentSchema = z.object({
