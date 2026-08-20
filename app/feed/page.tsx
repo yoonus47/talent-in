@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getCurrentProfile, getFeedPosts } from "@/lib/data";
 import { Composer } from "@/components/composer";
 import { FeedList } from "@/components/feed-list";
+import { EndOfFeed } from "@/components/end-of-feed";
 import { Card } from "@/components/ui/card";
 
 export default async function FeedPage() {
@@ -24,7 +25,10 @@ export default async function FeedPage() {
           or post something yourself to get started.
         </Card>
       ) : (
-        <FeedList items={items} />
+        <>
+          <FeedList items={items} />
+          <EndOfFeed />
+        </>
       )}
     </div>
   );

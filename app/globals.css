@@ -48,22 +48,25 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #000000;
-    --foreground: #fafafa;
-    --card: #000000;
-    --card-foreground: #fafafa;
-    --muted: #121212;
-    --muted-foreground: #a8a8a8;
-    --border: #262626;
-    --primary: #0095f6;
-    --primary-foreground: #ffffff;
-    --primary-hover: #1ca1f5;
-    --accent: #f77737;
-    --accent-foreground: #ffffff;
-    --ring: #0095f6;
-  }
+/*
+ * Default is always light — dark mode only applies when `data-theme="dark"`
+ * is set on <html> (via components/theme-toggle.tsx). No auto-detection
+ * from the system's prefers-color-scheme; the user picks it explicitly.
+ */
+:root[data-theme="dark"] {
+  --background: #000000;
+  --foreground: #fafafa;
+  --card: #000000;
+  --card-foreground: #fafafa;
+  --muted: #121212;
+  --muted-foreground: #a8a8a8;
+  --border: #262626;
+  --primary: #0095f6;
+  --primary-foreground: #ffffff;
+  --primary-hover: #1ca1f5;
+  --accent: #f77737;
+  --accent-foreground: #ffffff;
+  --ring: #0095f6;
 }
 
 body {
