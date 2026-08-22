@@ -1,29 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ROLES } from "@/lib/roles";
+import { cn } from "@/lib/utils";
 
-const PILLARS = [
-  {
-    title: "Career Guidance",
-    description: "Figure out which stream, path, or field actually fits you — not just what's popular.",
-  },
-  {
-    title: "Upskilling",
-    description: "Bite-sized skills in coding, communication, and more, built for a busy school schedule.",
-  },
-  {
-    title: "Job Readiness",
-    description: "Resumes, interviews, and internships — the practical stuff school doesn't teach.",
-  },
-  {
-    title: "Tech Skills",
-    description: "Get comfortable with the tools and ideas shaping every future career.",
-  },
-];
-
-export default async function LandingPage() {
+export default async function RoleSelectPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -31,41 +13,62 @@ export default async function LandingPage() {
   if (user) redirect("/feed");
 
   return (
-    <div>
-      <section className="mx-auto max-w-3xl px-4 py-20 text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-          Where Indian students build their <span className="text-primary">future</span>.
-        </h1>
-        <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-          Talent In is a community for school students ages 13–18 — career guidance, real
-          skills, and a network of peers, in one place.
-        </p>
-        <div className="mt-8 flex justify-center gap-3">
-          <Link href="/signup">
-            <Button size="lg">Get started — it&apos;s free</Button>
-          </Link>
-          <Link href="/login">
-            <Button size="lg" variant="outline">
-              Log in
-            </Button>
-          </Link>
-        </div>
-      </section>
+    <div className="relative overflow-hidden">
+      {/* Ambient background blobs — purely decorative, low-opacity gradient shapes */}
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div
+          className="animate-blob absolute -left-24 -top-24 h-96 w-96 rounded-full opacity-20 blur-3xl"
+          style={{ background: "var(--gradient-instagram)" }}
+        />
+        <div
+          className="animate-blob absolute -right-24 top-1/3 h-96 w-96 rounded-full bg-primary opacity-10 blur-3xl"
+          style={{ animationDelay: "2s" }}
+        />
+      </div>
 
-      <section className="mx-auto max-w-4xl px-4 pb-20">
-        <div className="grid gap-4 sm:grid-cols-2">
-          {PILLARS.map((pillar) => (
-            <Card key={pillar.title} className="p-6">
-              <h2 className="font-semibold text-foreground">{pillar.title}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{pillar.description}</p>
-            </Card>
-          ))}
+      <div className="mx-auto max-w-5xl px-4 py-16 sm:py-24">
+        <div className="animate-fade-up text-center">
+          <p className="ig-gradient-text text-lg font-bold">Talent In</p>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            Who&apos;s joining us today?
+          </h1>
+          <p className="mx-auto mt-3 max-w-md text-muted-foreground">
+            Pick the option that fits you — we&apos;ll take you to the right place.
+          </p>
         </div>
-      </section>
 
-      <section className="border-t border-border bg-muted px-4 py-10 text-center text-sm text-muted-foreground">
-        Built for students 13–18. A parent or guardian should be aware before signing up.
-      </section>
+        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {ROLES.map((role, index) => {
+            const Icon = role.icon;
+            return (
+              <Link
+                key={role.slug}
+                href={role.href}
+                className="animate-fade-up group relative block rounded-xl border border-border bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary hover:shadow-lg"
+                style={{ animationDelay: `${index * 90}ms` }}
+              >
+                {!role.ready && (
+                  <Badge
+                    variant="outline"
+                    className="absolute right-4 top-4 text-[10px] text-muted-foreground"
+                  >
+                    Coming soon
+                  </Badge>
+                )}
+                <div
+                  className={cn(
+                    "flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary transition-transform duration-300 group-hover:scale-110",
+                  )}
+                >
+                  <Icon className="h-6 w-6" />
+                </div>
+                <h2 className="mt-4 font-semibold text-foreground">{role.label}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{role.description}</p>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
