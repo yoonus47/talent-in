@@ -121,3 +121,13 @@ body {
     animation: none;
   }
 }
+
+/* Per-role gradient icon badge + colored glow on hover (role-card-gradient
+   and role-card-glow are set inline per card in app/page.tsx). */
+.role-card-icon {
+  background: var(--role-card-gradient);
+}
+
+.role-card:hover {
+  box-shadow: 0 16px 40px -12px var(--role-card-glow);
+}
