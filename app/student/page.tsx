@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 const PILLARS = [
   {
     title: "Career Guidance",
-    description: "Figure out which stream, path, or field actually fits you — not just what's popular.",
+    description: "Figure out which stream, path, or field actually fits you, not just what's popular.",
   },
   {
     title: "Upskilling",
@@ -16,7 +16,7 @@ const PILLARS = [
   },
   {
     title: "Job Readiness",
-    description: "Resumes, interviews, and internships — the practical stuff school doesn't teach.",
+    description: "Resumes, interviews, and internships: the practical stuff school doesn't teach.",
   },
   {
     title: "Tech Skills",
@@ -45,15 +45,15 @@ export default async function StudentLandingPage() {
 
       <section className="mx-auto max-w-3xl px-4 py-16 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-          Where Indian students build their <span className="text-primary">future</span>.
+          Find your path. Build your <span className="text-primary">future</span>.
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-          Talent In is a community for school students ages 13–18 — career guidance, real
+          Talent In is a community for school students ages 13 to 18: career guidance, real
           skills, and a network of peers, in one place.
         </p>
         <div className="mt-8 flex justify-center gap-3">
           <Link href="/signup">
-            <Button size="lg">Get started — it&apos;s free</Button>
+            <Button size="lg">Get started for free</Button>
           </Link>
           <Link href="/login">
             <Button size="lg" variant="outline">
@@ -75,7 +75,7 @@ export default async function StudentLandingPage() {
       </section>
 
       <section className="border-t border-border bg-muted px-4 py-10 text-center text-sm text-muted-foreground">
-        Built for students 13–18. A parent or guardian should be aware before signing up.
+        Built for students 13 to 18. A parent or guardian should be aware before signing up.
       </section>
     </div>
   );

@@ -69,7 +69,7 @@ export function DailyChallenge({ questions }: { questions: DailyChallengeQuestio
   if (!question) {
     return (
       <Card className="p-8 text-center text-sm text-muted-foreground">
-        No challenge questions yet — run{" "}
+        No challenge questions yet. Run{" "}
         <code className="rounded bg-muted px-1.5 py-0.5">supabase/seed.sql</code> against your
         project.
       </Card>

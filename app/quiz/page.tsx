@@ -12,13 +12,13 @@ export default async function QuizPage() {
     <div className="mx-auto max-w-lg px-4 py-6">
       <h1 className="text-2xl font-bold">Career Interest Quiz</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Five quick questions — no right answers.
+        Five quick questions, no right answers.
       </p>
 
       <div className="mt-6">
         {!questions || questions.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Quiz questions haven&apos;t been seeded yet — run{" "}
+            Quiz questions haven&apos;t been seeded yet. Run{" "}
             <code className="rounded bg-muted px-1.5 py-0.5">supabase/seed.sql</code> against
             your project.
           </p>

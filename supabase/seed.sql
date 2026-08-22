@@ -8,11 +8,11 @@ delete from public.challenge_questions;
 
 -- ── content_items ───────────────────────────────────────────────────────
 insert into public.content_items (title, description, type, category, url, thumbnail_url) values
-('How to Pick a Stream After Class 10', 'Science, Commerce, or Arts? A practical framework for deciding — not just "what pays more".', 'article', 'career_guidance', 'https://www.example.com/pick-a-stream', null),
+('How to Pick a Stream After Class 10', 'Science, Commerce, or Arts? A practical framework for deciding, not just "what pays more".', 'article', 'career_guidance', 'https://www.example.com/pick-a-stream', null),
 ('What Does a Software Engineer Actually Do?', 'A day-in-the-life breakdown of the job, minus the LinkedIn buzzwords.', 'article', 'career_guidance', 'https://www.example.com/swe-day-in-life', null),
 ('Careers Beyond Engineering and Medicine', 'Design, product management, data science, UX research, and a dozen other paths Indian students rarely hear about.', 'article', 'career_guidance', 'https://www.example.com/beyond-engg-medicine', null),
 ('Free Coding Basics: Python in 2 Weeks', 'A structured, beginner-friendly roadmap to Python fundamentals with daily practice problems.', 'article', 'tech_skills', 'https://www.example.com/python-2-weeks', null),
-('Intro to Git and GitHub for Beginners', 'Version control explained without the jargon — what it is, why it matters, and your first repository.', 'video', 'tech_skills', 'https://www.example.com/git-github-intro', null),
+('Intro to Git and GitHub for Beginners', 'Version control explained without the jargon: what it is, why it matters, and your first repository.', 'video', 'tech_skills', 'https://www.example.com/git-github-intro', null),
 ('Build Your First Website (HTML/CSS)', 'No prior experience needed. By the end you will have a live personal page.', 'video', 'tech_skills', 'https://www.example.com/first-website', null),
 ('What is Artificial Intelligence, Really?', 'Cutting through the hype: a clear, non-technical explanation of AI/ML for high schoolers.', 'article', 'tech_skills', 'https://www.example.com/what-is-ai', null),
 ('Writing a Resume With Zero Work Experience', 'How to present school projects, clubs, and volunteering like real accomplishments.', 'article', 'job_readiness', 'https://www.example.com/first-resume', null),

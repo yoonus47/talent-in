@@ -71,7 +71,7 @@ export default async function DashboardPage() {
           <Card className="p-6 text-center">
             <p className="text-2xl">✅</p>
             <p className="mt-2 font-semibold">
-              Completed today — {todayAttempt.score}/{todayAttempt.total}
+              Completed today: {todayAttempt.score}/{todayAttempt.total}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               Come back tomorrow for a new one.

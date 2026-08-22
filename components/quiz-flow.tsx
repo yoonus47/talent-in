@@ -55,7 +55,7 @@ export function QuizFlow({ questions }: { questions: QuizQuestion[] }) {
           ))}
         </div>
         <p className="mx-auto mt-4 max-w-sm text-sm text-muted-foreground">
-          This is a starting point, not a verdict — explore related content in{" "}
+          This is a starting point, not a verdict. Explore related content in{" "}
           <a href="/discover" className="font-medium text-primary hover:underline">
             Discover
           </a>{" "}

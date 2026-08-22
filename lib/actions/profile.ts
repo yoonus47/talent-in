@@ -48,7 +48,7 @@ export async function completeOnboarding(formData: FormData) {
 
   if (error) {
     const message =
-      error.code === "23505" ? "That username is taken — try another." : error.message;
+      error.code === "23505" ? "That username is taken, try another." : error.message;
     redirect(`/onboarding?error=${encodeURIComponent(message)}`);
   }
 

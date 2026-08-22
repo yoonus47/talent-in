@@ -5,12 +5,12 @@ const MESSAGES: { emoji: string; headline: string; body: string }[] = [
   {
     emoji: "🏁",
     headline: "That's everyone. You're all caught up.",
-    body: "No infinite scroll here — that was on purpose. Go take today's daily challenge instead.",
+    body: "No infinite scroll here, that was on purpose. Go take today's daily challenge instead.",
   },
   {
     emoji: "🎉",
     headline: "You've reached the end of the internet.",
-    body: "Well, your corner of it. The rest can wait — maybe go finish that homework?",
+    body: "Well, your corner of it. The rest can wait, maybe go finish that homework?",
   },
   {
     emoji: "🧘",
@@ -20,7 +20,7 @@ const MESSAGES: { emoji: string; headline: string; body: string }[] = [
   {
     emoji: "🌱",
     headline: "Nothing more to see here.",
-    body: "Which is the point — this isn't built to keep you scrolling. Go build something instead.",
+    body: "That's the point: this isn't built to keep you scrolling. Go build something instead.",
   },
 ];
 

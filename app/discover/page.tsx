@@ -39,7 +39,7 @@ export default async function DiscoverPage({
     <div className="mx-auto max-w-3xl px-4 py-6">
       <h1 className="text-2xl font-bold">Discover</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Curated career, upskilling, and tech resources — picked for students, not recruiters.
+        Curated career, upskilling, and tech resources, picked for students, not recruiters.
       </p>
 
       <div className="mt-5 flex flex-wrap gap-2">
@@ -61,7 +61,7 @@ export default async function DiscoverPage({
 
       {!items || items.length === 0 ? (
         <Card className="mt-6 p-8 text-center text-sm text-muted-foreground">
-          Nothing here yet — check back soon.
+          Nothing here yet, check back soon.
         </Card>
       ) : (
         <div className="mt-6 grid gap-4 sm:grid-cols-2">

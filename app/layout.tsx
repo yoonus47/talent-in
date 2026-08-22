@@ -16,9 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Talent In — Career & Skills for Indian Students",
+  title: "Talent In: Career & Skills for Indian Students",
   description:
-    "A community for Indian school students (13–18) to build career clarity, upskill, and get job-ready — together.",
+    "A community for Indian school students (13 to 18) to build career clarity, upskill, and get job-ready, together.",
 };
 
 // Runs before paint so a previously-chosen dark theme applies with no
