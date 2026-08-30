@@ -35,6 +35,8 @@ export type DailyChallengeResult = {
   results: { question_id: string; correct: boolean }[];
 };
 
+export type NotificationType = "follow" | "reaction" | "comment" | "share";
+
 export interface Database {
   public: {
     Tables: {
@@ -78,7 +80,22 @@ export interface Database {
           created_at?: string;
         };
         Update: never;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "follows_follower_id_fkey";
+            columns: ["follower_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "follows_following_id_fkey";
+            columns: ["following_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       posts: {
         Row: {
@@ -281,6 +298,52 @@ export interface Database {
         Update: never;
         Relationships: [];
       };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          actor_id: string;
+          type: NotificationType;
+          post_id: string | null;
+          reaction_type: ReactionType | null;
+          read_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          actor_id: string;
+          type: NotificationType;
+          post_id?: string | null;
+          reaction_type?: ReactionType | null;
+          read_at?: string | null;
+          created_at?: string;
+        };
+        Update: { read_at?: string | null };
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_post_id_fkey";
+            columns: ["post_id"];
+            isOneToOne: false;
+            referencedRelation: "posts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       reports: {
         Row: {
           id: string;
@@ -325,3 +388,4 @@ export type QuizQuestion = Database["public"]["Tables"]["quiz_questions"]["Row"]
 export type QuizResult = Database["public"]["Tables"]["quiz_results"]["Row"];
 export type Share = Database["public"]["Tables"]["shares"]["Row"];
 export type ChallengeAttempt = Database["public"]["Tables"]["challenge_attempts"]["Row"];
+export type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];

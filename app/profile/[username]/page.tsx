@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
   getCurrentProfile,
@@ -79,14 +80,14 @@ export default async function ProfilePage({
         )}
 
         <div className="mt-4 flex gap-4 border-t border-border pt-4 text-sm">
-          <span>
+          <Link href={`/profile/${profile.username}/followers`} className="hover:underline">
             <strong>{followers}</strong>{" "}
             <span className="text-muted-foreground">followers</span>
-          </span>
-          <span>
+          </Link>
+          <Link href={`/profile/${profile.username}/following`} className="hover:underline">
             <strong>{following}</strong>{" "}
             <span className="text-muted-foreground">following</span>
-          </span>
+          </Link>
         </div>
       </Card>
 

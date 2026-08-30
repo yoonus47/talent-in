@@ -57,7 +57,16 @@ export function PostCard({ post }: { post: FeedPost }) {
           const isMine = post.myReaction === reaction.type;
           const count = post.reactionCounts[reaction.type];
           return (
-            <form key={reaction.type} action={setReaction.bind(null, post.id, reaction.type, post.myReaction)}>
+            <form
+              key={reaction.type}
+              action={setReaction.bind(
+                null,
+                post.id,
+                post.author.id,
+                reaction.type,
+                post.myReaction,
+              )}
+            >
               <button
                 type="submit"
                 title={reaction.label}
@@ -77,7 +86,7 @@ export function PostCard({ post }: { post: FeedPost }) {
           <MessageCircle className="h-4 w-4" />
           {post.comments.length}
         </span>
-        <form action={toggleShare.bind(null, post.id, post.sharedByMe)}>
+        <form action={toggleShare.bind(null, post.id, post.author.id, post.sharedByMe)}>
           <button
             type="submit"
             className="flex items-center gap-1.5 pl-3 text-sm text-muted-foreground hover:text-primary"
@@ -102,7 +111,7 @@ export function PostCard({ post }: { post: FeedPost }) {
         </div>
       )}
 
-      <form action={addComment.bind(null, post.id)} className="mt-3 flex gap-2">
+      <form action={addComment.bind(null, post.id, post.author.id)} className="mt-3 flex gap-2">
         <Input name="content" placeholder="Add a comment…" maxLength={500} className="h-9" />
         <button type="submit" className="text-sm font-medium text-primary hover:underline">
           Post

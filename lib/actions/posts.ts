@@ -5,8 +5,9 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { commentSchema, postSchema } from "@/lib/validation";
 import type { ReactionType } from "@/lib/reactions";
+import { notify } from "@/lib/notify";
 
-/** Posts/likes/comments/shares render on both the feed and profile pages. */
+/** Posts/reactions/comments/shares render on both the feed and profile pages. */
 function revalidatePostSurfaces() {
   revalidatePath("/feed");
   revalidatePath("/profile/[username]", "page");
@@ -52,6 +53,7 @@ export async function deletePost(postId: string) {
  */
 export async function setReaction(
   postId: string,
+  authorId: string,
   type: ReactionType,
   currentType: ReactionType | null,
 ) {
@@ -63,22 +65,31 @@ export async function setReaction(
 
   if (currentType === type) {
     await supabase.from("reactions").delete().eq("post_id", postId).eq("user_id", user.id);
-  } else if (currentType) {
-    await supabase
-      .from("reactions")
-      .update({ reaction_type: type })
-      .eq("post_id", postId)
-      .eq("user_id", user.id);
   } else {
-    await supabase
-      .from("reactions")
-      .insert({ post_id: postId, user_id: user.id, reaction_type: type });
+    if (currentType) {
+      await supabase
+        .from("reactions")
+        .update({ reaction_type: type })
+        .eq("post_id", postId)
+        .eq("user_id", user.id);
+    } else {
+      await supabase
+        .from("reactions")
+        .insert({ post_id: postId, user_id: user.id, reaction_type: type });
+    }
+    await notify(supabase, {
+      recipientId: authorId,
+      actorId: user.id,
+      type: "reaction",
+      postId,
+      reactionType: type,
+    });
   }
 
   revalidatePostSurfaces();
 }
 
-export async function toggleShare(postId: string, isShared: boolean) {
+export async function toggleShare(postId: string, authorId: string, isShared: boolean) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -89,12 +100,13 @@ export async function toggleShare(postId: string, isShared: boolean) {
     await supabase.from("shares").delete().eq("post_id", postId).eq("user_id", user.id);
   } else {
     await supabase.from("shares").insert({ post_id: postId, user_id: user.id });
+    await notify(supabase, { recipientId: authorId, actorId: user.id, type: "share", postId });
   }
 
   revalidatePostSurfaces();
 }
 
-export async function addComment(postId: string, formData: FormData) {
+export async function addComment(postId: string, authorId: string, formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -107,6 +119,7 @@ export async function addComment(postId: string, formData: FormData) {
   await supabase
     .from("comments")
     .insert({ post_id: postId, user_id: user.id, content: parsed.data.content });
+  await notify(supabase, { recipientId: authorId, actorId: user.id, type: "comment", postId });
 
   revalidatePostSurfaces();
 }

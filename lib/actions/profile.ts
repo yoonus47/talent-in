@@ -4,6 +4,17 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { onboardingSchema } from "@/lib/validation";
+import { notify } from "@/lib/notify";
+
+/** Follows/reactions/comments/shares render on the feed, profiles, and
+ * follower/following lists — revalidate all of them after a graph change. */
+function revalidateSocialSurfaces() {
+  revalidatePath("/feed");
+  revalidatePath("/discover");
+  revalidatePath("/profile/[username]", "page");
+  revalidatePath("/profile/[username]/followers", "page");
+  revalidatePath("/profile/[username]/following", "page");
+}
 
 export async function completeOnboarding(formData: FormData) {
   const supabase = await createClient();
@@ -121,7 +132,8 @@ export async function toggleFollow(targetUserId: string, isFollowing: boolean) {
     await supabase
       .from("follows")
       .insert({ follower_id: user.id, following_id: targetUserId });
+    await notify(supabase, { recipientId: targetUserId, actorId: user.id, type: "follow" });
   }
 
-  revalidatePath("/feed");
+  revalidateSocialSurfaces();
 }

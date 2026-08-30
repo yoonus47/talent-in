@@ -1,7 +1,10 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import type {
   ChallengeAttempt,
   DailyChallengeQuestion,
+  Database,
+  NotificationType,
   Profile,
   QuizResult,
 } from "@/lib/types/database";
@@ -240,6 +243,187 @@ export async function getFollowStats(profileId: string, viewerId: string) {
     following: following ?? 0,
     isFollowing: Boolean(viewerFollow),
   };
+}
+
+export type ProfileWithFollowState = Profile & { isFollowing: boolean };
+
+/** Marks each profile with whether `viewerId` currently follows them. */
+async function attachIsFollowing(
+  supabase: SupabaseClient<Database>,
+  profiles: Profile[],
+  viewerId: string,
+): Promise<ProfileWithFollowState[]> {
+  if (profiles.length === 0) return [];
+
+  const { data: viewerFollows } = await supabase
+    .from("follows")
+    .select("following_id")
+    .eq("follower_id", viewerId);
+
+  const followingIds = new Set(viewerFollows?.map((f) => f.following_id) ?? []);
+  return profiles.map((p) => ({ ...p, isFollowing: followingIds.has(p.id) }));
+}
+
+/** People who follow `profileId`, newest first. */
+export async function getFollowersList(
+  profileId: string,
+  viewerId: string,
+): Promise<ProfileWithFollowState[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("follows")
+    .select("created_at, profiles!follows_follower_id_fkey(*)")
+    .eq("following_id", profileId)
+    .order("created_at", { ascending: false });
+
+  const profiles = (data ?? [])
+    .map((row) => row.profiles as unknown as Profile)
+    .filter(Boolean);
+  return attachIsFollowing(supabase, profiles, viewerId);
+}
+
+/** People `profileId` follows, newest first. */
+export async function getFollowingList(
+  profileId: string,
+  viewerId: string,
+): Promise<ProfileWithFollowState[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("follows")
+    .select("created_at, profiles!follows_following_id_fkey(*)")
+    .eq("follower_id", profileId)
+    .order("created_at", { ascending: false });
+
+  const profiles = (data ?? [])
+    .map((row) => row.profiles as unknown as Profile)
+    .filter(Boolean);
+  return attachIsFollowing(supabase, profiles, viewerId);
+}
+
+export type ProfileSearchFilters = { query?: string; grade?: number; interest?: string };
+
+/** Search/browse students for the Discover -> People tab. */
+export async function searchProfiles(
+  currentUserId: string,
+  filters: ProfileSearchFilters,
+): Promise<ProfileWithFollowState[]> {
+  const supabase = await createClient();
+
+  let query = supabase.from("profiles").select("*").neq("id", currentUserId).limit(30);
+
+  if (filters.query) {
+    const escaped = filters.query.replace(/[%,]/g, "");
+    query = query.or(`full_name.ilike.%${escaped}%,username.ilike.%${escaped}%`);
+  }
+  if (filters.grade) {
+    query = query.eq("grade", filters.grade);
+  }
+  if (filters.interest) {
+    query = query.contains("interests", [filters.interest]);
+  }
+
+  const { data, error } = await query.order("full_name", { ascending: true });
+  if (error) {
+    console.error("searchProfiles failed:", error.message);
+    return [];
+  }
+
+  return attachIsFollowing(supabase, data ?? [], currentUserId);
+}
+
+/**
+ * A handful of "people like you" — not already followed, matching school or
+ * sharing an interest. Falls back to newest profiles if there's no signal
+ * to match on yet (e.g. onboarding didn't set a school or interests).
+ */
+export async function getSuggestedProfiles(
+  currentUserId: string,
+  currentProfile: Profile,
+): Promise<Profile[]> {
+  const supabase = await createClient();
+
+  const { data: following } = await supabase
+    .from("follows")
+    .select("following_id")
+    .eq("follower_id", currentUserId);
+  const excludeIds = [currentUserId, ...(following?.map((f) => f.following_id) ?? [])];
+
+  let query = supabase
+    .from("profiles")
+    .select("*")
+    .not("id", "in", `(${excludeIds.join(",")})`)
+    .limit(10);
+
+  const matchParts: string[] = [];
+  if (currentProfile.school) matchParts.push(`school.eq.${currentProfile.school}`);
+  if (currentProfile.interests.length > 0) {
+    matchParts.push(`interests.ov.{${currentProfile.interests.join(",")}}`);
+  }
+
+  query = matchParts.length > 0
+    ? query.or(matchParts.join(","))
+    : query.order("created_at", { ascending: false });
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("getSuggestedProfiles failed:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
+/** Unread notification count, for the navbar bell badge. */
+export async function getUnreadNotificationCount(userId: string): Promise<number> {
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("notifications")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .is("read_at", null);
+  return count ?? 0;
+}
+
+export type FeedNotification = {
+  id: string;
+  type: NotificationType;
+  reactionType: ReactionType | null;
+  createdAt: string;
+  readAt: string | null;
+  actor: FeedAuthor & { id: string };
+  post: { id: string; content: string } | null;
+};
+
+/** Most recent notifications for `userId`, newest first. */
+export async function getNotifications(userId: string): Promise<FeedNotification[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("notifications")
+    .select(
+      `id, type, reaction_type, created_at, read_at,
+       profiles!notifications_actor_id_fkey(id, username, full_name, avatar_url),
+       posts!notifications_post_id_fkey(id, content)`,
+    )
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  if (error) {
+    console.error("getNotifications failed:", error.message);
+    return [];
+  }
+
+  return (data ?? []).map((n) => ({
+    id: n.id,
+    type: n.type,
+    reactionType: n.reaction_type,
+    createdAt: n.created_at,
+    readAt: n.read_at,
+    actor: (n.profiles as unknown as (FeedAuthor & { id: string }) | null) ?? {
+      id: "",
+      ...UNKNOWN_AUTHOR,
+    },
+    post: (n.posts as unknown as { id: string; content: string } | null) ?? null,
+  }));
 }
 
 /** Today's 5 daily-challenge questions — answer key withheld server-side. */
