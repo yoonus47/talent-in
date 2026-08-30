@@ -16,7 +16,7 @@ export default async function SignupPage({
     <div className="flex min-h-screen items-center justify-center bg-muted px-4 py-12">
       <Card className="w-full max-w-sm p-8">
         <Link href="/" className="ig-gradient-text mb-6 block text-center text-xl font-bold">
-          Talent In
+          TalentZify
         </Link>
 
         {checkEmail ? (

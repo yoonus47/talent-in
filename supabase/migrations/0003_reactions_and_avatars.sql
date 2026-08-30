@@ -1,4 +1,4 @@
--- Talent In — LinkedIn-style reactions (our own set, not a copy).
+-- TalentZify — LinkedIn-style reactions (our own set, not a copy).
 -- Run this in the Supabase SQL editor after 0002_dashboard_and_share.sql.
 
 -- `likes` becomes `reactions`: each user still has at most one reaction per

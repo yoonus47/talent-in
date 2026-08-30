@@ -38,7 +38,7 @@ export default async function RoleSelectPage() {
 
       <div className="mx-auto max-w-5xl px-4 py-16 sm:py-24">
         <div className="animate-fade-up text-center">
-          <p className="ig-gradient-text text-lg font-bold">Talent In</p>
+          <p className="ig-gradient-text text-lg font-bold">TalentZify</p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             Who&apos;s joining us today?
           </h1>

@@ -1,4 +1,4 @@
-# Talent In
+# TalentZify
 
 A social platform for Indian school students (13–18) built around career guidance, upskilling,
 job readiness, and tech skills. See [`/Users/yoonus/.claude/plans/fluttering-baking-wolf.md`](/Users/yoonus/.claude/plans/fluttering-baking-wolf.md)

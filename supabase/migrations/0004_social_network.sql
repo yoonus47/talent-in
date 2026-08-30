@@ -1,4 +1,4 @@
--- Talent In — notifications for the social graph (follow, react, comment, share).
+-- TalentZify — notifications for the social graph (follow, react, comment, share).
 -- Run this in the Supabase SQL editor after 0003_reactions_and_avatars.sql.
 -- No schema change needed for people discovery — `profiles` already has
 -- enough columns (grade, school, city, interests) to search/filter/suggest.

@@ -48,7 +48,7 @@ export default async function StudentLandingPage() {
           Find your path. Build your <span className="text-primary">future</span>.
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-          Talent In is a community for school students ages 13 to 18: career guidance, real
+          TalentZify is a community for school students ages 13 to 18: career guidance, real
           skills, and a network of peers, in one place.
         </p>
         <div className="mt-8 flex justify-center gap-3">

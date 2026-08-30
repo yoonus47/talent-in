@@ -16,7 +16,7 @@ export default async function LoginPage({
     <div className="flex min-h-screen items-center justify-center bg-muted px-4 py-12">
       <Card className="w-full max-w-sm p-8">
         <Link href="/" className="ig-gradient-text mb-6 block text-center text-xl font-bold">
-          Talent In
+          TalentZify
         </Link>
         <h1 className="mb-1 text-center text-lg font-semibold">Welcome back</h1>
         <p className="mb-6 text-center text-sm text-muted-foreground">
@@ -62,7 +62,7 @@ export default async function LoginPage({
         </form>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
-          New to Talent In?{" "}
+          New to TalentZify?{" "}
           <Link href="/signup" className="font-medium text-primary hover:underline">
             Create an account
           </Link>

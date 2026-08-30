@@ -1,4 +1,4 @@
--- Talent In — Dashboard, daily challenges, and post sharing.
+-- TalentZify — Dashboard, daily challenges, and post sharing.
 -- Run this in the Supabase SQL editor after 0001_init.sql.
 
 -- ── shares (reposts) ────────────────────────────────────────────────────

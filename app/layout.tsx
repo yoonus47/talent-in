@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Talent In: Career & Skills for Indian Students",
+  title: "TalentZify: Career & Skills for Indian Students",
   description:
     "A community for Indian school students (13 to 18) to build career clarity, upskill, and get job-ready, together.",
 };
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 // flash of light mode. Light is the default — this only ever *adds* dark.
 const NO_FLASH_THEME_SCRIPT = `
 try {
-  if (localStorage.getItem('talent-in-theme') === 'dark') {
+  if (localStorage.getItem('talentzify-theme') === 'dark') {
     document.documentElement.setAttribute('data-theme', 'dark');
   }
 } catch (e) {}

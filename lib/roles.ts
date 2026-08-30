@@ -55,7 +55,7 @@ export const ROLES: Role[] = [
   {
     slug: "school-admin",
     label: "School Admin",
-    description: "Manage your school's students and presence on Talent In.",
+    description: "Manage your school's students and presence on TalentZify.",
     icon: School,
     href: "/coming-soon?role=School+Admin",
     ready: false,

@@ -113,7 +113,7 @@ export default async function OnboardingPage({
           </div>
 
           <Button type="submit" className="w-full">
-            Continue to Talent In
+            Continue to TalentZify
           </Button>
         </form>
       </Card>

@@ -3,8 +3,8 @@
 import { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 
-const STORAGE_KEY = "talent-in-theme";
-const THEME_EVENT = "talent-in-theme-change";
+const STORAGE_KEY = "talentzify-theme";
+const THEME_EVENT = "talentzify-theme-change";
 
 function subscribe(callback: () => void) {
   window.addEventListener(THEME_EVENT, callback);

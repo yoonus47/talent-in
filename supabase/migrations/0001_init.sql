@@ -1,4 +1,4 @@
--- Talent In — initial schema
+-- TalentZify — initial schema
 -- Run this in the Supabase SQL editor, or via `supabase db push` once the
 -- project is linked (see README.md for setup steps).
 

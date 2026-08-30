@@ -1,4 +1,4 @@
--- Talent In — seed data for the content hub, career quiz, and daily challenge.
+-- TalentZify — seed data for the content hub, career quiz, and daily challenge.
 -- Run after 0001_init.sql and 0002_dashboard_and_share.sql. Safe to re-run
 -- (clears and re-inserts).
 
