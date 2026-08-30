@@ -2,12 +2,12 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data";
 import { updateProfile } from "@/lib/actions/profile";
 import { signOut } from "@/app/auth/actions";
-import { INTEREST_OPTIONS } from "@/lib/validation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { HobbyPicker } from "@/components/hobby-picker";
 
 export default async function SettingsPage({
   searchParams,
@@ -80,24 +80,8 @@ export default async function SettingsPage({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Interests</Label>
-            <div className="flex flex-wrap gap-2">
-              {INTEREST_OPTIONS.map((interest) => (
-                <label
-                  key={interest}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm has-checked:border-primary has-checked:bg-primary/10 has-checked:text-primary"
-                >
-                  <input
-                    type="checkbox"
-                    name="interests"
-                    value={interest}
-                    defaultChecked={profile.interests.includes(interest)}
-                    className="sr-only"
-                  />
-                  {interest}
-                </label>
-              ))}
-            </div>
+            <Label>Hobbies & Interests</Label>
+            <HobbyPicker defaultSelected={profile.interests} />
           </div>
 
           <Button type="submit" className="w-full">

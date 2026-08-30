@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { ALL_HOBBIES, MAX_HOBBIES } from "@/lib/hobbies";
+
+const HOBBY_SET = new Set(ALL_HOBBIES);
 
 export const signUpSchema = z.object({
   email: z.string().trim().email("Enter a valid email address"),
@@ -26,7 +29,11 @@ export const onboardingSchema = z.object({
   city: z.string().trim().max(80).optional().or(z.literal("")),
   state: z.string().trim().max(80).optional().or(z.literal("")),
   bio: z.string().trim().max(280).optional().or(z.literal("")),
-  interests: z.array(z.string()).max(10).default([]),
+  interests: z
+    .array(z.string())
+    .max(MAX_HOBBIES, `Pick up to ${MAX_HOBBIES} hobbies`)
+    .refine((values) => values.every((v) => HOBBY_SET.has(v)), "Unrecognized hobby")
+    .default([]),
 });
 
 export const postSchema = z.object({
@@ -43,16 +50,3 @@ export const postSchema = z.object({
 export const commentSchema = z.object({
   content: z.string().trim().min(1).max(500),
 });
-
-export const INTEREST_OPTIONS = [
-  "Coding",
-  "Design",
-  "Entrepreneurship",
-  "Writing",
-  "Public Speaking",
-  "Science",
-  "Robotics",
-  "Finance",
-  "Medicine",
-  "Arts & Media",
-] as const;

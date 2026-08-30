@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ProfileRow } from "@/components/profile-row";
 import { categoryLabel, cn } from "@/lib/utils";
-import { INTEREST_OPTIONS } from "@/lib/validation";
+import { HOBBY_CATEGORIES } from "@/lib/hobbies";
 import type { ContentCategory } from "@/lib/types/database";
 
 const CATEGORIES: { value: ContentCategory | "all"; label: string }[] = [
@@ -165,28 +165,14 @@ async function PeopleTab({
     hasFilters ? Promise.resolve([]) : getSuggestedProfiles(profile.id, profile),
   ]);
 
-  // Toggles one filter while preserving the others already in the URL.
-  function peopleUrl(overrides: { grade?: string; interest?: string }) {
-    const params = new URLSearchParams();
-    params.set("tab", "people");
-    if (query) params.set("q", query);
-    if (grade) params.set("grade", grade);
-    if (interest) params.set("interest", interest);
-    for (const [key, value] of Object.entries(overrides)) {
-      if (params.get(key) === value) {
-        params.delete(key); // clicking the active chip clears that filter
-      } else {
-        params.set(key, value);
-      }
-    }
-    return `/discover?${params.toString()}`;
-  }
+  const selectClass =
+    "h-10 rounded-lg border border-border bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
   return (
     <div>
-      <form method="get" className="mt-5 flex gap-2">
+      <form method="get" className="mt-5 space-y-2">
         <input type="hidden" name="tab" value="people" />
-        <div className="relative flex-1">
+        <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
@@ -196,54 +182,46 @@ async function PeopleTab({
             className="pl-9"
           />
         </div>
-        <button
-          type="submit"
-          className="rounded-lg border border-border px-4 text-sm font-medium hover:bg-muted"
-        >
-          Search
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <select name="grade" defaultValue={grade ?? ""} className={selectClass}>
+            <option value="">Any class</option>
+            {GRADES.map((g) => (
+              <option key={g} value={g}>
+                Class {g}
+              </option>
+            ))}
+          </select>
+          <select name="interest" defaultValue={interest ?? ""} className={cn(selectClass, "flex-1")}>
+            <option value="">Any hobby</option>
+            {HOBBY_CATEGORIES.map((category) => (
+              <optgroup key={category.name} label={category.name}>
+                {category.hobbies.map((hobby) => (
+                  <option key={hobby} value={hobby}>
+                    {hobby}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          <button
+            type="submit"
+            className="rounded-lg border border-border px-4 text-sm font-medium hover:bg-muted"
+          >
+            Apply
+          </button>
+        </div>
       </form>
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        {GRADES.map((g) => (
-          <Link
-            key={g}
-            href={peopleUrl({ grade: String(g) })}
-            className={cn(
-              "rounded-full border border-border px-3 py-1 text-xs font-medium",
-              String(g) === grade
-                ? "border-primary bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted",
-            )}
-          >
-            Class {g}
-          </Link>
-        ))}
-      </div>
-
-      <div className="mt-2 flex flex-wrap gap-2">
-        {INTEREST_OPTIONS.map((i) => (
-          <Link
-            key={i}
-            href={peopleUrl({ interest: i })}
-            className={cn(
-              "rounded-full border border-border px-3 py-1 text-xs font-medium",
-              i === interest
-                ? "border-primary bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted",
-            )}
-          >
-            {i}
-          </Link>
-        ))}
-      </div>
 
       {!hasFilters && suggested.length > 0 && (
         <div className="mt-6">
           <h2 className="text-sm font-semibold text-muted-foreground">Suggested for you</h2>
           <Card className="mt-2 divide-y divide-border px-4">
             {suggested.map((p) => (
-              <ProfileRow key={p.id} profile={{ ...p, isFollowing: false }} />
+              <ProfileRow
+                key={p.id}
+                profile={{ ...p, isFollowing: false }}
+                meta={p.sharedHobbies.length > 0 ? `Into ${p.sharedHobbies.slice(0, 2).join(", ")}` : undefined}
+              />
             ))}
           </Card>
         </div>

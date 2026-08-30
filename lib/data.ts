@@ -331,6 +331,8 @@ export async function searchProfiles(
   return attachIsFollowing(supabase, data ?? [], currentUserId);
 }
 
+export type SuggestedProfile = Profile & { sharedHobbies: string[] };
+
 /**
  * A handful of "people like you" — not already followed, matching school or
  * sharing an interest. Falls back to newest profiles if there's no signal
@@ -339,7 +341,7 @@ export async function searchProfiles(
 export async function getSuggestedProfiles(
   currentUserId: string,
   currentProfile: Profile,
-): Promise<Profile[]> {
+): Promise<SuggestedProfile[]> {
   const supabase = await createClient();
 
   const { data: following } = await supabase
@@ -369,7 +371,12 @@ export async function getSuggestedProfiles(
     console.error("getSuggestedProfiles failed:", error.message);
     return [];
   }
-  return data ?? [];
+
+  const myHobbies = new Set(currentProfile.interests);
+  return (data ?? []).map((p) => ({
+    ...p,
+    sharedHobbies: p.interests.filter((h) => myHobbies.has(h)),
+  }));
 }
 
 /** Unread notification count, for the navbar bell badge. */
