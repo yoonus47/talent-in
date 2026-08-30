@@ -8,8 +8,9 @@ for the original MVP plan.
 
 - **Next.js 16** (App Router, TypeScript, Tailwind CSS v4)
 - **Supabase** — Postgres, Auth (email/password + Google), Storage
-- Deploys to **Vercel**; the schema is plain Postgres so a later move to AWS
-  (RDS/Cognito/S3) is a lift-and-shift, not a rewrite.
+- Deploys to **AWS Amplify Hosting** (see `## Deploying to AWS` below); Supabase stays the
+  backend — the schema is plain Postgres, so a later move to RDS/Cognito/S3 is still a
+  lift-and-shift if that's ever needed, not a rewrite.
 
 ## 1. Create your Supabase project
 
@@ -57,6 +58,36 @@ Open [http://localhost:3000](http://localhost:3000) — sign up, complete onboar
 > **Authentication → Providers → Email → Confirm email** (turn it off), or just click the
 > confirmation link Supabase emails you.
 
+## Deploying to AWS
+
+Hosted on **AWS Amplify Hosting** (native Next.js App Router/SSR support, connects directly to
+this GitHub repo, auto-deploys on push — closest AWS equivalent to Vercel). Full walkthrough:
+
+1. AWS Console → **Amplify** → **Create new app** → **Host a web app** → connect to
+   `github.com/yoonus47/talent-in`, branch `main`.
+2. Amplify auto-detects the Next.js SSR build (this repo also ships `amplify.yml` explicitly, so
+   the build steps are version-controlled rather than left to auto-detection).
+3. Under **App settings → Environment variables**, add:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+   (`NEXT_PUBLIC_SITE_URL` is optional — the app falls back to the request's own host if it's
+   unset, which is exactly right here since the Amplify domain isn't known until after first
+   deploy. Never add `SUPABASE_SERVICE_ROLE_KEY` here — the app doesn't need it at runtime, only
+   local admin scripts do.)
+4. Deploy. Once you have the `https://<branch>.<app-id>.amplifyapp.com` domain, go back to
+   Supabase → **Authentication → URL Configuration** and add
+   `https://<that-domain>/auth/callback` to **Redirect URLs** (same as the localhost setup, just
+   with the new domain) — Google sign-in won't complete without this.
+5. `.nvmrc` pins Node 20 for Amplify's build image (Next.js 16 requires Node 20.9+).
+
+**Known risk worth watching**: Next.js 16 is very recent, and `proxy.ts` (its renamed
+`middleware.ts`) is a newer convention. Amplify's SSR compute reads Next's own build manifests
+rather than scanning source filenames, so this is expected to work, but hasn't been verified
+end-to-end on Amplify specifically — after the first deploy, explicitly check that visiting a
+protected route while logged out actually redirects to `/login` (that's the proxy running). If it
+doesn't, that's the thing to debug first.
+
 ## Project structure
 
 ```
@@ -76,5 +107,4 @@ proxy.ts              Next.js 16 "Proxy" (formerly Middleware) — session refre
 - Avatar upload via Supabase Storage (bucket policies aren't set up yet)
 - Admin UI for managing `content_items` (v1 content is seeded/edited via the Supabase dashboard)
 - Report review workflow (reports are stored but only visible via the Supabase dashboard today)
-- Move compute to AWS when scaling past what Vercel + Supabase comfortably handle
 - React Native companion app
