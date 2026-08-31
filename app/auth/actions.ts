@@ -17,7 +17,6 @@ export async function signUp(formData: FormData) {
   const parsed = signUpSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
-    fullName: formData.get("fullName"),
     guardianAware: formData.get("guardianAware"),
   });
 
@@ -27,14 +26,13 @@ export async function signUp(formData: FormData) {
     );
   }
 
-  const { email, password, fullName } = parsed.data;
+  const { email, password } = parsed.data;
   const supabase = await createClient();
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      data: { full_name: fullName },
       emailRedirectTo: `${await siteUrl()}/auth/callback`,
     },
   });

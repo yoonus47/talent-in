@@ -45,6 +45,8 @@ export interface Database {
           id: string;
           username: string;
           full_name: string;
+          first_name: string | null;
+          last_name: string | null;
           avatar_url: string | null;
           bio: string | null;
           grade: number | null;
@@ -59,6 +61,8 @@ export interface Database {
           id: string;
           username: string;
           full_name: string;
+          first_name?: string | null;
+          last_name?: string | null;
           avatar_url?: string | null;
           bio?: string | null;
           grade?: number | null;
@@ -376,6 +380,10 @@ export interface Database {
       submit_daily_challenge: {
         Args: { p_answers: DailyChallengeAnswer[] };
         Returns: DailyChallengeResult;
+      };
+      delete_own_account: {
+        Args: Record<PropertyKey, never>;
+        Returns: undefined;
       };
     };
   };

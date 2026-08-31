@@ -6,7 +6,6 @@ const HOBBY_SET = new Set(ALL_HOBBIES);
 export const signUpSchema = z.object({
   email: z.string().trim().email("Enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  fullName: z.string().trim().min(1, "Enter your full name").max(80),
   guardianAware: z.literal("on", {
     message: "A parent/guardian needs to be aware you're creating an account",
   }),
@@ -24,6 +23,8 @@ export const onboardingSchema = z.object({
     .min(3, "Username must be at least 3 characters")
     .max(24, "Username must be at most 24 characters")
     .regex(/^[a-z0-9_]+$/, "Lowercase letters, numbers, and underscores only"),
+  firstName: z.string().trim().min(1, "Enter your first name").max(50),
+  lastName: z.string().trim().min(1, "Enter your last name").max(50),
   grade: z.coerce.number().int().min(6).max(12),
   school: z.string().trim().max(120).optional().or(z.literal("")),
   city: z.string().trim().max(80).optional().or(z.literal("")),

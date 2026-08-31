@@ -5,7 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { ROLES } from "@/lib/roles";
 
-export default async function RoleSelectPage() {
+export default async function RoleSelectPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ deleted?: string }>;
+}) {
+  const { deleted } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -14,6 +19,13 @@ export default async function RoleSelectPage() {
 
   return (
     <div className="relative overflow-hidden">
+      {deleted && (
+        <div className="mx-auto max-w-lg px-4 pt-6">
+          <p className="rounded-lg bg-primary/10 px-3 py-2 text-center text-sm text-primary">
+            Your account has been deleted.
+          </p>
+        </div>
+      )}
       {/* Ambient background blobs — purely decorative, vivid but low-opacity */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div

@@ -48,10 +48,6 @@ export default async function SignupPage({
 
             <form action={signUp} className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="fullName">Full name</Label>
-                <Input id="fullName" name="fullName" required autoComplete="name" />
-              </div>
-              <div className="space-y-1.5">
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" name="email" type="email" required autoComplete="email" />
               </div>

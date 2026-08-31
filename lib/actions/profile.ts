@@ -16,6 +16,17 @@ function revalidateSocialSurfaces() {
   revalidatePath("/profile/[username]/following", "page");
 }
 
+/** Splits `user.user_metadata.full_name` (from Google) into first/last, as
+ * a convenience default onboarding pre-fills — the user still sees and can
+ * correct it before submitting, unlike the old silent-trust behavior. */
+function splitGoogleName(fullName: unknown): { firstName: string; lastName: string } {
+  if (typeof fullName !== "string" || !fullName.trim()) {
+    return { firstName: "", lastName: "" };
+  }
+  const [first, ...rest] = fullName.trim().split(/\s+/);
+  return { firstName: first ?? "", lastName: rest.join(" ") };
+}
+
 export async function completeOnboarding(formData: FormData) {
   const supabase = await createClient();
   const {
@@ -26,6 +37,8 @@ export async function completeOnboarding(formData: FormData) {
 
   const parsed = onboardingSchema.safeParse({
     username: formData.get("username"),
+    firstName: formData.get("firstName"),
+    lastName: formData.get("lastName"),
     grade: formData.get("grade"),
     school: formData.get("school"),
     city: formData.get("city"),
@@ -40,14 +53,17 @@ export async function completeOnboarding(formData: FormData) {
     );
   }
 
-  const { username, grade, school, city, state, bio, interests } = parsed.data;
-  const fullName = (user.user_metadata?.full_name as string | undefined) ?? "New Student";
+  const { username, firstName, lastName, grade, school, city, state, bio, interests } =
+    parsed.data;
+  const fullName = `${firstName} ${lastName}`.trim();
   const isMinor = true; // v1 audience is 13-18; adjust if you add a DOB field later.
 
   const { error } = await supabase.from("profiles").insert({
     id: user.id,
     username,
     full_name: fullName,
+    first_name: firstName,
+    last_name: lastName,
     grade,
     school: school || null,
     city: city || null,
@@ -67,6 +83,15 @@ export async function completeOnboarding(formData: FormData) {
   redirect("/feed");
 }
 
+/** Onboarding pre-fills first/last name from Google when available. */
+export async function getSuggestedName(): Promise<{ firstName: string; lastName: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return splitGoogleName(user?.user_metadata?.full_name);
+}
+
 export async function updateProfile(formData: FormData) {
   const supabase = await createClient();
   const {
@@ -78,6 +103,8 @@ export async function updateProfile(formData: FormData) {
   const parsed = onboardingSchema
     .omit({ username: true })
     .safeParse({
+      firstName: formData.get("firstName"),
+      lastName: formData.get("lastName"),
       grade: formData.get("grade"),
       school: formData.get("school"),
       city: formData.get("city"),
@@ -92,11 +119,14 @@ export async function updateProfile(formData: FormData) {
     );
   }
 
-  const { grade, school, city, state, bio, interests } = parsed.data;
+  const { firstName, lastName, grade, school, city, state, bio, interests } = parsed.data;
 
   const { error } = await supabase
     .from("profiles")
     .update({
+      first_name: firstName,
+      last_name: lastName,
+      full_name: `${firstName} ${lastName}`.trim(),
       grade,
       school: school || null,
       city: city || null,
@@ -111,7 +141,90 @@ export async function updateProfile(formData: FormData) {
   }
 
   revalidatePath("/settings");
+  revalidateSocialSurfaces();
   redirect("/settings?saved=1");
+}
+
+const MAX_AVATAR_BYTES = 3 * 1024 * 1024; // 3MB
+const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+export async function uploadAvatar(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const file = formData.get("avatar");
+  if (!(file instanceof File) || file.size === 0) {
+    redirect(`/settings?error=${encodeURIComponent("Choose an image first.")}`);
+  }
+
+  if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
+    redirect(`/settings?error=${encodeURIComponent("Use a JPEG, PNG, WebP, or GIF image.")}`);
+  }
+  if (file.size > MAX_AVATAR_BYTES) {
+    redirect(`/settings?error=${encodeURIComponent("Image must be under 3MB.")}`);
+  }
+
+  const ext = file.type.split("/")[1] ?? "jpg";
+  const path = `${user.id}/avatar.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(path, file, { upsert: true, contentType: file.type });
+
+  if (uploadError) {
+    redirect(`/settings?error=${encodeURIComponent(uploadError.message)}`);
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("avatars").getPublicUrl(path);
+  // Cache-bust: upsert keeps the same path, so browsers/CDNs would
+  // otherwise keep showing the old image after a re-upload.
+  const avatarUrl = `${publicUrl}?t=${Date.now()}`;
+
+  await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("id", user.id);
+
+  revalidatePath("/settings");
+  revalidateSocialSurfaces();
+  redirect("/settings?saved=1");
+}
+
+export async function removeAvatar() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // Best-effort cleanup — try common extensions; ignore errors if none exist.
+  await supabase.storage
+    .from("avatars")
+    .remove(["jpeg", "png", "webp", "gif"].map((ext) => `${user.id}/avatar.${ext}`));
+
+  await supabase.from("profiles").update({ avatar_url: null }).eq("id", user.id);
+
+  revalidatePath("/settings");
+  revalidateSocialSurfaces();
+  redirect("/settings?saved=1");
+}
+
+export async function deleteAccount() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { error } = await supabase.rpc("delete_own_account");
+  if (error) {
+    redirect(`/settings?error=${encodeURIComponent(error.message)}`);
+  }
+
+  await supabase.auth.signOut();
+  redirect("/?deleted=1");
 }
 
 export async function toggleFollow(targetUserId: string, isFollowing: boolean) {
