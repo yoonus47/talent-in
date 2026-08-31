@@ -192,6 +192,21 @@ export async function uploadAvatar(formData: FormData) {
   redirect("/settings?saved=1");
 }
 
+/** Best-effort avatar cleanup — tries common extensions, ignores errors if
+ * none exist. Storage objects aren't tied to Postgres foreign keys, so
+ * this has to go through the actual Storage API (not a SQL DELETE — see
+ * migration 0007, which reverted an attempt to do this inside the
+ * delete_own_account RPC: Supabase blocks direct SQL against
+ * storage.objects entirely, even from a SECURITY DEFINER function). */
+async function removeAvatarFiles(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+) {
+  await supabase.storage
+    .from("avatars")
+    .remove(["jpeg", "png", "webp", "gif"].map((ext) => `${userId}/avatar.${ext}`));
+}
+
 export async function removeAvatar() {
   const supabase = await createClient();
   const {
@@ -199,11 +214,7 @@ export async function removeAvatar() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Best-effort cleanup — try common extensions; ignore errors if none exist.
-  await supabase.storage
-    .from("avatars")
-    .remove(["jpeg", "png", "webp", "gif"].map((ext) => `${user.id}/avatar.${ext}`));
-
+  await removeAvatarFiles(supabase, user.id);
   await supabase.from("profiles").update({ avatar_url: null }).eq("id", user.id);
 
   revalidatePath("/settings");
@@ -217,6 +228,8 @@ export async function deleteAccount() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  await removeAvatarFiles(supabase, user.id);
 
   const { error } = await supabase.rpc("delete_own_account");
   if (error) {
