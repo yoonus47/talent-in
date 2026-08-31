@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { onboardingSchema } from "@/lib/validation";
 import { notify } from "@/lib/notify";
+import { validateImageFile, extensionFor } from "@/lib/uploads";
 
 /** Follows/reactions/comments/shares render on the feed, profiles, and
  * follower/following lists — revalidate all of them after a graph change. */
@@ -146,7 +147,6 @@ export async function updateProfile(formData: FormData) {
 }
 
 const MAX_AVATAR_BYTES = 3 * 1024 * 1024; // 3MB
-const ALLOWED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 export async function uploadAvatar(formData: FormData) {
   const supabase = await createClient();
@@ -160,15 +160,12 @@ export async function uploadAvatar(formData: FormData) {
     redirect(`/settings?error=${encodeURIComponent("Choose an image first.")}`);
   }
 
-  if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
-    redirect(`/settings?error=${encodeURIComponent("Use a JPEG, PNG, WebP, or GIF image.")}`);
-  }
-  if (file.size > MAX_AVATAR_BYTES) {
-    redirect(`/settings?error=${encodeURIComponent("Image must be under 3MB.")}`);
+  const validationError = validateImageFile(file, MAX_AVATAR_BYTES);
+  if (validationError) {
+    redirect(`/settings?error=${encodeURIComponent(validationError)}`);
   }
 
-  const ext = file.type.split("/")[1] ?? "jpg";
-  const path = `${user.id}/avatar.${ext}`;
+  const path = `${user.id}/avatar.${extensionFor(file.type)}`;
 
   const { error: uploadError } = await supabase.storage
     .from("avatars")

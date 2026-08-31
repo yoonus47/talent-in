@@ -6,6 +6,9 @@ import { createClient } from "@/lib/supabase/server";
 import { commentSchema, postSchema } from "@/lib/validation";
 import type { ReactionType } from "@/lib/reactions";
 import { notify } from "@/lib/notify";
+import { validateImageFile, extensionFor, storagePathFromPublicUrl } from "@/lib/uploads";
+
+const MAX_POST_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB — a bit more generous than avatars
 
 /** Posts/reactions/comments/shares render on both the feed and profile pages. */
 function revalidatePostSurfaces() {
@@ -20,16 +23,31 @@ export async function createPost(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const parsed = postSchema.safeParse({
-    content: formData.get("content"),
-    imageUrl: formData.get("imageUrl"),
-  });
+  const parsed = postSchema.safeParse({ content: formData.get("content") });
   if (!parsed.success) return; // silently ignore empty submits from the feed composer
+
+  let imageUrl: string | null = null;
+  const file = formData.get("image");
+  if (file instanceof File && file.size > 0) {
+    const validationError = validateImageFile(file, MAX_POST_IMAGE_BYTES);
+    if (validationError) return; // composer already validates client-side; fail quietly
+
+    const path = `${user.id}/${crypto.randomUUID()}.${extensionFor(file.type)}`;
+    const { error: uploadError } = await supabase.storage
+      .from("post-images")
+      .upload(path, file, { contentType: file.type });
+    if (uploadError) return;
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("post-images").getPublicUrl(path);
+    imageUrl = publicUrl;
+  }
 
   const { error } = await supabase.from("posts").insert({
     user_id: user.id,
     content: parsed.data.content,
-    image_url: parsed.data.imageUrl || null,
+    image_url: imageUrl,
   });
 
   if (!error) revalidatePostSurfaces();
@@ -42,7 +60,20 @@ export async function deletePost(postId: string) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const { data: post } = await supabase
+    .from("posts")
+    .select("image_url")
+    .eq("id", postId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
   await supabase.from("posts").delete().eq("id", postId).eq("user_id", user.id);
+
+  if (post?.image_url) {
+    const path = storagePathFromPublicUrl(post.image_url, "post-images");
+    if (path) await supabase.storage.from("post-images").remove([path]);
+  }
+
   revalidatePostSurfaces();
 }
 

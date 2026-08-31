@@ -1,10 +1,9 @@
-import { ImageIcon } from "lucide-react";
 import { createPost } from "@/lib/actions/posts";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
+import { SubmitButton } from "@/components/submit-button";
+import { PostImagePicker } from "@/components/post-image-picker";
 import type { Profile } from "@/lib/types/database";
 
 export function Composer({ profile }: { profile: Profile }) {
@@ -20,19 +19,11 @@ export function Composer({ profile }: { profile: Profile }) {
             required
             className="min-h-16"
           />
-          <div className="flex items-center gap-2">
-            <ImageIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <Input
-              name="imageUrl"
-              type="url"
-              placeholder="Image URL (optional)"
-              className="h-8 text-sm"
-            />
-          </div>
+          <PostImagePicker />
           <div className="flex justify-end">
-            <Button type="submit" size="sm">
+            <SubmitButton size="sm" pendingText="Posting…">
               Post
-            </Button>
+            </SubmitButton>
           </div>
         </div>
       </form>
