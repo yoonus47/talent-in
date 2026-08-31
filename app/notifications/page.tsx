@@ -33,6 +33,8 @@ function iconFor(type: FeedNotification["type"]) {
       return Repeat2;
     case "reaction":
       return Heart;
+    default:
+      return Heart;
   }
 }
 
@@ -41,7 +43,14 @@ export default async function NotificationsPage() {
   if (!profile) redirect("/onboarding");
 
   const notifications = await getNotifications(profile.id);
-  await markAllNotificationsRead();
+
+  // Marking as read is a nice-to-have side effect, not critical to showing
+  // the list — never let a failure here take down the whole page.
+  try {
+    await markAllNotificationsRead(profile.id);
+  } catch (err) {
+    console.error("markAllNotificationsRead failed:", err);
+  }
 
   return (
     <div className="mx-auto max-w-xl px-4 py-6">
