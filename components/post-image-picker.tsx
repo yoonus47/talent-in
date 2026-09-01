@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { ImageIcon, X } from "lucide-react";
 import { validateImageFile } from "@/lib/uploads";
 import { isHeicFile, convertToJpeg, setInputFile } from "@/lib/image-client";
+import { cn } from "@/lib/utils";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
@@ -76,7 +77,7 @@ export function PostImagePicker() {
 
   return (
     <div>
-      {preview ? (
+      {preview && (
         <div className="relative mt-2 inline-block">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -93,21 +94,32 @@ export function PostImagePicker() {
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
-      ) : (
-        <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted">
-          <ImageIcon className="h-3.5 w-3.5" />
-          {converting ? "Processing…" : "Add photo"}
-          <input
-            ref={inputRef}
-            type="file"
-            name="image"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
-            onChange={handleChange}
-            disabled={converting}
-            className="sr-only"
-          />
-        </label>
       )}
+      {/* The file input stays mounted even once a preview is showing — it
+          must still be present in the form at submit time, or the "image"
+          field is simply absent from the FormData the server receives.
+          That's exactly how this shipped broken: showing a preview used to
+          replace this whole element, so every post that got far enough to
+          show what you'd expect to see right before hitting Post had
+          already silently lost the file. */}
+      <label
+        className={cn(
+          "mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted",
+          preview && "hidden",
+        )}
+      >
+        <ImageIcon className="h-3.5 w-3.5" />
+        {converting ? "Processing…" : "Add photo"}
+        <input
+          ref={inputRef}
+          type="file"
+          name="image"
+          accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
+          onChange={handleChange}
+          disabled={converting}
+          className="sr-only"
+        />
+      </label>
       {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
     </div>
   );
