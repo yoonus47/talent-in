@@ -1,17 +1,21 @@
 import Link from "next/link";
 import { MessageCircle, Repeat2 } from "lucide-react";
 import type { FeedPost } from "@/lib/data";
-import { addComment, setReaction, toggleShare } from "@/lib/actions/posts";
-import { REACTIONS } from "@/lib/reactions";
+import { setReaction, toggleShare } from "@/lib/actions/posts";
 import { Avatar } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { DeletePostButton } from "@/components/delete-post-button";
-import { cn, timeAgo } from "@/lib/utils";
+import { ReactionRow } from "@/components/reaction-row";
+import { ReactionSummary } from "@/components/reaction-summary";
+import { CommentThread } from "@/components/comment-thread";
+import { MentionInput } from "@/components/mention-input";
+import { timeAgo } from "@/lib/utils";
+
+function countAllComments(post: FeedPost): number {
+  return post.comments.reduce((total, c) => total + 1 + c.replies.length, 0);
+}
 
 export function PostCard({ post }: { post: FeedPost }) {
-  const totalReactions = Object.values(post.reactionCounts).reduce((a, b) => a + b, 0);
-
   return (
     <Card className="p-4">
       <div className="flex items-center gap-3">
@@ -45,48 +49,22 @@ export function PostCard({ post }: { post: FeedPost }) {
         />
       )}
 
-      {totalReactions > 0 && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          {REACTIONS.filter((r) => post.reactionCounts[r.type] > 0)
-            .map((r) => r.emoji)
-            .join(" ")}{" "}
-          {totalReactions}
-        </p>
-      )}
+      <div className="mt-3">
+        <ReactionSummary counts={post.reactionCounts} />
+      </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-1 border-t border-border pt-3">
-        {REACTIONS.map((reaction) => {
-          const isMine = post.myReaction === reaction.type;
-          const count = post.reactionCounts[reaction.type];
-          return (
-            <form
-              key={reaction.type}
-              action={setReaction.bind(
-                null,
-                post.id,
-                post.author.id,
-                reaction.type,
-                post.myReaction,
-              )}
-            >
-              <button
-                type="submit"
-                title={reaction.label}
-                className={cn(
-                  "flex items-center gap-1 rounded-full px-2 py-1 text-sm hover:bg-muted",
-                  isMine && "bg-primary/10 text-primary",
-                )}
-              >
-                <span>{reaction.emoji}</span>
-                {count > 0 && <span className="text-xs">{count}</span>}
-              </button>
-            </form>
-          );
-        })}
+      <div className="mt-1 flex flex-wrap items-center gap-1 border-t border-border pt-3">
+        <ReactionRow
+          counts={post.reactionCounts}
+          myReaction={post.myReaction}
+          buildAction={(type) =>
+            setReaction.bind(null, post.id, post.author.id, type, post.myReaction)
+          }
+        />
 
         <span className="ml-auto flex items-center gap-1.5 text-sm text-muted-foreground">
           <MessageCircle className="h-4 w-4" />
-          {post.comments.length}
+          {countAllComments(post)}
         </span>
         <form action={toggleShare.bind(null, post.id, post.author.id, post.sharedByMe)}>
           <button
@@ -103,22 +81,21 @@ export function PostCard({ post }: { post: FeedPost }) {
       </div>
 
       {post.comments.length > 0 && (
-        <div className="mt-3 space-y-2 border-t border-border pt-3">
+        <div className="mt-3 space-y-3 border-t border-border pt-3">
           {post.comments.map((comment) => (
-            <div key={comment.id} className="text-sm">
-              <span className="font-semibold">{comment.author.full_name}</span>{" "}
-              <span className="text-foreground">{comment.content}</span>
-            </div>
+            <CommentThread key={comment.id} comment={comment} postId={post.id} />
           ))}
         </div>
       )}
 
-      <form action={addComment.bind(null, post.id, post.author.id)} className="mt-3 flex gap-2">
-        <Input name="content" placeholder="Add a comment…" maxLength={500} className="h-9" />
-        <button type="submit" className="text-sm font-medium text-primary hover:underline">
-          Post
-        </button>
-      </form>
+      <div className="mt-3">
+        <MentionInput
+          postId={post.id}
+          recipientId={post.author.id}
+          parentCommentId={null}
+          placeholder="Add a comment…"
+        />
+      </div>
     </Card>
   );
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Heart, MessageCircle, Repeat2, UserPlus } from "lucide-react";
+import { AtSign, Heart, MessageCircle, Reply, Repeat2, UserPlus } from "lucide-react";
 import { getCurrentProfile, getNotifications, type FeedNotification } from "@/lib/data";
 import { markAllNotificationsRead } from "@/lib/actions/notifications";
 import { REACTIONS } from "@/lib/reactions";
@@ -20,6 +20,14 @@ function describe(n: FeedNotification): string {
       const reaction = REACTIONS.find((r) => r.type === n.reactionType);
       return `reacted ${reaction?.emoji ?? ""} to your post`;
     }
+    case "reply":
+      return "replied to your comment";
+    case "mention":
+      return "tagged you in a comment";
+    case "comment_reaction": {
+      const reaction = REACTIONS.find((r) => r.type === n.reactionType);
+      return `reacted ${reaction?.emoji ?? ""} to your comment`;
+    }
   }
 }
 
@@ -32,7 +40,12 @@ function iconFor(type: FeedNotification["type"]) {
     case "share":
       return Repeat2;
     case "reaction":
+    case "comment_reaction":
       return Heart;
+    case "reply":
+      return Reply;
+    case "mention":
+      return AtSign;
     default:
       return Heart;
   }
@@ -84,9 +97,9 @@ export default async function NotificationsPage() {
                     <span className="font-semibold">{n.actor.full_name}</span>{" "}
                     {describe(n)}
                   </p>
-                  {n.post && (
+                  {(n.comment ?? n.post) && (
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {n.post.content}
+                      {(n.comment ?? n.post)?.content}
                     </p>
                   )}
                   <p className="mt-0.5 text-xs text-muted-foreground">{timeAgo(n.createdAt)}</p>

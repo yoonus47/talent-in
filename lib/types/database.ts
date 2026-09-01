@@ -35,7 +35,14 @@ export type DailyChallengeResult = {
   results: { question_id: string; correct: boolean }[];
 };
 
-export type NotificationType = "follow" | "reaction" | "comment" | "share";
+export type NotificationType =
+  | "follow"
+  | "reaction"
+  | "comment"
+  | "share"
+  | "reply"
+  | "mention"
+  | "comment_reaction";
 
 export interface Database {
   public: {
@@ -154,6 +161,8 @@ export interface Database {
           post_id: string;
           user_id: string;
           content: string;
+          parent_comment_id: string | null;
+          mentioned_user_ids: string[];
           created_at: string;
         };
         Insert: {
@@ -161,6 +170,8 @@ export interface Database {
           post_id: string;
           user_id: string;
           content: string;
+          parent_comment_id?: string | null;
+          mentioned_user_ids?: string[];
           created_at?: string;
         };
         Update: never;
@@ -177,6 +188,46 @@ export interface Database {
             columns: ["post_id"];
             isOneToOne: false;
             referencedRelation: "posts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "comments_parent_comment_id_fkey";
+            columns: ["parent_comment_id"];
+            isOneToOne: false;
+            referencedRelation: "comments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      comment_reactions: {
+        Row: {
+          id: string;
+          comment_id: string;
+          user_id: string;
+          reaction_type: ReactionType;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          comment_id: string;
+          user_id: string;
+          reaction_type: ReactionType;
+          created_at?: string;
+        };
+        Update: { reaction_type?: ReactionType };
+        Relationships: [
+          {
+            foreignKeyName: "comment_reactions_comment_id_fkey";
+            columns: ["comment_id"];
+            isOneToOne: false;
+            referencedRelation: "comments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "comment_reactions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];
@@ -314,6 +365,7 @@ export interface Database {
           actor_id: string;
           type: NotificationType;
           post_id: string | null;
+          comment_id: string | null;
           reaction_type: ReactionType | null;
           read_at: string | null;
           created_at: string;
@@ -324,6 +376,7 @@ export interface Database {
           actor_id: string;
           type: NotificationType;
           post_id?: string | null;
+          comment_id?: string | null;
           reaction_type?: ReactionType | null;
           read_at?: string | null;
           created_at?: string;
@@ -349,6 +402,13 @@ export interface Database {
             columns: ["post_id"];
             isOneToOne: false;
             referencedRelation: "posts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_comment_id_fkey";
+            columns: ["comment_id"];
+            isOneToOne: false;
+            referencedRelation: "comments";
             referencedColumns: ["id"];
           },
         ];
@@ -400,5 +460,6 @@ export type ContentItem = Database["public"]["Tables"]["content_items"]["Row"];
 export type QuizQuestion = Database["public"]["Tables"]["quiz_questions"]["Row"];
 export type QuizResult = Database["public"]["Tables"]["quiz_results"]["Row"];
 export type Share = Database["public"]["Tables"]["shares"]["Row"];
+export type Comment = Database["public"]["Tables"]["comments"]["Row"];
 export type ChallengeAttempt = Database["public"]["Tables"]["challenge_attempts"]["Row"];
 export type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];

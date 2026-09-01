@@ -1,20 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { commentSchema, postSchema } from "@/lib/validation";
+import { postSchema } from "@/lib/validation";
 import type { ReactionType } from "@/lib/reactions";
 import { notify } from "@/lib/notify";
 import { validateImageFile, extensionFor, storagePathFromPublicUrl } from "@/lib/uploads";
+import { revalidatePostSurfaces } from "@/lib/revalidate";
 
 const MAX_POST_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB — a bit more generous than avatars
-
-/** Posts/reactions/comments/shares render on both the feed and profile pages. */
-function revalidatePostSurfaces() {
-  revalidatePath("/feed");
-  revalidatePath("/profile/[username]", "page");
-}
 
 export async function createPost(formData: FormData) {
   const supabase = await createClient();
@@ -156,24 +150,6 @@ export async function toggleShare(postId: string, authorId: string, isShared: bo
     await supabase.from("shares").insert({ post_id: postId, user_id: user.id });
     await notify(supabase, { recipientId: authorId, actorId: user.id, type: "share", postId });
   }
-
-  revalidatePostSurfaces();
-}
-
-export async function addComment(postId: string, authorId: string, formData: FormData) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
-  const parsed = commentSchema.safeParse({ content: formData.get("content") });
-  if (!parsed.success) return;
-
-  await supabase
-    .from("comments")
-    .insert({ post_id: postId, user_id: user.id, content: parsed.data.content });
-  await notify(supabase, { recipientId: authorId, actorId: user.id, type: "comment", postId });
 
   revalidatePostSurfaces();
 }

@@ -40,7 +40,13 @@ export type FeedComment = {
   id: string;
   content: string;
   created_at: string;
-  author: FeedAuthor;
+  author: FeedAuthor & { id: string };
+  isOwnComment: boolean;
+  parentCommentId: string | null;
+  reactionCounts: Record<ReactionType, number>;
+  myReaction: ReactionType | null;
+  /** Always empty on a reply itself — replies are one level deep only. */
+  replies: FeedComment[];
 };
 
 export type FeedPost = {
@@ -138,17 +144,55 @@ async function getFeedItems(authorIds: string[], currentUserId: string): Promise
 
   const allPostIds = allPostRows.map((p) => p.id);
 
-  const [{ data: reactions }, { data: comments }, { data: shareCounts }] = await Promise.all([
+  const [{ data: reactions }, { data: rawComments }, { data: shareCounts }] = await Promise.all([
     supabase.from("reactions").select("post_id, user_id, reaction_type").in("post_id", allPostIds),
     supabase
       .from("comments")
       .select(
-        "id, post_id, content, created_at, profiles!comments_user_id_fkey(username, full_name, avatar_url)",
+        "id, post_id, user_id, content, parent_comment_id, created_at, profiles!comments_user_id_fkey(id, username, full_name, avatar_url)",
       )
       .in("post_id", allPostIds)
       .order("created_at", { ascending: true }),
     supabase.from("shares").select("post_id, user_id").in("post_id", allPostIds),
   ]);
+
+  const comments = rawComments ?? [];
+  const commentIds = comments.map((c) => c.id);
+
+  // Comment reactions have no post_id of their own to filter by up front —
+  // fetched in a second pass once we know which comments are in play, same
+  // two-stage pattern already used above for extraPosts/extraPostIds.
+  const { data: commentReactions } =
+    commentIds.length > 0
+      ? await supabase
+          .from("comment_reactions")
+          .select("comment_id, user_id, reaction_type")
+          .in("comment_id", commentIds)
+      : { data: [] };
+
+  function buildFeedComment(c: (typeof comments)[number]): FeedComment {
+    const myReactions = commentReactions?.filter((r) => r.comment_id === c.id) ?? [];
+    const reactionCounts = { ...EMPTY_REACTION_COUNTS };
+    for (const r of myReactions) reactionCounts[r.reaction_type] += 1;
+    const myReaction =
+      myReactions.find((r) => r.user_id === currentUserId)?.reaction_type ?? null;
+    const author = (c.profiles as unknown as (FeedAuthor & { id: string }) | null) ?? {
+      id: c.user_id,
+      ...UNKNOWN_AUTHOR,
+    };
+
+    return {
+      id: c.id,
+      content: c.content,
+      created_at: c.created_at,
+      author,
+      isOwnComment: c.user_id === currentUserId,
+      parentCommentId: c.parent_comment_id,
+      reactionCounts,
+      myReaction,
+      replies: [],
+    };
+  }
 
   const feedPostById = new Map<string, FeedPost>();
 
@@ -158,15 +202,17 @@ async function getFeedItems(authorIds: string[], currentUserId: string): Promise
     for (const r of postReactions) reactionCounts[r.reaction_type] += 1;
     const myReaction = postReactions.find((r) => r.user_id === currentUserId)?.reaction_type ?? null;
     const postShares = shareCounts?.filter((s) => s.post_id === post.id) ?? [];
-    const postComments =
-      comments
-        ?.filter((c) => c.post_id === post.id)
-        .map((c) => ({
-          id: c.id,
-          content: c.content,
-          created_at: c.created_at,
-          author: (c.profiles as unknown as FeedAuthor) ?? UNKNOWN_AUTHOR,
-        })) ?? [];
+    const postComments = comments.filter((c) => c.post_id === post.id);
+    // One level of nesting: top-level comments each carry their own
+    // replies array; a reply's `replies` stays empty (no reply-to-reply).
+    const topLevelComments = postComments
+      .filter((c) => !c.parent_comment_id)
+      .map(buildFeedComment);
+    for (const topLevel of topLevelComments) {
+      topLevel.replies = postComments
+        .filter((c) => c.parent_comment_id === topLevel.id)
+        .map(buildFeedComment);
+    }
 
     const author = (post.profiles as unknown as FeedAuthor & { id: string }) ?? {
       id: post.user_id,
@@ -184,7 +230,7 @@ async function getFeedItems(authorIds: string[], currentUserId: string): Promise
       myReaction,
       shareCount: postShares.length,
       sharedByMe: postShares.some((s) => s.user_id === currentUserId),
-      comments: postComments,
+      comments: topLevelComments,
     });
   }
 
@@ -400,6 +446,7 @@ export type FeedNotification = {
   readAt: string | null;
   actor: FeedAuthor & { id: string };
   post: { id: string; content: string } | null;
+  comment: { id: string; content: string } | null;
 };
 
 /** Most recent notifications for `userId`, newest first. */
@@ -410,7 +457,8 @@ export async function getNotifications(userId: string): Promise<FeedNotification
     .select(
       `id, type, reaction_type, created_at, read_at,
        profiles!notifications_actor_id_fkey(id, username, full_name, avatar_url),
-       posts!notifications_post_id_fkey(id, content)`,
+       posts!notifications_post_id_fkey(id, content),
+       comments!notifications_comment_id_fkey(id, content)`,
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
@@ -432,6 +480,7 @@ export async function getNotifications(userId: string): Promise<FeedNotification
       ...UNKNOWN_AUTHOR,
     },
     post: (n.posts as unknown as { id: string; content: string } | null) ?? null,
+    comment: (n.comments as unknown as { id: string; content: string } | null) ?? null,
   }));
 }
 

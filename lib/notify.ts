@@ -17,6 +17,7 @@ export async function notify(
     actorId: string;
     type: NotificationType;
     postId?: string;
+    commentId?: string;
     reactionType?: ReactionType;
   },
 ) {
@@ -27,6 +28,7 @@ export async function notify(
     actor_id: params.actorId,
     type: params.type,
     post_id: params.postId ?? null,
+    comment_id: params.commentId ?? null,
     reaction_type: params.reactionType ?? null,
   });
 }
