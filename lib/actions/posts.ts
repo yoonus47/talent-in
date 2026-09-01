@@ -26,31 +26,41 @@ export async function createPost(formData: FormData) {
   const parsed = postSchema.safeParse({ content: formData.get("content") });
   if (!parsed.success) return; // silently ignore empty submits from the feed composer
 
-  let imageUrl: string | null = null;
+  // Create the post first, without the image — a photo problem (wrong
+  // format, upload hiccup) must never cost the user the text they typed.
+  // Previously this whole function returned early on any image failure,
+  // silently dropping the entire post, text included.
+  const { data: newPost, error } = await supabase
+    .from("posts")
+    .insert({ user_id: user.id, content: parsed.data.content, image_url: null })
+    .select("id")
+    .single();
+
+  if (error || !newPost) return;
+
   const file = formData.get("image");
   if (file instanceof File && file.size > 0) {
     const validationError = validateImageFile(file, MAX_POST_IMAGE_BYTES);
-    if (validationError) return; // composer already validates client-side; fail quietly
+    if (validationError) {
+      console.error("post image rejected:", validationError);
+    } else {
+      const path = `${user.id}/${crypto.randomUUID()}.${extensionFor(file.type)}`;
+      const { error: uploadError } = await supabase.storage
+        .from("post-images")
+        .upload(path, file, { contentType: file.type });
 
-    const path = `${user.id}/${crypto.randomUUID()}.${extensionFor(file.type)}`;
-    const { error: uploadError } = await supabase.storage
-      .from("post-images")
-      .upload(path, file, { contentType: file.type });
-    if (uploadError) return;
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("post-images").getPublicUrl(path);
-    imageUrl = publicUrl;
+      if (uploadError) {
+        console.error("post image upload failed:", uploadError.message);
+      } else {
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("post-images").getPublicUrl(path);
+        await supabase.from("posts").update({ image_url: publicUrl }).eq("id", newPost.id);
+      }
+    }
   }
 
-  const { error } = await supabase.from("posts").insert({
-    user_id: user.id,
-    content: parsed.data.content,
-    image_url: imageUrl,
-  });
-
-  if (!error) revalidatePostSurfaces();
+  revalidatePostSurfaces();
 }
 
 export async function deletePost(postId: string) {

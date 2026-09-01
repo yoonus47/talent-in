@@ -116,7 +116,12 @@ export interface Database {
           image_url?: string | null;
           created_at?: string;
         };
-        Update: never;
+        // Posts still can't be edited by users — the one exception is
+        // createPost's own best-effort follow-up write of image_url after
+        // the row is already inserted (see lib/actions/posts.ts).
+        Update: {
+          image_url?: string | null;
+        };
         Relationships: [
           {
             foreignKeyName: "posts_user_id_fkey";

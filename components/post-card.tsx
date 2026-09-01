@@ -6,6 +6,7 @@ import { REACTIONS } from "@/lib/reactions";
 import { Avatar } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { DeletePostButton } from "@/components/delete-post-button";
 import { cn, timeAgo } from "@/lib/utils";
 
 export function PostCard({ post }: { post: FeedPost }) {
@@ -17,7 +18,7 @@ export function PostCard({ post }: { post: FeedPost }) {
         <Link href={`/profile/${post.author.username}`}>
           <Avatar name={post.author.full_name} src={post.author.avatar_url} size={40} />
         </Link>
-        <div>
+        <div className="flex-1">
           <Link
             href={`/profile/${post.author.username}`}
             className="text-sm font-semibold hover:underline"
@@ -28,6 +29,7 @@ export function PostCard({ post }: { post: FeedPost }) {
             @{post.author.username} · {timeAgo(post.created_at)}
           </p>
         </div>
+        {post.isOwnPost && <DeletePostButton postId={post.id} />}
       </div>
 
       <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">{post.content}</p>

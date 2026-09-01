@@ -49,6 +49,7 @@ export type FeedPost = {
   image_url: string | null;
   created_at: string;
   author: FeedAuthor & { id: string };
+  isOwnPost: boolean;
   reactionCounts: Record<ReactionType, number>;
   myReaction: ReactionType | null;
   shareCount: number;
@@ -178,6 +179,7 @@ async function getFeedItems(authorIds: string[], currentUserId: string): Promise
       image_url: post.image_url,
       created_at: post.created_at,
       author,
+      isOwnPost: post.user_id === currentUserId,
       reactionCounts,
       myReaction,
       shareCount: postShares.length,
