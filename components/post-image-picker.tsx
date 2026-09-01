@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useFormStatus } from "react-dom";
 import { ImageIcon, X } from "lucide-react";
 import { validateImageFile } from "@/lib/uploads";
 import { isHeicFile, convertToJpeg, setInputFile } from "@/lib/image-client";
@@ -17,6 +18,20 @@ export function PostImagePicker() {
   const [error, setError] = useState<string | null>(null);
   const [converting, setConverting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // The parent <form>'s uncontrolled fields (the textarea) reset themselves
+  // once createPost finishes and the page revalidates — but this component
+  // is a Client Component, so its own preview/file state survives that
+  // revalidation untouched. Without this, a selected photo just sits here
+  // looking attached/stuck after a successful post, even though the post
+  // itself already went out. useFormStatus reports this form's pending
+  // state; clear() on the true -> false edge (submission just finished).
+  const { pending } = useFormStatus();
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (wasPending.current && !pending) clear();
+    wasPending.current = pending;
+  }, [pending]);
 
   async function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     let file = e.target.files?.[0];
