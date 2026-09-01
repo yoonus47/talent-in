@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { DeletePostButton } from "@/components/delete-post-button";
 import { ReactionRow } from "@/components/reaction-row";
 import { ReactionSummary } from "@/components/reaction-summary";
+import { DoubleTapReact, DOUBLE_TAP_REACTION } from "@/components/double-tap-react";
 import { CommentThread } from "@/components/comment-thread";
 import { MentionInput } from "@/components/mention-input";
 import { timeAgo } from "@/lib/utils";
@@ -36,18 +37,30 @@ export function PostCard({ post }: { post: FeedPost }) {
         {post.isOwnPost && <DeletePostButton postId={post.id} />}
       </div>
 
-      <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">{post.content}</p>
+      <DoubleTapReact
+        className="mt-3"
+        myReaction={post.myReaction}
+        reactAction={setReaction.bind(
+          null,
+          post.id,
+          post.author.id,
+          DOUBLE_TAP_REACTION,
+          post.myReaction,
+        )}
+      >
+        <p className="whitespace-pre-wrap text-sm text-foreground">{post.content}</p>
 
-      {post.image_url && (
-        // Plain <img>, not next/image: post images can point at any host a
-        // student pastes, not just our own Supabase Storage domain.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={post.image_url}
-          alt=""
-          className="mt-3 max-h-96 w-full rounded-lg border border-border object-cover"
-        />
-      )}
+        {post.image_url && (
+          // Plain <img>, not next/image: post images can point at any host a
+          // student pastes, not just our own Supabase Storage domain.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={post.image_url}
+            alt=""
+            className="mt-3 max-h-96 w-full rounded-lg border border-border object-cover"
+          />
+        )}
+      </DoubleTapReact>
 
       <div className="mt-3">
         <ReactionSummary counts={post.reactionCounts} />

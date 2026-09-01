@@ -111,17 +111,21 @@ export async function setCommentReaction(
       .eq("comment_id", commentId)
       .eq("user_id", user.id);
   } else {
-    if (currentType) {
-      await supabase
-        .from("comment_reactions")
-        .update({ reaction_type: type })
-        .eq("comment_id", commentId)
-        .eq("user_id", user.id);
-    } else {
-      await supabase
-        .from("comment_reactions")
-        .insert({ comment_id: commentId, user_id: user.id, reaction_type: type });
+    const { error } = currentType
+      ? await supabase
+          .from("comment_reactions")
+          .update({ reaction_type: type })
+          .eq("comment_id", commentId)
+          .eq("user_id", user.id)
+      : await supabase
+          .from("comment_reactions")
+          .insert({ comment_id: commentId, user_id: user.id, reaction_type: type });
+
+    if (error) {
+      console.error("setCommentReaction failed:", error.message);
+      return;
     }
+
     await notify(supabase, {
       recipientId: commentAuthorId,
       actorId: user.id,

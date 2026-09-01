@@ -64,6 +64,7 @@ export type FeedPost = {
 };
 
 const EMPTY_REACTION_COUNTS: Record<ReactionType, number> = {
+  heart: 0,
   fire: 0,
   cheers: 0,
   smart: 0,

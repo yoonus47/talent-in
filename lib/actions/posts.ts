@@ -114,17 +114,25 @@ export async function setReaction(
   if (currentType === type) {
     await supabase.from("reactions").delete().eq("post_id", postId).eq("user_id", user.id);
   } else {
-    if (currentType) {
-      await supabase
-        .from("reactions")
-        .update({ reaction_type: type })
-        .eq("post_id", postId)
-        .eq("user_id", user.id);
-    } else {
-      await supabase
-        .from("reactions")
-        .insert({ post_id: postId, user_id: user.id, reaction_type: type });
+    const { error } = currentType
+      ? await supabase
+          .from("reactions")
+          .update({ reaction_type: type })
+          .eq("post_id", postId)
+          .eq("user_id", user.id)
+      : await supabase
+          .from("reactions")
+          .insert({ post_id: postId, user_id: user.id, reaction_type: type });
+
+    // A reaction type not yet allowed by the DB's check constraint (e.g. a
+    // new type shipped in app code before its migration has been run)
+    // fails right here — silently, unless logged. Learned this the hard
+    // way with the "heart" reaction shipping ahead of its own migration.
+    if (error) {
+      console.error("setReaction failed:", error.message);
+      return;
     }
+
     await notify(supabase, {
       recipientId: authorId,
       actorId: user.id,
