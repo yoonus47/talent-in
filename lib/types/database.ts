@@ -114,6 +114,8 @@ export interface Database {
           user_id: string;
           content: string;
           image_url: string | null;
+          image_width: number | null;
+          image_height: number | null;
           created_at: string;
         };
         Insert: {
@@ -121,13 +123,18 @@ export interface Database {
           user_id: string;
           content: string;
           image_url?: string | null;
+          image_width?: number | null;
+          image_height?: number | null;
           created_at?: string;
         };
         // Posts still can't be edited by users — the one exception is
-        // createPost's own best-effort follow-up write of image_url after
-        // the row is already inserted (see lib/actions/posts.ts).
+        // createPost's own best-effort follow-up write of image_url (plus
+        // its dimensions) after the row is already inserted (see
+        // lib/actions/posts.ts).
         Update: {
           image_url?: string | null;
+          image_width?: number | null;
+          image_height?: number | null;
         };
         Relationships: [
           {

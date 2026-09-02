@@ -53,6 +53,8 @@ export type FeedPost = {
   id: string;
   content: string;
   image_url: string | null;
+  imageWidth: number | null;
+  imageHeight: number | null;
   created_at: string;
   author: FeedAuthor & { id: string };
   isOwnPost: boolean;
@@ -224,6 +226,8 @@ async function getFeedItems(authorIds: string[], currentUserId: string): Promise
       id: post.id,
       content: post.content,
       image_url: post.image_url,
+      imageWidth: post.image_width,
+      imageHeight: post.image_height,
       created_at: post.created_at,
       author,
       isOwnPost: post.user_id === currentUserId,

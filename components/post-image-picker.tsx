@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ImageIcon, X } from "lucide-react";
 import { validateImageFile } from "@/lib/uploads";
-import { isHeicFile, convertToJpeg, setInputFile } from "@/lib/image-client";
+import { isHeicFile, convertToJpeg, setInputFile, getImageDimensions } from "@/lib/image-client";
 import { cn } from "@/lib/utils";
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -18,6 +18,7 @@ export function PostImagePicker() {
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [converting, setConverting] = useState(false);
+  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // The parent <form>'s uncontrolled fields (the textarea) reset themselves
@@ -62,21 +63,38 @@ export function PostImagePicker() {
     if (validationError) {
       setError(validationError);
       setPreview(null);
+      setDimensions(null);
       if (inputRef.current) inputRef.current.value = "";
       return;
     }
     setError(null);
     setPreview(URL.createObjectURL(file));
+
+    // Best-effort — if this fails for some reason, the post still goes
+    // through (PostImage falls back to a default ratio without it), so a
+    // dimension-reading hiccup should never block posting the photo itself.
+    try {
+      setDimensions(await getImageDimensions(file));
+    } catch {
+      setDimensions(null);
+    }
   }
 
   function clear() {
     setPreview(null);
     setError(null);
+    setDimensions(null);
     if (inputRef.current) inputRef.current.value = "";
   }
 
   return (
     <div>
+      {dimensions && (
+        <>
+          <input type="hidden" name="imageWidth" value={dimensions.width} />
+          <input type="hidden" name="imageHeight" value={dimensions.height} />
+        </>
+      )}
       {preview && (
         <div className="relative mt-2 inline-block">
           {/* eslint-disable-next-line @next/next/no-img-element */}

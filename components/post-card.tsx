@@ -8,6 +8,7 @@ import { DeletePostButton } from "@/components/delete-post-button";
 import { ReactionRow } from "@/components/reaction-row";
 import { ReactionSummary } from "@/components/reaction-summary";
 import { DoubleTapReact, DOUBLE_TAP_REACTION } from "@/components/double-tap-react";
+import { PostImage } from "@/components/post-image";
 import { CommentThread } from "@/components/comment-thread";
 import { MentionInput } from "@/components/mention-input";
 import { timeAgo } from "@/lib/utils";
@@ -49,18 +50,12 @@ export function PostCard({ post }: { post: FeedPost }) {
         )}
       >
         <p className="whitespace-pre-wrap text-sm text-foreground">{post.content}</p>
-
-        {post.image_url && (
-          // Plain <img>, not next/image: post images can point at any host a
-          // student pastes, not just our own Supabase Storage domain.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={post.image_url}
-            alt=""
-            className="mt-3 max-h-96 w-full rounded-lg border border-border object-cover"
-          />
-        )}
       </DoubleTapReact>
+
+      {/* The image gets its own tap handling (single tap opens the
+          lightbox, double tap reacts) — separate from the text's
+          DoubleTapReact above, which only ever reacts. */}
+      <PostImage post={post} />
 
       <div className="mt-3">
         <ReactionSummary counts={post.reactionCounts} />

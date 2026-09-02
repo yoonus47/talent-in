@@ -49,13 +49,23 @@ export async function createPost(formData: FormData) {
         const {
           data: { publicUrl },
         } = supabase.storage.from("post-images").getPublicUrl(path);
+        // Dimensions come from the client (lib/image-client.ts's
+        // getImageDimensions, read at picker time) — best-effort, so a
+        // missing/invalid value just means PostImage falls back to a
+        // default ratio rather than blocking the post entirely.
+        const width = Number(formData.get("imageWidth"));
+        const height = Number(formData.get("imageHeight"));
         // .select() here isn't for the data — it's the only way to tell an
         // RLS-blocked update (0 rows matched, no error) apart from a real
         // success. That gap is exactly how this shipped silently the first
         // time: the upload succeeded, the update no-opped, nothing errored.
         const { data: attached, error: attachError } = await supabase
           .from("posts")
-          .update({ image_url: publicUrl })
+          .update({
+            image_url: publicUrl,
+            image_width: Number.isFinite(width) && width > 0 ? width : null,
+            image_height: Number.isFinite(height) && height > 0 ? height : null,
+          })
           .eq("id", newPost.id)
           .select("id");
         if (attachError) {

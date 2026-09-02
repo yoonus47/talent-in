@@ -66,3 +66,22 @@ export function setInputFile(input: HTMLInputElement, file: File) {
   dataTransfer.items.add(file);
   input.files = dataTransfer.files;
 }
+
+/** A photo's natural pixel dimensions — needed so the feed can reserve the
+ * correctly-shaped box before the image loads, and so the feed's clamped
+ * aspect ratio vs. the lightbox's true ratio have something to work from. */
+export function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not read image dimensions"));
+    };
+    img.src = url;
+  });
+}
