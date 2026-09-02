@@ -48,7 +48,13 @@ export function categoryLabel(category: string) {
   return CATEGORY_LABELS[category] ?? category;
 }
 
-const DEFAULT_IMAGE_ASPECT_RATIO = 4 / 5; // width/height fallback when dimensions weren't captured
+// A neutral square — used only when dimensions genuinely aren't available
+// (should be rare: every new upload captures real ones, and existing posts
+// were backfilled via scripts/backfill-post-image-dimensions.mjs). A biased
+// guess here is exactly what caused real landscape photos to get
+// aggressively cropped — a portrait-shaped default forces a wide photo into
+// a too-tall box. Square is the least-wrong assumption in either direction.
+const DEFAULT_IMAGE_ASPECT_RATIO = 1;
 
 /**
  * A post image's aspect ratio, in CSS's own convention (width/height) — not

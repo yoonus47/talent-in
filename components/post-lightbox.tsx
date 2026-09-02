@@ -46,15 +46,6 @@ export function PostLightbox({ post, onClose }: { post: FeedPost; onClose: () =>
         mounted ? "opacity-100" : "opacity-0",
       )}
     >
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close"
-        className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
-      >
-        <X className="h-5 w-5" />
-      </button>
-
       <div
         onClick={(e) => e.stopPropagation()}
         className={cn(
@@ -74,6 +65,17 @@ export function PostLightbox({ post, onClose }: { post: FeedPost; onClose: () =>
             quality={90}
             className="object-contain"
           />
+          {/* On the photo itself, not the far corner of the whole screen —
+              so it's unambiguously "close this post", reachable by thumb on
+              mobile regardless of where the card lands vertically. */}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white shadow-md hover:bg-black/80"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
