@@ -9,15 +9,16 @@ import type { FeedPost } from "@/lib/data";
 import { Avatar } from "@/components/ui/avatar";
 import { ReactionRow } from "@/components/reaction-row";
 import { ReactionSummary } from "@/components/reaction-summary";
-import { cn, timeAgo } from "@/lib/utils";
-
-const DEFAULT_HEIGHT_RATIO = 4 / 5; // used when dimensions weren't captured (legacy posts)
+import { CommentThread } from "@/components/comment-thread";
+import { MentionInput } from "@/components/mention-input";
+import { cn, postImageCssAspectRatio, timeAgo } from "@/lib/utils";
 
 /**
- * The "tap to open" full view: the image at its true, unclamped aspect
- * ratio (uncropped — there's no feed layout to protect here) and quality
- * 90, well above the feed's 60. Scoped to "see the photo properly" —
- * comments stay on the main feed card, not re-homed in here.
+ * The "tap to open" full view: the same photo at quality 90 (well above the
+ * feed's 60), its true aspect ratio uncropped — plus the full post-detail
+ * experience (caption, reactions, comments, and a reply box), same as
+ * opening a post on X/Twitter shows the full thread rather than just the
+ * media.
  */
 export function PostLightbox({ post, onClose }: { post: FeedPost; onClose: () => void }) {
   const [mounted, setMounted] = useState(false);
@@ -36,12 +37,6 @@ export function PostLightbox({ post, onClose }: { post: FeedPost; onClose: () =>
   }, [onClose]);
 
   if (!post.image_url) return null;
-
-  // CSS's `aspect-ratio` is width/height — inverting the natural
-  // height/width ratio here (same bug caught live in PostImage).
-  const trueCssAspectRatio = post.imageWidth && post.imageHeight
-    ? post.imageWidth / post.imageHeight
-    : 1 / DEFAULT_HEIGHT_RATIO;
 
   return (
     <div
@@ -63,13 +58,13 @@ export function PostLightbox({ post, onClose }: { post: FeedPost; onClose: () =>
       <div
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-lg bg-card transition-all duration-200",
+          "flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-lg bg-card transition-all duration-200",
           mounted ? "scale-100 opacity-100" : "scale-95 opacity-0",
         )}
       >
         <div
-          className="relative w-full max-h-[70vh] shrink-0 bg-black"
-          style={{ aspectRatio: trueCssAspectRatio }}
+          className="relative w-full max-h-[60vh] shrink-0 bg-black"
+          style={{ aspectRatio: postImageCssAspectRatio(post) }}
         >
           <Image
             src={post.image_url}
@@ -112,6 +107,23 @@ export function PostLightbox({ post, onClose }: { post: FeedPost; onClose: () =>
               buildAction={(type) =>
                 setReaction.bind(null, post.id, post.author.id, type, post.myReaction)
               }
+            />
+          </div>
+
+          {post.comments.length > 0 && (
+            <div className="mt-3 space-y-3 border-t border-border pt-3">
+              {post.comments.map((comment) => (
+                <CommentThread key={comment.id} comment={comment} postId={post.id} />
+              ))}
+            </div>
+          )}
+
+          <div className="mt-3">
+            <MentionInput
+              postId={post.id}
+              recipientId={post.author.id}
+              parentCommentId={null}
+              placeholder="Add a comment…"
             />
           </div>
         </div>

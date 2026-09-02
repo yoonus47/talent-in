@@ -48,6 +48,26 @@ export function categoryLabel(category: string) {
   return CATEGORY_LABELS[category] ?? category;
 }
 
+const DEFAULT_IMAGE_ASPECT_RATIO = 4 / 5; // width/height fallback when dimensions weren't captured
+
+/**
+ * A post image's aspect ratio, in CSS's own convention (width/height) — not
+ * height/width, which is how a photo's own dimensions naturally read
+ * ("this one is 1.5x taller than wide"). Inverting that once, here, in the
+ * one place both the feed and the lightbox need it, is what keeps this from
+ * being re-broken per call site — an actual bug this shipped with once
+ * already (a portrait photo briefly rendered as a landscape-shaped box).
+ * No cropping/clamping here on purpose — the feed shows the full photo,
+ * same as the lightbox, just at a lower quality.
+ */
+export function postImageCssAspectRatio(image: {
+  imageWidth: number | null;
+  imageHeight: number | null;
+}): number {
+  if (!image.imageWidth || !image.imageHeight) return DEFAULT_IMAGE_ASPECT_RATIO;
+  return image.imageWidth / image.imageHeight;
+}
+
 export function timeAgo(iso: string) {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   const units: [number, string][] = [
