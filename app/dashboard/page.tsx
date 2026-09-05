@@ -7,8 +7,10 @@ import {
   getLatestQuizResult,
   getTodayAttempt,
   getTodayChallenge,
+  getWordOfTheDay,
 } from "@/lib/data";
 import { DailyChallenge } from "@/components/daily-challenge";
+import { WordOfTheDay } from "@/components/word-of-the-day";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -19,10 +21,11 @@ export default async function DashboardPage() {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/onboarding");
 
-  const [stats, todayAttempt, quizResult] = await Promise.all([
+  const [stats, todayAttempt, quizResult, wordOfTheDay] = await Promise.all([
     getChallengeStats(profile.id),
     getTodayAttempt(profile.id),
     getLatestQuizResult(profile.id),
+    getWordOfTheDay(),
   ]);
 
   const todayQuestions = todayAttempt ? [] : await getTodayChallenge();
@@ -64,6 +67,8 @@ export default async function DashboardPage() {
           </div>
         </Card>
       </div>
+
+      {wordOfTheDay && <WordOfTheDay word={wordOfTheDay} />}
 
       <div>
         <h2 className="mb-2 text-sm font-semibold text-muted-foreground">Daily Challenge</h2>

@@ -5,6 +5,7 @@
 delete from public.quiz_questions;
 delete from public.content_items;
 delete from public.challenge_questions;
+delete from public.vocabulary_words;
 
 -- ── content_items ───────────────────────────────────────────────────────
 insert into public.content_items (title, description, type, category, url, thumbnail_url) values
@@ -96,4 +97,32 @@ insert into public.challenge_questions (subject, question, options, correct_inde
 ('science', 'What is the chemical symbol for Sodium?', '["So", "Sd", "Na", "S"]'::jsonb, 2),
 ('science', 'What force pulls objects toward the center of the Earth?', '["Magnetism", "Gravity", "Friction", "Tension"]'::jsonb, 1),
 ('science', 'What is the SI unit of electric current?', '["Volt", "Watt", "Ohm", "Ampere"]'::jsonb, 3),
-('science', 'Which part of the human body is primarily responsible for pumping blood?', '["Lungs", "Liver", "Heart", "Kidneys"]'::jsonb, 2);
+('science', 'Which part of the human body is primarily responsible for pumping blood?', '["Lungs", "Liver", "Heart", "Kidneys"]'::jsonb, 2),
+('vocabulary', 'What does "ubiquitous" mean?', '["Rare and hard to find", "Present everywhere", "Extremely expensive", "Difficult to understand"]'::jsonb, 1),
+('vocabulary', 'Someone who is "eloquent" is best described as:', '["Fluent and persuasive in speech", "Very quiet and shy", "Easily confused", "Physically strong"]'::jsonb, 0),
+('vocabulary', 'If a plan is "pragmatic", it is:', '["Overly complicated", "Sensible and realistic", "Based on emotion", "Impossible to achieve"]'::jsonb, 1),
+('vocabulary', 'To "procrastinate" means to:', '["Finish early", "Delay or postpone", "Work quickly", "Ask for help"]'::jsonb, 1),
+('vocabulary', 'A "meticulous" person pays close attention to:', '["Other peoples opinions", "Detail", "Money", "Time zones"]'::jsonb, 1),
+('vocabulary', 'Being "resilient" means you:', '["Give up easily", "Recover quickly from setbacks", "Avoid all risks", "Ignore feedback"]'::jsonb, 1),
+('vocabulary', 'A "concise" explanation is:', '["Long and detailed", "Clear and brief", "Confusing", "Written in another language"]'::jsonb, 1),
+('vocabulary', 'If something is "arbitrary", it is:', '["Carefully planned", "Based on random choice", "Extremely rare", "Scientifically proven"]'::jsonb, 1);
+
+-- ── vocabulary_words ────────────────────────────────────────────────────
+-- The "Word of the Day" card pool. Class 9-12 English level, examples
+-- written around student life so they land as relevant, not textbook-dry.
+insert into public.vocabulary_words (word, part_of_speech, definition, example_sentence) values
+('Ubiquitous', 'adjective', 'Present, appearing, or found everywhere.', 'Smartphones have become ubiquitous in modern classrooms.'),
+('Eloquent', 'adjective', 'Fluent and persuasive in speaking or writing.', 'Her eloquent speech convinced the entire student council.'),
+('Resilient', 'adjective', 'Able to recover quickly from difficulties.', 'Being resilient after a failed exam matters more than never failing.'),
+('Ambiguous', 'adjective', 'Open to more than one interpretation.', 'The instructions were so ambiguous that half the class misunderstood them.'),
+('Procrastinate', 'verb', 'To delay or postpone taking action.', 'I always procrastinate on assignments until the night before they are due.'),
+('Meticulous', 'adjective', 'Showing great attention to detail.', 'She is meticulous about checking her math homework twice.'),
+('Candid', 'adjective', 'Truthful and straightforward; frank.', 'The teacher gave candid feedback on my essay.'),
+('Innovate', 'verb', 'To introduce new ideas or methods.', 'Young entrepreneurs are innovating faster than ever before.'),
+('Skeptical', 'adjective', 'Not easily convinced; having doubts.', 'I am skeptical about claims that promise overnight success.'),
+('Pragmatic', 'adjective', 'Dealing with things sensibly and realistically.', 'Choosing a stream based on your strengths is a pragmatic decision.'),
+('Concise', 'adjective', 'Giving information clearly, in a few words.', 'A concise resume is more likely to actually get read.'),
+('Tenacious', 'adjective', 'Persistent and determined.', 'Her tenacious attitude helped her master calculus despite struggling at first.'),
+('Euphoric', 'adjective', 'Feeling intense happiness or excitement.', 'She felt euphoric after her first coding project actually worked.'),
+('Arbitrary', 'adjective', 'Based on random choice, not reason.', 'The seating arrangement seemed completely arbitrary.'),
+('Diligent', 'adjective', 'Showing care and effort in your work.', 'Diligent students review their notes every single day.');

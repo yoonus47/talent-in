@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { createHash } from "node:crypto";
 import type {
   ChallengeAttempt,
   DailyChallengeQuestion,
@@ -7,6 +8,7 @@ import type {
   NotificationType,
   Profile,
   QuizResult,
+  VocabularyWord,
 } from "@/lib/types/database";
 import type { ReactionType } from "@/lib/reactions";
 
@@ -498,6 +500,30 @@ export async function getTodayChallenge(): Promise<DailyChallengeQuestion[]> {
     return [];
   }
   return data ?? [];
+}
+
+/**
+ * Today's Word of the Day — same one for everyone, changes daily, no cron
+ * job. Mirrors get_daily_challenge()'s own date-seeded shuffle
+ * (`order by md5(id::text || current_date::text)`), just computed in
+ * application code instead of SQL: there's no answer key to keep off the
+ * client here (a definition isn't a secret), so a dedicated RPC isn't
+ * needed — vocabulary_words is plainly readable.
+ */
+export async function getWordOfTheDay(): Promise<VocabularyWord | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("vocabulary_words").select("*");
+  if (error || !data || data.length === 0) {
+    if (error) console.error("getWordOfTheDay failed:", error.message);
+    return null;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const ranked = data
+    .map((word) => ({ word, hash: createHash("md5").update(word.id + today).digest("hex") }))
+    .sort((a, b) => (a.hash < b.hash ? -1 : a.hash > b.hash ? 1 : 0));
+
+  return ranked[0].word;
 }
 
 function todayDateString() {

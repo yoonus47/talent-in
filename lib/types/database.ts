@@ -18,7 +18,7 @@ export type ContentCategory =
 
 export type ContentType = "article" | "video" | "quiz_link";
 
-export type ChallengeSubject = "math" | "science";
+export type ChallengeSubject = "math" | "science" | "vocabulary";
 
 export type DailyChallengeQuestion = {
   id: string;
@@ -345,6 +345,26 @@ export interface Database {
         Update: never;
         Relationships: [];
       };
+      vocabulary_words: {
+        Row: {
+          id: string;
+          word: string;
+          part_of_speech: string;
+          definition: string;
+          example_sentence: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          word: string;
+          part_of_speech: string;
+          definition: string;
+          example_sentence: string;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
       challenge_attempts: {
         Row: {
           id: string;
@@ -469,4 +489,5 @@ export type QuizResult = Database["public"]["Tables"]["quiz_results"]["Row"];
 export type Share = Database["public"]["Tables"]["shares"]["Row"];
 export type Comment = Database["public"]["Tables"]["comments"]["Row"];
 export type ChallengeAttempt = Database["public"]["Tables"]["challenge_attempts"]["Row"];
+export type VocabularyWord = Database["public"]["Tables"]["vocabulary_words"]["Row"];
 export type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
