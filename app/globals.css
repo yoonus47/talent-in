@@ -26,6 +26,11 @@
     #962fbf,
     #4f5bd5
   );
+
+  /* An original two-tone gradient (indigo → cyan) for messaging UI —
+   * distinct from --gradient-instagram on purpose, not a palette lift
+   * from another app's brand. Used by the chat FAB. */
+  --gradient-messaging: linear-gradient(135deg, #6366f1, #06b6d4);
 }
 
 @theme inline {

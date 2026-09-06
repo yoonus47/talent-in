@@ -87,13 +87,13 @@ export function ChatFabButton({ userId, unreadCount: initialUnreadCount }: { use
       aria-label="Messages"
       title="Messages"
       // Stacked above ThemeToggle (fixed bottom-4 right-4, h-11) so the two
-      // floating buttons don't overlap. The brand gradient (same token
-      // .ig-gradient-text and the "Word of the Day" card use, defined once
-      // in app/globals.css so light/dark both get the identical gradient)
-      // gives this its own visual identity instead of blending in with
-      // every other plain bg-primary button in the app.
+      // floating buttons don't overlap. --gradient-messaging (app/globals.css)
+      // is this app's own indigo→cyan gradient — deliberately not
+      // --gradient-instagram (that one really is Instagram's own icon
+      // colors) — giving this its own identity instead of blending in
+      // with every other plain bg-primary button in the app.
       className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-105"
-      style={{ background: "var(--gradient-instagram)" }}
+      style={{ background: "var(--gradient-messaging)" }}
     >
       <MessageCircle className="h-5 w-5" />
       {unreadCount > 0 && (
