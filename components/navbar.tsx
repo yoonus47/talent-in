@@ -3,6 +3,7 @@ import { signOut } from "@/app/auth/actions";
 import { getCurrentProfile, getUnreadNotificationCount } from "@/lib/data";
 import { Avatar } from "@/components/ui/avatar";
 import { NotificationBell } from "@/components/notification-bell";
+import { NavLinks } from "@/components/nav-links";
 
 export async function Navbar() {
   const profile = await getCurrentProfile();
@@ -20,18 +21,16 @@ export async function Navbar() {
 
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
-      <nav className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
+      {/* max-w-4xl, not max-w-3xl (every other page's own container is
+          narrower still) — the icon+label pills in NavLinks need more
+          room than the old plain-text links did; at max-w-3xl "Log out"
+          was overflowing onto two lines. */}
+      <nav className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
         <Link href="/feed" className="ig-gradient-text text-lg font-bold">
           TalentZify
         </Link>
 
-        <div className="hidden items-center gap-5 text-sm font-medium text-muted-foreground sm:flex">
-          {links.map((link) => (
-            <Link key={link.href} href={link.href} className="hover:text-foreground">
-              {link.label}
-            </Link>
-          ))}
-        </div>
+        <NavLinks links={links} variant="desktop" />
 
         <div className="flex items-center gap-3">
           <NotificationBell userId={profile.id} initialUnreadCount={unreadCount} />
@@ -48,13 +47,7 @@ export async function Navbar() {
           </form>
         </div>
       </nav>
-      <div className="flex items-center justify-center gap-5 border-t border-border py-2 text-sm font-medium text-muted-foreground sm:hidden">
-        {links.map((link) => (
-          <Link key={link.href} href={link.href} className="hover:text-foreground">
-            {link.label}
-          </Link>
-        ))}
-      </div>
+      <NavLinks links={links} variant="mobile" />
     </header>
   );
 }
