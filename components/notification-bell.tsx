@@ -4,23 +4,25 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { fetchUnreadNotificationCount } from "@/lib/actions/notifications";
 
 /**
- * The navbar bell — same visual as before, but now live: a realtime
- * subscription bumps the count the instant a notification row is
- * inserted, instead of only on the next page load. Mirrors
- * components/chat-thread.tsx's realtime setup, including the explicit
- * supabase.realtime.setAuth() call — without it the @supabase/ssr browser
- * client's socket never actually attaches the session's token, and RLS
- * silently drops every event (confirmed live while building chat).
+ * The navbar bell. `initialUnreadCount` is only ever used for the very
+ * first paint — it is NOT re-synced from later prop updates. It can't be:
+ * Navbar is part of the root layout, which Next may serve from a
+ * prefetched cache captured before a notification arrived (or got marked
+ * read); trusting that prop on every re-render would periodically
+ * overwrite correct live state with a stale one. Instead this owns its
+ * count from mount onward — refetching the true value once immediately
+ * (to correct any staleness in that very first prop) and again on every
+ * realtime INSERT/UPDATE on `notifications` for this user (a new
+ * notification, or one/all getting marked read elsewhere, e.g. by
+ * visiting /notifications).
  *
- * `initialUnreadCount` comes from Navbar's own server-side fetch on every
- * navigation; Navbar (and this component) persist across client-side
- * navigations as part of the root layout, so this effect re-syncs local
- * state down to the fresh server count each time — that's what makes the
- * badge actually clear after visiting /notifications (which marks
- * everything read), rather than staying stuck at a realtime-incremented
- * value forever.
+ * Same realtime setup as components/chat-thread.tsx, including the
+ * explicit supabase.realtime.setAuth() call — without it the
+ * @supabase/ssr browser client's socket never attaches the session's
+ * token and RLS silently drops every event.
  */
 export function NotificationBell({
   userId,
@@ -30,20 +32,16 @@ export function NotificationBell({
   initialUnreadCount: number;
 }) {
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
-  // React's documented "adjust state when a prop changes" pattern —
-  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
-  // — a setState call in an effect body here would cascade an extra
-  // render on every navigation; this bails out after one instead.
-  const [prevInitialUnreadCount, setPrevInitialUnreadCount] = useState(initialUnreadCount);
-  if (initialUnreadCount !== prevInitialUnreadCount) {
-    setPrevInitialUnreadCount(initialUnreadCount);
-    setUnreadCount(initialUnreadCount);
-  }
 
   useEffect(() => {
     const supabase = createClient();
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let cancelled = false;
+
+    async function refresh() {
+      const count = await fetchUnreadNotificationCount();
+      if (!cancelled) setUnreadCount(count);
+    }
 
     async function subscribe() {
       const {
@@ -52,17 +50,19 @@ export function NotificationBell({
       if (cancelled) return;
       if (session) supabase.realtime.setAuth(session.access_token);
 
+      await refresh();
+
       channel = supabase
         .channel(`notifications:${userId}`)
         .on(
           "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "notifications",
-            filter: `user_id=eq.${userId}`,
-          },
-          () => setUnreadCount((count) => count + 1),
+          { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+          refresh,
+        )
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+          refresh,
         )
         .subscribe();
     }

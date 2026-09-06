@@ -10,5 +10,5 @@ export async function ChatFab() {
 
   const unreadCount = await getUnreadMessageCount(profile.id);
 
-  return <ChatFabButton unreadCount={unreadCount} />;
+  return <ChatFabButton userId={profile.id} unreadCount={unreadCount} />;
 }

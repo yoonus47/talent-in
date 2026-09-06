@@ -191,12 +191,20 @@ export function ChatThread({
   );
 
   return (
-    // min-h (not h) + a sticky composer, rather than an exact viewport-minus-
-    // chrome calc: it degrades gracefully instead of leaving dead space or
-    // clipping if the navbar's actual height differs from any hardcoded
-    // guess (e.g. its extra mobile row).
-    <div className="flex min-h-[60dvh] flex-col">
-      <div className="flex-1 space-y-2 px-4 py-4">
+    // A bounded dvh height + an internally-scrolling message list, with the
+    // composer as a plain last flex child (not position: sticky) — the
+    // standard chat-UI layout, and specifically the one that behaves
+    // correctly with iOS Safari's on-screen keyboard: `dvh` (dynamic
+    // viewport height) recalculates as the keyboard opens/closes, so a
+    // container sized from it — and everything inside it — naturally stays
+    // within view without needing sticky/fixed positioning, which is what
+    // was actually causing both the "have to pan to reach Send" and the
+    // dark-mode visual glitch reported on iPhone (a `position: sticky`
+    // element re-anchored against an unbounded, page-scrolling container
+    // is exactly the combination WebKit's keyboard-resize handling and
+    // sticky repaint both handle poorly).
+    <div className="flex h-[calc(100dvh-9.25rem)] flex-col sm:h-[calc(100dvh-7rem)]">
+      <div className="flex-1 space-y-2 overflow-y-auto px-4 py-4">
         {messages.map((message) => (
           <MessageBubble
             key={message.id}
@@ -209,7 +217,13 @@ export function ChatThread({
         <div ref={bottomRef} />
       </div>
 
-      <div className="sticky bottom-0 flex items-end gap-2 border-t border-border bg-background p-3">
+      {/* pr-16 on mobile: ThemeToggle (components/theme-toggle.tsx) is a
+          fixed bottom-4 right-4 h-11 w-11 button on every page. On a
+          narrow viewport this page's content spans the full width, so
+          without this clearance the Send button renders directly under
+          it — confirmed visually, not a contrast issue. On sm: and up the
+          centered max-w-xl column already keeps enough margin on its own. */}
+      <div className="flex items-end gap-2 border-t border-border bg-background p-3 pr-16 sm:pr-3">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}

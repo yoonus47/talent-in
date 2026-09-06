@@ -2,6 +2,22 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getUnreadMessageCount } from "@/lib/data";
+
+/**
+ * Fresh unread-conversations count, callable from the client. Same
+ * staleness escape hatch as fetchUnreadNotificationCount
+ * (lib/actions/notifications.ts) — see its comment — used by
+ * components/chat-fab-button.tsx.
+ */
+export async function fetchUnreadMessageCount(): Promise<number> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return 0;
+  return getUnreadMessageCount(user.id);
+}
 
 /**
  * Starts (or resumes) a conversation with `otherUserId` and redirects into
