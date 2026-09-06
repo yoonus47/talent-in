@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { Bell } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
 import { getCurrentProfile, getUnreadNotificationCount } from "@/lib/data";
 import { Avatar } from "@/components/ui/avatar";
+import { NotificationBell } from "@/components/notification-bell";
 
 export async function Navbar() {
   const profile = await getCurrentProfile();
@@ -34,14 +34,7 @@ export async function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Link href="/notifications" title="Notifications" className="relative">
-            <Bell className="h-5 w-5 text-muted-foreground hover:text-foreground" />
-            {unreadCount > 0 && (
-              <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
-            )}
-          </Link>
+          <NotificationBell userId={profile.id} initialUnreadCount={unreadCount} />
           <Link href="/settings" title="Settings">
             <Avatar name={profile.full_name} src={profile.avatar_url} size={32} />
           </Link>
