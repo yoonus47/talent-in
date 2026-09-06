@@ -9,6 +9,7 @@ import { ReactionRow } from "@/components/reaction-row";
 import { ReactionSummary } from "@/components/reaction-summary";
 import { DoubleTapReact, DOUBLE_TAP_REACTION } from "@/components/double-tap-react";
 import { PostImage } from "@/components/post-image";
+import { PostContent } from "@/components/post-content";
 import { CommentThread } from "@/components/comment-thread";
 import { MentionInput } from "@/components/mention-input";
 import { timeAgo } from "@/lib/utils";
@@ -49,7 +50,9 @@ export function PostCard({ post }: { post: FeedPost }) {
           post.myReaction,
         )}
       >
-        <p className="whitespace-pre-wrap text-sm text-foreground">{post.content}</p>
+        <p className="text-sm text-foreground">
+          <PostContent content={post.content} />
+        </p>
       </DoubleTapReact>
 
       {/* The image gets its own tap handling (single tap opens the

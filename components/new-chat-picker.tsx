@@ -5,6 +5,7 @@ import { MessageCirclePlus } from "lucide-react";
 import { startConversation } from "@/lib/actions/chat";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Portal } from "@/components/portal";
 import type { Profile } from "@/lib/types/database";
 
 /**
@@ -32,12 +33,18 @@ export function NewChatPicker({ candidates }: { candidates: Profile[] }) {
 
       {open && (
         <>
-          <button
-            type="button"
-            aria-label="Close"
-            className="fixed inset-0 z-10 cursor-default"
-            onClick={() => setOpen(false)}
-          />
+          {/* Portaled: same reason as components/post-lightbox.tsx — this
+              page's content sits inside swipe-navigator's transformed
+              wrapper, which breaks a plain `fixed inset-0` click-outside
+              catcher the same way it broke the lightbox. */}
+          <Portal>
+            <button
+              type="button"
+              aria-label="Close"
+              className="fixed inset-0 z-10 cursor-default"
+              onClick={() => setOpen(false)}
+            />
+          </Portal>
           <div className="absolute right-0 top-full z-20 mt-2 w-72 rounded-lg border border-border bg-card p-2 shadow-md">
             <input
               type="text"

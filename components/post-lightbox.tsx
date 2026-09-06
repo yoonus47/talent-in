@@ -11,6 +11,8 @@ import { ReactionRow } from "@/components/reaction-row";
 import { ReactionSummary } from "@/components/reaction-summary";
 import { CommentThread } from "@/components/comment-thread";
 import { MentionInput } from "@/components/mention-input";
+import { Portal } from "@/components/portal";
+import { PostContent } from "@/components/post-content";
 import { cn, postImageCssAspectRatio, timeAgo } from "@/lib/utils";
 
 /**
@@ -39,97 +41,108 @@ export function PostLightbox({ post, onClose }: { post: FeedPost; onClose: () =>
   if (!post.image_url) return null;
 
   return (
-    <div
-      onClick={onClose}
-      className={cn(
-        "fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 transition-opacity duration-200",
-        mounted ? "opacity-100" : "opacity-0",
-      )}
-    >
+    // Portal: this needs to render straight into document.body, not
+    // wherever PostImage happens to sit in the tree — otherwise it's
+    // stuck inside components/swipe-navigator.tsx's transformed page
+    // wrapper, which (per CSS's containing-block rules) breaks `fixed`
+    // positioning below into something that doesn't actually cover the
+    // viewport. See components/portal.tsx's comment — this was a real,
+    // confirmed bug (a stuck black overlay), not a hypothetical one.
+    <Portal>
       <div
-        onClick={(e) => e.stopPropagation()}
+        onClick={onClose}
         className={cn(
-          "flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-lg bg-card transition-all duration-200",
-          mounted ? "scale-100 opacity-100" : "scale-95 opacity-0",
+          "fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 transition-opacity duration-200",
+          mounted ? "opacity-100" : "opacity-0",
         )}
       >
         <div
-          className="relative w-full max-h-[60vh] shrink-0 bg-black"
-          style={{ aspectRatio: postImageCssAspectRatio(post) }}
-        >
-          <Image
-            src={post.image_url}
-            alt=""
-            fill
-            sizes="100vw"
-            quality={90}
-            className="object-contain"
-          />
-          {/* On the photo itself, not the far corner of the whole screen —
-              so it's unambiguously "close this post", reachable by thumb on
-              mobile regardless of where the card lands vertically. */}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white shadow-md hover:bg-black/80"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          <div className="flex items-center gap-2.5">
-            <Link href={`/profile/${post.author.username}`} onClick={onClose}>
-              <Avatar name={post.author.full_name} src={post.author.avatar_url} size={36} />
-            </Link>
-            <div>
-              <Link
-                href={`/profile/${post.author.username}`}
-                onClick={onClose}
-                className="text-sm font-semibold hover:underline"
-              >
-                {post.author.full_name}
-              </Link>
-              <p className="text-xs text-muted-foreground">
-                @{post.author.username} · {timeAgo(post.created_at)}
-              </p>
-            </div>
-          </div>
-
-          <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">{post.content}</p>
-
-          <div className="mt-3">
-            <ReactionSummary counts={post.reactionCounts} />
-          </div>
-          <div className="mt-1 border-t border-border pt-3">
-            <ReactionRow
-              counts={post.reactionCounts}
-              myReaction={post.myReaction}
-              buildAction={(type) =>
-                setReaction.bind(null, post.id, post.author.id, type, post.myReaction)
-              }
-            />
-          </div>
-
-          {post.comments.length > 0 && (
-            <div className="mt-3 space-y-3 border-t border-border pt-3">
-              {post.comments.map((comment) => (
-                <CommentThread key={comment.id} comment={comment} postId={post.id} />
-              ))}
-            </div>
+          onClick={(e) => e.stopPropagation()}
+          className={cn(
+            "flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-lg bg-card transition-all duration-200",
+            mounted ? "scale-100 opacity-100" : "scale-95 opacity-0",
           )}
-
-          <div className="mt-3">
-            <MentionInput
-              postId={post.id}
-              recipientId={post.author.id}
-              parentCommentId={null}
-              placeholder="Add a comment…"
+        >
+          <div
+            className="relative w-full max-h-[60vh] shrink-0 bg-black"
+            style={{ aspectRatio: postImageCssAspectRatio(post) }}
+          >
+            <Image
+              src={post.image_url}
+              alt=""
+              fill
+              sizes="100vw"
+              quality={90}
+              className="object-contain"
             />
+            {/* On the photo itself, not the far corner of the whole screen —
+                so it's unambiguously "close this post", reachable by thumb on
+                mobile regardless of where the card lands vertically. */}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white shadow-md hover:bg-black/80"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            <div className="flex items-center gap-2.5">
+              <Link href={`/profile/${post.author.username}`} onClick={onClose}>
+                <Avatar name={post.author.full_name} src={post.author.avatar_url} size={36} />
+              </Link>
+              <div>
+                <Link
+                  href={`/profile/${post.author.username}`}
+                  onClick={onClose}
+                  className="text-sm font-semibold hover:underline"
+                >
+                  {post.author.full_name}
+                </Link>
+                <p className="text-xs text-muted-foreground">
+                  @{post.author.username} · {timeAgo(post.created_at)}
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-3 text-sm text-foreground">
+              <PostContent content={post.content} />
+            </p>
+
+            <div className="mt-3">
+              <ReactionSummary counts={post.reactionCounts} />
+            </div>
+            <div className="mt-1 border-t border-border pt-3">
+              <ReactionRow
+                counts={post.reactionCounts}
+                myReaction={post.myReaction}
+                buildAction={(type) =>
+                  setReaction.bind(null, post.id, post.author.id, type, post.myReaction)
+                }
+              />
+            </div>
+
+            {post.comments.length > 0 && (
+              <div className="mt-3 space-y-3 border-t border-border pt-3">
+                {post.comments.map((comment) => (
+                  <CommentThread key={comment.id} comment={comment} postId={post.id} />
+                ))}
+              </div>
+            )}
+
+            <div className="mt-3">
+              <MentionInput
+                postId={post.id}
+                recipientId={post.author.id}
+                parentCommentId={null}
+                placeholder="Add a comment…"
+              />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </Portal>
   );
 }
