@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { createHash } from "node:crypto";
 import type {
@@ -14,8 +15,13 @@ import type {
 } from "@/lib/types/database";
 import type { ReactionType } from "@/lib/reactions";
 
-/** Current authenticated user's profile row, or null if not onboarded yet. */
-export async function getCurrentProfile(): Promise<Profile | null> {
+/**
+ * Current authenticated user's profile row, or null if not onboarded yet.
+ * Wrapped in React's cache() — both Navbar and the root layout (for
+ * SwipeNavigator's tab list) call this in the same request now, and
+ * without this they'd each hit Supabase separately for identical data.
+ */
+export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -30,7 +36,7 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     .maybeSingle();
 
   return data;
-}
+});
 
 export type FeedAuthor = Pick<Profile, "username" | "full_name" | "avatar_url">;
 

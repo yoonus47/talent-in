@@ -120,9 +120,47 @@ body {
   animation: blob-float 10s ease-in-out infinite;
 }
 
+/* Swipe-between-tabs entrance (components/swipe-navigator.tsx) — a small,
+   fast offset+fade, not a full-width slide: this only plays on the
+   destination page itself (there's no real cross-page shared animation
+   without React's canary-only <ViewTransition>, see that file's comment),
+   so it reads as "this content just arrived" rather than trying to fake
+   the old page sliding out too. */
+@keyframes slide-in-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-from-right {
+  animation: slide-in-from-right 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-slide-in-from-left {
+  animation: slide-in-from-left 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
-  .animate-blob {
+  .animate-blob,
+  .animate-slide-in-from-right,
+  .animate-slide-in-from-left {
     animation: none;
   }
 }

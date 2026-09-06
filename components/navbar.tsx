@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { signOut } from "@/app/auth/actions";
 import { getCurrentProfile, getUnreadNotificationCount } from "@/lib/data";
+import { getNavRoutes } from "@/lib/nav-links";
 import { Avatar } from "@/components/ui/avatar";
 import { NotificationBell } from "@/components/notification-bell";
 import { NavLinks } from "@/components/nav-links";
@@ -10,14 +11,7 @@ export async function Navbar() {
   if (!profile) return null;
 
   const unreadCount = await getUnreadNotificationCount(profile.id);
-
-  const links = [
-    { href: "/feed", label: "Feed" },
-    { href: "/dashboard", label: "Dashboard" },
-    { href: "/discover", label: "Discover" },
-    { href: "/quiz", label: "Career Quiz" },
-    { href: `/profile/${profile.username}`, label: "Profile" },
-  ];
+  const links = getNavRoutes(profile.username);
 
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">

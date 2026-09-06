@@ -1,13 +1,32 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Send } from "lucide-react";
+import { Moon, Send, Sun } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { markConversationRead } from "@/lib/actions/chat";
 import { MessageBubble } from "@/components/message-bubble";
+import { useThemeToggle } from "@/components/theme-toggle";
 import type { Message } from "@/lib/types/database";
 
 type LocalMessage = Message & { pending?: boolean };
+
+/** Static, in-flow dark-mode toggle for the mobile composer row — see
+ * ThemeToggle's comment in components/theme-toggle.tsx for why the
+ * floating one is hidden here instead of trying to keep it aligned. */
+function MobileThemeToggle() {
+  const { isDark, toggle } = useThemeToggle();
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-muted sm:hidden"
+    >
+      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    </button>
+  );
+}
 
 /**
  * The live chat thread. Unlike every other mutation in this app, sending a
@@ -217,16 +236,12 @@ export function ChatThread({
         <div ref={bottomRef} />
       </div>
 
-      {/* pr-16 on mobile: ThemeToggle (components/theme-toggle.tsx) is a
-          fixed bottom-4 right-4 h-11 w-11 button on every page. On a
-          narrow viewport this page's content spans the full width, so
-          without this clearance the Send button renders directly under
-          it — confirmed visually, not a contrast issue. On sm: and up the
-          centered max-w-xl column already keeps enough margin on its own.
-          pb-[27px] (instead of the plain p-3 bottom) lines Send's vertical
-          center up with ThemeToggle's — measured live (Send center was
-          ~15px lower than ThemeToggle's), not eyeballed. */}
-      <div className="flex items-end gap-2 border-t border-border bg-background px-3 pb-[27px] pt-3 pr-16 sm:pr-3">
+      {/* No more pr-16/pb-[27px] collision-avoidance here: ThemeToggle
+          hides itself on mobile for this exact route (see its comment),
+          so there's no floating button in this corner to clear or align
+          with anymore — MobileThemeToggle below is a plain in-flow member
+          of this same row instead. */}
+      <div className="flex items-end gap-2 border-t border-border bg-background p-3">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -250,6 +265,7 @@ export function ChatThread({
         >
           <Send className="h-4 w-4" />
         </button>
+        <MobileThemeToggle />
       </div>
     </div>
   );

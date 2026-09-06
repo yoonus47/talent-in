@@ -4,6 +4,9 @@ import Script from "next/script";
 import { Navbar } from "@/components/navbar";
 import { ChatFab } from "@/components/chat-fab";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SwipeNavigator } from "@/components/swipe-navigator";
+import { getCurrentProfile } from "@/lib/data";
+import { getNavRoutes } from "@/lib/nav-links";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,7 +35,13 @@ try {
 } catch (e) {}
 `;
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Same tab order Navbar renders (lib/nav-links.ts) — getCurrentProfile
+  // is cache()-wrapped, so this doesn't cost a second Supabase round trip
+  // on top of Navbar's own call.
+  const profile = await getCurrentProfile();
+  const navRoutes = profile ? getNavRoutes(profile.username) : [];
+
   return (
     <html
       lang="en"
@@ -44,7 +53,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           {NO_FLASH_THEME_SCRIPT}
         </Script>
         <Navbar />
-        <main className="flex-1">{children}</main>
+        <main className="flex-1">
+          <SwipeNavigator links={navRoutes}>{children}</SwipeNavigator>
+        </main>
         <ChatFab />
         <ThemeToggle />
       </body>
