@@ -2,21 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Compass, GraduationCap, Home, LayoutDashboard, User, type LucideIcon } from "lucide-react";
+import { DEFAULT_NAV_ICON, NAV_ICONS, isActiveRoute, type NavRoute } from "@/lib/nav-links";
 import { cn } from "@/lib/utils";
 
-export type NavLink = { href: string; label: string };
-
-const ICONS: Record<string, LucideIcon> = {
-  "/feed": Home,
-  "/dashboard": LayoutDashboard,
-  "/discover": Compass,
-  "/quiz": GraduationCap,
-};
-
-function isActive(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
+export type NavLink = NavRoute;
 
 /**
  * The Feed/Dashboard/Discover/Career Quiz/Profile links, in both their
@@ -32,8 +21,8 @@ export function NavLinks({ links, variant }: { links: NavLink[]; variant: "deskt
     return (
       <div className="hidden items-center gap-1 text-sm font-medium sm:flex">
         {links.map((link) => {
-          const active = isActive(pathname, link.href);
-          const Icon = ICONS[link.href] ?? User;
+          const active = isActiveRoute(pathname, link.href);
+          const Icon = NAV_ICONS[link.href] ?? DEFAULT_NAV_ICON;
           return (
             <Link
               key={link.href}
@@ -57,8 +46,8 @@ export function NavLinks({ links, variant }: { links: NavLink[]; variant: "deskt
   return (
     <div className="flex items-center justify-around border-t border-border py-1.5 sm:hidden">
       {links.map((link) => {
-        const active = isActive(pathname, link.href);
-        const Icon = ICONS[link.href] ?? User;
+        const active = isActiveRoute(pathname, link.href);
+        const Icon = NAV_ICONS[link.href] ?? DEFAULT_NAV_ICON;
         return (
           <Link
             key={link.href}
