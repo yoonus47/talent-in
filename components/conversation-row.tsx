@@ -32,7 +32,11 @@ export function ConversationRow({ conversation }: { conversation: ChatConversati
           {lastMessage ? `${lastMessage.isOwn ? "You: " : ""}${lastMessage.content}` : "Say hi 👋"}
         </p>
       </div>
-      {unread && <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-primary" aria-label="Unread" />}
+      {unread && (
+        <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground">
+          {unreadCount > 99 ? "99+" : unreadCount}
+        </span>
+      )}
     </Link>
   );
 }

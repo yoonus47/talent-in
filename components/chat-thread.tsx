@@ -230,7 +230,13 @@ export function ChatThread({
           onKeyDown={handleKeyDown}
           placeholder="Message…"
           rows={1}
-          className="max-h-32 flex-1 resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          // text-base (16px), not text-sm — iOS Safari auto-zooms the page
+          // in on focus for any text input under 16px, which is the actual
+          // cause of the "zooms in when I try to type" behavior. WhatsApp's
+          // input (and every other mobile-polished text field) is 16px+
+          // for exactly this reason, not because of any deliberate zoom
+          // handling.
+          className="max-h-32 flex-1 resize-none rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
         <button
           type="button"

@@ -686,6 +686,23 @@ export async function getConversations(userId: string): Promise<ChatConversation
     (reads ?? []).map((r) => [r.conversation_id, r.last_read_at]),
   );
 
+  // Real per-conversation unread counts (how many messages, not just
+  // whether anything's unread) — reuses the same already-fetched `messages`
+  // batch above, no extra query. getUnreadMessageCount sums these for the
+  // navbar/FAB badge, so someone with 3 unread from one person and 2 from
+  // another sees "5", not "2" (conversations touched) or "1" (a flag).
+  const unreadCountByConversation = new Map<string, number>();
+  for (const m of messages ?? []) {
+    if (m.sender_id === userId) continue;
+    const lastReadAt = lastReadByConversation.get(m.conversation_id);
+    if (!lastReadAt || m.created_at > lastReadAt) {
+      unreadCountByConversation.set(
+        m.conversation_id,
+        (unreadCountByConversation.get(m.conversation_id) ?? 0) + 1,
+      );
+    }
+  }
+
   const result: ChatConversation[] = conversations.map((c) => {
     const userA = c.user_a as unknown as (FeedAuthor & { id: string }) | null;
     const userB = c.user_b as unknown as (FeedAuthor & { id: string }) | null;
@@ -696,11 +713,7 @@ export async function getConversations(userId: string): Promise<ChatConversation
       ? { content: latest.content, createdAt: latest.created_at, isOwn: latest.sender_id === userId }
       : null;
 
-    const lastReadAt = lastReadByConversation.get(c.id);
-    const unreadCount =
-      latest && latest.sender_id !== userId && (!lastReadAt || latest.created_at > lastReadAt)
-        ? 1
-        : 0;
+    const unreadCount = unreadCountByConversation.get(c.id) ?? 0;
 
     return { id: c.id, otherUser, lastMessage, unreadCount };
   });
@@ -717,7 +730,7 @@ export async function getConversations(userId: string): Promise<ChatConversation
 /** Number of conversations with something unread, for the navbar badge. */
 export async function getUnreadMessageCount(userId: string): Promise<number> {
   const conversations = await getConversations(userId);
-  return conversations.filter((c) => c.unreadCount > 0).length;
+  return conversations.reduce((sum, c) => sum + c.unreadCount, 0);
 }
 
 /** A single conversation, only if `viewerId` is a participant (defense in
