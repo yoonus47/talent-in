@@ -3,8 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createHash } from "node:crypto";
 import type {
   ChallengeAttempt,
+  Conversation,
   DailyChallengeQuestion,
   Database,
+  Message,
   NotificationType,
   Profile,
   QuizResult,
@@ -275,7 +277,7 @@ export async function getProfileByUsername(username: string): Promise<Profile | 
 
 export async function getFollowStats(profileId: string, viewerId: string) {
   const supabase = await createClient();
-  const [{ count: followers }, { count: following }, { data: viewerFollow }] =
+  const [{ count: followers }, { count: following }, { data: viewerFollow }, { data: followsViewer }] =
     await Promise.all([
       supabase
         .from("follows")
@@ -291,12 +293,22 @@ export async function getFollowStats(profileId: string, viewerId: string) {
         .eq("follower_id", viewerId)
         .eq("following_id", profileId)
         .maybeSingle(),
+      // Does `profileId` follow `viewerId` back? Combined with the query
+      // above, this is what "mutual follow" (required to DM — see
+      // lib/actions/chat.ts) actually means.
+      supabase
+        .from("follows")
+        .select("follower_id")
+        .eq("follower_id", profileId)
+        .eq("following_id", viewerId)
+        .maybeSingle(),
     ]);
 
   return {
     followers: followers ?? 0,
     following: following ?? 0,
     isFollowing: Boolean(viewerFollow),
+    isFollowedBy: Boolean(followsViewer),
   };
 }
 
@@ -587,4 +599,184 @@ export async function getLatestQuizResult(userId: string): Promise<QuizResult | 
     .limit(1)
     .maybeSingle();
   return data;
+}
+
+// ── Direct messages ─────────────────────────────────────────────────────
+
+/**
+ * People `userId` follows AND who follow `userId` back — the only people
+ * DMs can be started with (see lib/actions/chat.ts's startConversation).
+ * Two queries + a JS intersection, same shape as the follow queries in
+ * getFollowStats/attachIsFollowing above.
+ */
+export async function getMutualFollowProfiles(userId: string): Promise<Profile[]> {
+  const supabase = await createClient();
+  const [{ data: following }, { data: followers }] = await Promise.all([
+    supabase.from("follows").select("following_id").eq("follower_id", userId),
+    supabase.from("follows").select("follower_id").eq("following_id", userId),
+  ]);
+
+  const followingIds = new Set(following?.map((f) => f.following_id) ?? []);
+  const mutualIds = (followers ?? [])
+    .map((f) => f.follower_id)
+    .filter((id) => followingIds.has(id));
+
+  if (mutualIds.length === 0) return [];
+
+  const { data, error } = await supabase.from("profiles").select("*").in("id", mutualIds);
+  if (error) {
+    console.error("getMutualFollowProfiles failed:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
+export type ChatConversation = {
+  id: string;
+  otherUser: FeedAuthor & { id: string };
+  lastMessage: { content: string; createdAt: string; isOwn: boolean } | null;
+  unreadCount: number;
+};
+
+/** All of `userId`'s conversations, newest activity first. */
+export async function getConversations(userId: string): Promise<ChatConversation[]> {
+  const supabase = await createClient();
+
+  const { data: conversations, error } = await supabase
+    .from("conversations")
+    .select(
+      `id, created_at,
+       user_a:profiles!conversations_user_a_id_fkey(id, username, full_name, avatar_url),
+       user_b:profiles!conversations_user_b_id_fkey(id, username, full_name, avatar_url)`,
+    )
+    .or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`);
+
+  if (error) {
+    console.error("getConversations failed:", error.message);
+    return [];
+  }
+  if (!conversations || conversations.length === 0) return [];
+
+  const conversationIds = conversations.map((c) => c.id);
+
+  const [{ data: messages }, { data: reads }] = await Promise.all([
+    supabase
+      .from("messages")
+      .select("conversation_id, content, sender_id, created_at")
+      .in("conversation_id", conversationIds)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("conversation_reads")
+      .select("conversation_id, last_read_at")
+      .eq("user_id", userId)
+      .in("conversation_id", conversationIds),
+  ]);
+
+  // Batch-fetched newest-first — keep only the first (latest) per
+  // conversation, same "batch then reduce in JS" style used for reactions
+  // elsewhere in this file.
+  const latestByConversation = new Map<string, { content: string; sender_id: string; created_at: string }>();
+  for (const m of messages ?? []) {
+    if (!latestByConversation.has(m.conversation_id)) {
+      latestByConversation.set(m.conversation_id, m);
+    }
+  }
+
+  const lastReadByConversation = new Map(
+    (reads ?? []).map((r) => [r.conversation_id, r.last_read_at]),
+  );
+
+  const result: ChatConversation[] = conversations.map((c) => {
+    const userA = c.user_a as unknown as (FeedAuthor & { id: string }) | null;
+    const userB = c.user_b as unknown as (FeedAuthor & { id: string }) | null;
+    const otherUser = (userA?.id === userId ? userB : userA) ?? { id: "", ...UNKNOWN_AUTHOR };
+
+    const latest = latestByConversation.get(c.id);
+    const lastMessage = latest
+      ? { content: latest.content, createdAt: latest.created_at, isOwn: latest.sender_id === userId }
+      : null;
+
+    const lastReadAt = lastReadByConversation.get(c.id);
+    const unreadCount =
+      latest && latest.sender_id !== userId && (!lastReadAt || latest.created_at > lastReadAt)
+        ? 1
+        : 0;
+
+    return { id: c.id, otherUser, lastMessage, unreadCount };
+  });
+
+  result.sort((a, b) => {
+    const aTime = a.lastMessage?.createdAt ?? "";
+    const bTime = b.lastMessage?.createdAt ?? "";
+    return bTime.localeCompare(aTime);
+  });
+
+  return result;
+}
+
+/** Number of conversations with something unread, for the navbar badge. */
+export async function getUnreadMessageCount(userId: string): Promise<number> {
+  const conversations = await getConversations(userId);
+  return conversations.filter((c) => c.unreadCount > 0).length;
+}
+
+/** A single conversation, only if `viewerId` is a participant (defense in
+ * depth on top of RLS — used by the thread page to 404/redirect otherwise). */
+export async function getConversation(
+  id: string,
+  viewerId: string,
+): Promise<Conversation | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("conversations")
+    .select("*")
+    .eq("id", id)
+    .or(`user_a_id.eq.${viewerId},user_b_id.eq.${viewerId}`)
+    .maybeSingle();
+  return data;
+}
+
+/** The other participant in a conversation the viewer is part of. */
+export async function getOtherParticipant(
+  conversation: Conversation,
+  viewerId: string,
+): Promise<Profile | null> {
+  const supabase = await createClient();
+  const otherId =
+    conversation.user_a_id === viewerId ? conversation.user_b_id : conversation.user_a_id;
+  const { data } = await supabase.from("profiles").select("*").eq("id", otherId).maybeSingle();
+  return data;
+}
+
+/** Most recent 50 messages in a conversation, oldest first for rendering.
+ * Pagination beyond this is a deliberate v1 cut — see the chat plan. */
+export async function getMessages(conversationId: string): Promise<Message[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("messages")
+    .select("*")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.error("getMessages failed:", error.message);
+    return [];
+  }
+  return (data ?? []).reverse();
+}
+
+/** The other participant's last-read timestamp, for the "Seen" indicator. */
+export async function getOtherLastReadAt(
+  conversationId: string,
+  otherUserId: string,
+): Promise<string | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("conversation_reads")
+    .select("last_read_at")
+    .eq("conversation_id", conversationId)
+    .eq("user_id", otherUserId)
+    .maybeSingle();
+  return data?.last_read_at ?? null;
 }

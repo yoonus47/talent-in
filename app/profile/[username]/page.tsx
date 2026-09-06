@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { MessageCircle } from "lucide-react";
 import {
   getCurrentProfile,
   getFollowStats,
@@ -7,6 +8,7 @@ import {
   getUserPosts,
 } from "@/lib/data";
 import { toggleFollow } from "@/lib/actions/profile";
+import { startConversation } from "@/lib/actions/chat";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -27,10 +29,11 @@ export default async function ProfilePage({
   if (!profile) notFound();
 
   const isOwnProfile = profile.id === viewer.id;
-  const [{ followers, following, isFollowing }, items] = await Promise.all([
+  const [{ followers, following, isFollowing, isFollowedBy }, items] = await Promise.all([
     getFollowStats(profile.id, viewer.id),
     getUserPosts(profile.id, viewer.id),
   ]);
+  const isMutual = isFollowing && isFollowedBy;
 
   return (
     <div className="mx-auto max-w-xl space-y-4 px-4 py-6">
@@ -49,11 +52,20 @@ export default async function ProfilePage({
               Edit profile
             </a>
           ) : (
-            <form action={toggleFollow.bind(null, profile.id, isFollowing)}>
-              <Button type="submit" variant={isFollowing ? "outline" : "primary"} size="sm">
-                {isFollowing ? "Following" : "Follow"}
-              </Button>
-            </form>
+            <div className="flex items-center gap-2">
+              {isMutual && (
+                <form action={startConversation.bind(null, profile.id)}>
+                  <Button type="submit" variant="outline" size="sm" aria-label="Message">
+                    <MessageCircle className="h-4 w-4" />
+                  </Button>
+                </form>
+              )}
+              <form action={toggleFollow.bind(null, profile.id, isFollowing)}>
+                <Button type="submit" variant={isFollowing ? "outline" : "primary"} size="sm">
+                  {isFollowing ? "Following" : "Follow"}
+                </Button>
+              </form>
+            </div>
           )}
         </div>
 
