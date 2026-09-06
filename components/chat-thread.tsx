@@ -222,8 +222,11 @@ export function ChatThread({
           narrow viewport this page's content spans the full width, so
           without this clearance the Send button renders directly under
           it — confirmed visually, not a contrast issue. On sm: and up the
-          centered max-w-xl column already keeps enough margin on its own. */}
-      <div className="flex items-end gap-2 border-t border-border bg-background p-3 pr-16 sm:pr-3">
+          centered max-w-xl column already keeps enough margin on its own.
+          pb-[27px] (instead of the plain p-3 bottom) lines Send's vertical
+          center up with ThemeToggle's — measured live (Send center was
+          ~15px lower than ThemeToggle's), not eyeballed. */}
+      <div className="flex items-end gap-2 border-t border-border bg-background px-3 pb-[27px] pt-3 pr-16 sm:pr-3">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
