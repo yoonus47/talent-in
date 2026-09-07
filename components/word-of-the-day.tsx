@@ -38,7 +38,7 @@ export function WordOfTheDay({ word }: { word: VocabularyWord }) {
           <Sparkles className="h-3.5 w-3.5" />
           Word of the Day
         </span>
-        <span className="ig-gradient-text text-3xl font-extrabold">{word.word}</span>
+        <span className="brand-gradient-text text-3xl font-extrabold">{word.word}</span>
         {!revealed && (
           <span className="mt-1 text-xs text-muted-foreground">Tap to reveal meaning</span>
         )}

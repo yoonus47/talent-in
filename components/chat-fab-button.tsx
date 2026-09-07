@@ -88,10 +88,10 @@ export function ChatFabButton({ userId, unreadCount: initialUnreadCount }: { use
       title="Messages"
       // Stacked above ThemeToggle (fixed bottom-4 right-4, h-11) so the two
       // floating buttons don't overlap. --gradient-messaging (app/globals.css)
-      // is this app's own indigo→cyan gradient — deliberately not
-      // --gradient-instagram (that one really is Instagram's own icon
-      // colors) — giving this its own identity instead of blending in
-      // with every other plain bg-primary button in the app.
+      // is this app's own indigo→cyan gradient — deliberately its own
+      // color, distinct from --gradient-brand (the wordmark's "Sunrise
+      // Coral" gradient) — giving this its own identity instead of
+      // blending in with every other plain bg-primary button in the app.
       className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-105"
       style={{ background: "var(--gradient-messaging)" }}
     >

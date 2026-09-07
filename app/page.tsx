@@ -30,7 +30,7 @@ export default async function RoleSelectPage({
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div
           className="animate-blob absolute -left-32 -top-32 h-[28rem] w-[28rem] rounded-full opacity-30 blur-3xl"
-          style={{ background: "var(--gradient-instagram)" }}
+          style={{ background: "var(--gradient-brand)" }}
         />
         <div
           className="animate-blob absolute -right-32 top-1/4 h-96 w-96 rounded-full opacity-25 blur-3xl"
@@ -50,7 +50,7 @@ export default async function RoleSelectPage({
 
       <div className="mx-auto max-w-5xl px-4 py-16 sm:py-24">
         <div className="animate-fade-up text-center">
-          <p className="ig-gradient-text text-lg font-bold">TalentZify</p>
+          <p className="brand-gradient-text text-lg font-bold">TalentZify</p>
           <h1 className="mt-3 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             Who&apos;s joining us today?
           </h1>

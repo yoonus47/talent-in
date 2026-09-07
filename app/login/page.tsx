@@ -15,7 +15,7 @@ export default async function LoginPage({
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted px-4 py-12">
       <Card className="w-full max-w-sm p-8">
-        <Link href="/" className="ig-gradient-text mb-6 block text-center text-xl font-bold">
+        <Link href="/" className="brand-gradient-text mb-6 block text-center text-xl font-bold">
           TalentZify
         </Link>
         <h1 className="mb-1 text-center text-lg font-semibold">Welcome back</h1>

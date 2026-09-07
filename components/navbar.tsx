@@ -20,7 +20,7 @@ export async function Navbar() {
           room than the old plain-text links did; at max-w-3xl "Log out"
           was overflowing onto two lines. */}
       <nav className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
-        <Link href="/feed" className="ig-gradient-text text-lg font-bold">
+        <Link href="/feed" className="brand-gradient-text text-lg font-bold">
           TalentZify
         </Link>
 

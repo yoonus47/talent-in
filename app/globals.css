@@ -11,25 +11,26 @@
   --primary: #4f46e5;
   --primary-foreground: #ffffff;
   --primary-hover: #4338ca;
-  --accent: #dd2a7b;
+  --accent: #e11d48;
   --accent-foreground: #ffffff;
   --destructive: #ed4956;
   --destructive-foreground: #ffffff;
   --ring: #4f46e5;
 
-  /* Instagram's icon/story-ring gradient — used sparingly (wordmark, CTA glow) */
-  --gradient-instagram: linear-gradient(
-    45deg,
-    #feda75,
-    #fa7e1e,
-    #d62976,
-    #962fbf,
-    #4f5bd5
-  );
+  /* "Sunrise Coral" — the app's own brand gradient (wordmark, CTA glow,
+   * "special moment" text like the Word of the Day). Amber into coral
+   * into the app's own indigo primary — picked specifically to *not*
+   * match Instagram's 5-stop 45° icon gradient (a prior version of this
+   * literally reused those exact colors, which read as an obvious
+   * copycat); this one shares no stops with it and sits at a different
+   * angle. --accent above is tuned from the same warm family for the
+   * same reason. */
+  --gradient-brand: linear-gradient(135deg, #f59e0b, #f43f5e, #4f46e5);
 
   /* An original two-tone gradient (indigo → cyan) for messaging UI —
-   * distinct from --gradient-instagram on purpose, not a palette lift
-   * from another app's brand. Used by the chat FAB. */
+   * distinct from --gradient-brand on purpose, its own accent for its
+   * own affordance, not a palette lift from another app's brand. Used
+   * by the chat FAB. */
   --gradient-messaging: linear-gradient(135deg, #6366f1, #06b6d4);
 }
 
@@ -69,7 +70,7 @@
   --primary: #6366f1;
   --primary-foreground: #ffffff;
   --primary-hover: #818cf8;
-  --accent: #f77737;
+  --accent: #d97706;
   --accent-foreground: #ffffff;
   --ring: #6366f1;
 }
@@ -83,11 +84,40 @@ body {
   border-color: var(--border);
 }
 
-.ig-gradient-text {
-  background: var(--gradient-instagram);
+.brand-gradient-text {
+  background: var(--gradient-brand);
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
+}
+
+/* components/brand-loading-screen.tsx — the wordmark on the blank beat
+   between a successful login/navigation and the destination page's own
+   content (app/feed/loading.tsx, app/dashboard/loading.tsx): a single
+   left-to-right wipe reveal, then a slow, low-amplitude gradient pan so
+   it doesn't go visually dead if the load runs longer than the reveal. */
+.brand-curtain-wipe {
+  clip-path: inset(0 100% 0 0);
+  background-size: 260% 260%;
+  animation:
+    brand-curtain-wipe 900ms cubic-bezier(0.65, 0, 0.35, 1) forwards,
+    brand-sheen 6s ease-in-out 1.1s infinite;
+}
+
+@keyframes brand-curtain-wipe {
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes brand-sheen {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
 }
 
 /* Role-selection screen (app/page.tsx) — card entrance + background blobs. */
@@ -160,8 +190,13 @@ body {
   .animate-fade-up,
   .animate-blob,
   .animate-slide-in-from-right,
-  .animate-slide-in-from-left {
+  .animate-slide-in-from-left,
+  .brand-curtain-wipe {
     animation: none;
+  }
+
+  .brand-curtain-wipe {
+    clip-path: inset(0 0 0 0);
   }
 }
 
