@@ -23,7 +23,11 @@ export default async function OnboardingPage({
 }) {
   const { error } = await searchParams;
   const existing = await getCurrentProfile();
-  if (existing) redirect("/feed");
+  // A returning user landing here (e.g. mid-way through the Google OAuth
+  // callback chain) already has a profile — send them straight on to the
+  // feed. ?welcome=1 triggers components/brand-splash.tsx's entrance
+  // animation there.
+  if (existing) redirect("/feed?welcome=1");
 
   const suggestedName = await getSuggestedName();
 

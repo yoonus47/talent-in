@@ -68,7 +68,11 @@ export async function signIn(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
 
-  redirect("/feed");
+  // ?welcome=1 triggers components/brand-splash.tsx's entrance animation
+  // — this redirect happens as a client-side navigation (per Next's
+  // Server Action redirect behavior), so the root layout never remounts
+  // for it; the query param is what lets BrandSplash notice regardless.
+  redirect("/feed?welcome=1");
 }
 
 export async function signInWithGoogle() {

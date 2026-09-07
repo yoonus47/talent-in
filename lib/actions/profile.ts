@@ -81,7 +81,9 @@ export async function completeOnboarding(formData: FormData) {
   }
 
   revalidatePath("/feed");
-  redirect("/feed");
+  // ?welcome=1 triggers components/brand-splash.tsx's entrance animation
+  // — this is the very first time a brand-new account lands on the feed.
+  redirect("/feed?welcome=1");
 }
 
 /** Onboarding pre-fills first/last name from Google when available. */

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
@@ -5,6 +6,7 @@ import { Navbar } from "@/components/navbar";
 import { ChatFab } from "@/components/chat-fab";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SwipeNavigator } from "@/components/swipe-navigator";
+import { BrandSplash } from "@/components/brand-splash";
 import { getCurrentProfile } from "@/lib/data";
 import { getNavRoutes } from "@/lib/nav-links";
 import "./globals.css";
@@ -58,6 +60,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         </main>
         <ChatFab />
         <ThemeToggle />
+        {/* useSearchParams requires a Suspense boundary; see
+            components/brand-splash.tsx for what this actually shows and
+            when. */}
+        <Suspense fallback={null}>
+          <BrandSplash />
+        </Suspense>
       </body>
     </html>
   );
