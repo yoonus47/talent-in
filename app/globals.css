@@ -38,15 +38,18 @@
    * red is the user's favorite. */
   --gradient-brand: linear-gradient(135deg, #881337 0%, #e11d48 35%, #7c3aed 70%, #070a8f 100%);
 
-  /* An original two-tone gradient (indigo → cyan) for messaging UI —
-   * distinct from --gradient-brand on purpose, its own accent for its
-   * own affordance, not a palette lift from another app's brand. Used
-   * by the chat FAB. Its indigo anchor tracks whichever --primary is
-   * currently active (redefined per-theme below, same as --primary
-   * itself) rather than being one fixed value — otherwise it'd quietly
-   * drift out of sync with the rest of the UI's blue every time
-   * --primary changes, the way it just did in light mode. */
-  --gradient-messaging: linear-gradient(135deg, #070a8f, #06b6d4);
+  /* A solid, theme-independent cyan for messaging UI (the chat FAB) —
+   * distinct from --primary on purpose, its own accent for its own
+   * affordance, not a palette lift from another app's brand. This used
+   * to be a two-tone gradient anchored to --primary, but once --primary
+   * became sky blue the two stops sat too close in hue to read as a
+   * gradient at the FAB's small (48px) size — just a muddier solid. A
+   * real solid, independent of --primary, both looks cleaner at that
+   * size and never needs re-syncing whenever --primary changes again.
+   * cyan-600, not cyan-500: the white icon on top needs ~3:1 contrast
+   * for a UI icon, which cyan-500 (2.4:1) missed. Same value in both
+   * themes — nothing here derives from --primary anymore. */
+  --messaging: #0891b2;
 }
 
 @theme inline {
@@ -95,7 +98,6 @@
   --accent: #f43f5e;
   --accent-foreground: #ffffff;
   --ring: #38bdf8;
-  --gradient-messaging: linear-gradient(135deg, #38bdf8, #06b6d4);
 }
 
 body {
