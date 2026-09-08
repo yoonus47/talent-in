@@ -8,14 +8,18 @@
   --muted: #fafafa;
   --muted-foreground: #8e8e8e;
   --border: #dbdbdb;
-  --primary: #4f46e5;
+  --primary: #070a8f;
   --primary-foreground: #ffffff;
-  --primary-hover: #4338ca;
+  /* Base is already a very dark navy — darkening further for hover would
+   * approach black and barely read as a change, so this lightens instead
+   * (same hue/saturation, +12% lightness) rather than following the old
+   * indigo's darken-on-hover convention. */
+  --primary-hover: #0a0ec9;
   --accent: #e11d48;
   --accent-foreground: #ffffff;
   --destructive: #ed4956;
   --destructive-foreground: #ffffff;
-  --ring: #4f46e5;
+  --ring: #070a8f;
 
   /* The app's own brand gradient (wordmark, CTA glow, "special moment"
    * text like the Word of the Day) — picked specifically to *not* match
@@ -32,7 +36,7 @@
    * reddish burgundy/crimson pair a noticeably longer run — ~35% of the
    * gradient's own length vs. ~30% for the violet→indigo end — since
    * red is the user's favorite. */
-  --gradient-brand: linear-gradient(135deg, #881337 0%, #e11d48 35%, #7c3aed 70%, #4f46e5 100%);
+  --gradient-brand: linear-gradient(135deg, #881337 0%, #e11d48 35%, #7c3aed 70%, #070a8f 100%);
 
   /* An original two-tone gradient (indigo → cyan) for messaging UI —
    * distinct from --gradient-brand on purpose, its own accent for its
