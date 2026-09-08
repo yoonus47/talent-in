@@ -42,7 +42,11 @@ export default async function RoleSelectPage({
         <div
           className="animate-blob absolute bottom-0 left-1/3 h-80 w-80 rounded-full opacity-20 blur-3xl"
           style={{
-            background: "linear-gradient(135deg, #f59e0b, #ec4899)",
+            // Crimson → fuchsia — its own variant of the brand gradient's
+            // red-to-cool direction (no yellow/orange here either), kept
+            // distinct from --gradient-brand itself so the three ambient
+            // blobs still read as three different colors, not one repeated.
+            background: "linear-gradient(135deg, #e11d48, #d946ef)",
             animationDelay: "5s",
           }}
         />

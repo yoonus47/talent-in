@@ -17,15 +17,22 @@
   --destructive-foreground: #ffffff;
   --ring: #4f46e5;
 
-  /* "Sunrise Coral" — the app's own brand gradient (wordmark, CTA glow,
-   * "special moment" text like the Word of the Day). Amber into coral
-   * into the app's own indigo primary — picked specifically to *not*
-   * match Instagram's 5-stop 45° icon gradient (a prior version of this
+  /* The app's own brand gradient (wordmark, CTA glow, "special moment"
+   * text like the Word of the Day) — picked specifically to *not* match
+   * Instagram's 5-stop 45° icon gradient (a prior version of this
    * literally reused those exact colors, which read as an obvious
-   * copycat); this one shares no stops with it and sits at a different
-   * angle. --accent above is tuned from the same warm family for the
-   * same reason. */
-  --gradient-brand: linear-gradient(135deg, #f59e0b, #f43f5e, #4f46e5);
+   * copycat); this shares no stops with it and sits at a different
+   * angle. --accent above is tuned from the same family for the same
+   * reason.
+   *
+   * Burgundy → crimson → violet → indigo (the app's own primary): moves
+   * from the red end of the spectrum to the cool end while deliberately
+   * skipping yellow/orange entirely, per the user's request — and the
+   * stop positions (not just an even 0/33/66/100 split) give the
+   * reddish burgundy/crimson pair a noticeably longer run — ~35% of the
+   * gradient's own length vs. ~30% for the violet→indigo end — since
+   * red is the user's favorite. */
+  --gradient-brand: linear-gradient(135deg, #881337 0%, #e11d48 35%, #7c3aed 70%, #4f46e5 100%);
 
   /* An original two-tone gradient (indigo → cyan) for messaging UI —
    * distinct from --gradient-brand on purpose, its own accent for its
@@ -70,7 +77,7 @@
   --primary: #6366f1;
   --primary-foreground: #ffffff;
   --primary-hover: #818cf8;
-  --accent: #d97706;
+  --accent: #f43f5e;
   --accent-foreground: #ffffff;
   --ring: #6366f1;
 }
