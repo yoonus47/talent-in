@@ -82,13 +82,20 @@
   --muted: #121212;
   --muted-foreground: #a8a8a8;
   --border: #262626;
-  --primary: #6366f1;
-  --primary-foreground: #ffffff;
-  --primary-hover: #818cf8;
+  /* Sky blue (Tailwind's sky-400) — a genuinely light, airy blue, unlike
+   * the indigo this replaces, so white text on it fails contrast (2.1:1);
+   * --primary-foreground below switches to black for dark mode
+   * specifically to stay legible, and --primary-hover darkens (toward
+   * sky-500) rather than lightening further, since lightening a color
+   * already this bright would wash out toward white instead of reading
+   * as a hover state. */
+  --primary: #38bdf8;
+  --primary-foreground: #000000;
+  --primary-hover: #0ea5e9;
   --accent: #f43f5e;
   --accent-foreground: #ffffff;
-  --ring: #6366f1;
-  --gradient-messaging: linear-gradient(135deg, #6366f1, #06b6d4);
+  --ring: #38bdf8;
+  --gradient-messaging: linear-gradient(135deg, #38bdf8, #06b6d4);
 }
 
 body {
