@@ -10,8 +10,10 @@ import { ReactionSummary } from "@/components/reaction-summary";
 import { DoubleTapReact, DOUBLE_TAP_REACTION } from "@/components/double-tap-react";
 import { PostImage } from "@/components/post-image";
 import { PostContent } from "@/components/post-content";
+import { LinkPreviewCard } from "@/components/link-preview-card";
 import { CommentThread } from "@/components/comment-thread";
 import { MentionInput } from "@/components/mention-input";
+import { extractFirstUrl } from "@/lib/links";
 import { timeAgo } from "@/lib/utils";
 
 function countAllComments(post: FeedPost): number {
@@ -19,6 +21,12 @@ function countAllComments(post: FeedPost): number {
 }
 
 export function PostCard({ post }: { post: FeedPost }) {
+  // A post never stacks two "media-like" blocks — a link preview only
+  // shows up when there's no uploaded photo. Matches lib/data.ts's
+  // getFeedItems, which only ever populates post.linkPreview under the
+  // same condition.
+  const previewUrl = post.image_url ? null : extractFirstUrl(post.content);
+
   return (
     <Card className="p-4">
       <div className="flex items-center gap-3">
@@ -59,6 +67,8 @@ export function PostCard({ post }: { post: FeedPost }) {
           lightbox, double tap reacts) — separate from the text's
           DoubleTapReact above, which only ever reacts. */}
       <PostImage post={post} />
+
+      {previewUrl && <LinkPreviewCard url={previewUrl} initialPreview={post.linkPreview} />}
 
       <div className="mt-3">
         <ReactionSummary counts={post.reactionCounts} />

@@ -2,11 +2,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { createHash } from "node:crypto";
+import { extractFirstUrl } from "@/lib/links";
 import type {
   ChallengeAttempt,
   Conversation,
   DailyChallengeQuestion,
   Database,
+  LinkPreview,
   Message,
   NotificationType,
   Profile,
@@ -73,6 +75,12 @@ export type FeedPost = {
   shareCount: number;
   sharedByMe: boolean;
   comments: FeedComment[];
+  /** Only ever set for a post with no image (components/post-card.tsx
+   * skips the card entirely otherwise) — null both when the post has no
+   * URL and when one's never been fetched yet (see getFeedItems below;
+   * that case is resolved client-side by components/link-preview-card.tsx
+   * calling getLinkPreview on mount, not here). */
+  linkPreview: LinkPreview | null;
 };
 
 const EMPTY_REACTION_COUNTS: Record<ReactionType, number> = {
@@ -157,17 +165,41 @@ async function getFeedItems(authorIds: string[], currentUserId: string): Promise
 
   const allPostIds = allPostRows.map((p) => p.id);
 
-  const [{ data: reactions }, { data: rawComments }, { data: shareCounts }] = await Promise.all([
-    supabase.from("reactions").select("post_id, user_id, reaction_type").in("post_id", allPostIds),
-    supabase
-      .from("comments")
-      .select(
-        "id, post_id, user_id, content, parent_comment_id, created_at, profiles!comments_user_id_fkey(id, username, full_name, avatar_url)",
-      )
-      .in("post_id", allPostIds)
-      .order("created_at", { ascending: true }),
-    supabase.from("shares").select("post_id, user_id").in("post_id", allPostIds),
-  ]);
+  // A post's first URL, only when it has no image (components/post-card.tsx's
+  // own rule for whether a link-preview card even applies) — computed once
+  // here so both the batch cache-read below and the final per-post loop
+  // use the exact same value, rather than re-running the regex twice.
+  const postUrls = new Map<string, string>();
+  for (const post of allPostRows) {
+    if (post.image_url) continue;
+    const url = extractFirstUrl(post.content);
+    if (url) postUrls.set(post.id, url);
+  }
+  const uniquePostUrls = [...new Set(postUrls.values())];
+
+  const [{ data: reactions }, { data: rawComments }, { data: shareCounts }, { data: linkPreviews }] =
+    await Promise.all([
+      supabase
+        .from("reactions")
+        .select("post_id, user_id, reaction_type")
+        .in("post_id", allPostIds),
+      supabase
+        .from("comments")
+        .select(
+          "id, post_id, user_id, content, parent_comment_id, created_at, profiles!comments_user_id_fkey(id, username, full_name, avatar_url)",
+        )
+        .in("post_id", allPostIds)
+        .order("created_at", { ascending: true }),
+      supabase.from("shares").select("post_id, user_id").in("post_id", allPostIds),
+      // Cache-read only — this never performs the actual outbound fetch
+      // (lib/link-preview-fetch.ts), so it can't block the feed's render
+      // on a slow third-party site. A URL with no cache entry yet (or a
+      // stale one) resolves live, client-side, via
+      // components/link-preview-card.tsx calling getLinkPreview on mount.
+      uniquePostUrls.length > 0
+        ? supabase.from("link_previews").select("*").in("url", uniquePostUrls)
+        : Promise.resolve({ data: [] as LinkPreview[] }),
+    ]);
 
   const comments = rawComments ?? [];
   const commentIds = comments.map((c) => c.id);
@@ -182,6 +214,8 @@ async function getFeedItems(authorIds: string[], currentUserId: string): Promise
           .select("comment_id, user_id, reaction_type")
           .in("comment_id", commentIds)
       : { data: [] };
+
+  const linkPreviewByUrl = new Map((linkPreviews ?? []).map((lp) => [lp.url, lp]));
 
   function buildFeedComment(c: (typeof comments)[number]): FeedComment {
     const myReactions = commentReactions?.filter((r) => r.comment_id === c.id) ?? [];
@@ -232,6 +266,9 @@ async function getFeedItems(authorIds: string[], currentUserId: string): Promise
       ...UNKNOWN_AUTHOR,
     };
 
+    const postUrl = postUrls.get(post.id);
+    const linkPreview = postUrl ? (linkPreviewByUrl.get(postUrl) ?? null) : null;
+
     feedPostById.set(post.id, {
       id: post.id,
       content: post.content,
@@ -246,6 +283,7 @@ async function getFeedItems(authorIds: string[], currentUserId: string): Promise
       shareCount: postShares.length,
       sharedByMe: postShares.some((s) => s.user_id === currentUserId),
       comments: topLevelComments,
+      linkPreview,
     });
   }
 

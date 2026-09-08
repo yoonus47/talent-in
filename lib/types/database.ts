@@ -555,6 +555,39 @@ export interface Database {
         Update: never;
         Relationships: [];
       };
+      link_previews: {
+        Row: {
+          id: string;
+          url: string;
+          status: "ok" | "failed";
+          title: string | null;
+          description: string | null;
+          image_url: string | null;
+          site_name: string | null;
+          fetched_at: string;
+        };
+        Insert: {
+          id?: string;
+          url: string;
+          status: "ok" | "failed";
+          title?: string | null;
+          description?: string | null;
+          image_url?: string | null;
+          site_name?: string | null;
+          fetched_at?: string;
+        };
+        // Refreshed wholesale on a cache miss/staleness (lib/actions/
+        // link-preview.ts's upsert) — no partial-field updates anywhere.
+        Update: {
+          status?: "ok" | "failed";
+          title?: string | null;
+          description?: string | null;
+          image_url?: string | null;
+          site_name?: string | null;
+          fetched_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -586,3 +619,4 @@ export type VocabularyWord = Database["public"]["Tables"]["vocabulary_words"]["R
 export type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 export type Conversation = Database["public"]["Tables"]["conversations"]["Row"];
 export type Message = Database["public"]["Tables"]["messages"]["Row"];
+export type LinkPreview = Database["public"]["Tables"]["link_previews"]["Row"];

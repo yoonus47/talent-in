@@ -1,5 +1,7 @@
 "use client";
 
+import { URL_RE, splitTrailingPunctuation } from "@/lib/links";
+
 // PostCard (which renders this) is a Server Component — the onClick below
 // (stopping the click from also reaching DoubleTapReact's tap-to-react
 // handling) is a plain event handler, which can only live in a Client
@@ -12,36 +14,9 @@
 // stored text at render time, no editing of the stored content itself),
 // but for URLs instead of @mentions — Twitter-style: any http(s):// or
 // www.-prefixed run of non-whitespace becomes a real clickable link.
-const URL_RE = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
-
-/**
- * Trailing punctuation (a period ending the sentence, a comma, a closing
- * quote…) shouldn't be swallowed into the link — "check this out
- * https://example.com." should link just the URL, not the trailing dot.
- * The one case that needs care: a URL can legitimately end in `)` (e.g. a
- * Wikipedia link with a disambiguator), so a trailing `)` is only trimmed
- * when it isn't balancing an earlier `(` inside the same URL.
- */
-function splitTrailingPunctuation(url: string): { url: string; trailing: string } {
-  let end = url.length;
-  while (end > 0) {
-    const ch = url[end - 1];
-    if (".,;:!?'\"".includes(ch)) {
-      end--;
-      continue;
-    }
-    if (ch === ")") {
-      const opens = (url.slice(0, end - 1).match(/\(/g) ?? []).length;
-      const closes = (url.slice(0, end - 1).match(/\)/g) ?? []).length;
-      if (closes >= opens) {
-        end--;
-        continue;
-      }
-    }
-    break;
-  }
-  return { url: url.slice(0, end), trailing: url.slice(end) };
-}
+// URL_RE/splitTrailingPunctuation live in lib/links.ts, shared with the
+// link-preview-card feature, which needs to agree on exactly the same
+// definition of "what's a URL" as this linkification does.
 
 /** Renders post text with any URL turned into a real, clickable link
  * (opens in a new tab) — same presentation-time-regex approach as
