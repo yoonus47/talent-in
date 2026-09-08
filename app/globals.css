@@ -41,8 +41,12 @@
   /* An original two-tone gradient (indigo → cyan) for messaging UI —
    * distinct from --gradient-brand on purpose, its own accent for its
    * own affordance, not a palette lift from another app's brand. Used
-   * by the chat FAB. */
-  --gradient-messaging: linear-gradient(135deg, #6366f1, #06b6d4);
+   * by the chat FAB. Its indigo anchor tracks whichever --primary is
+   * currently active (redefined per-theme below, same as --primary
+   * itself) rather than being one fixed value — otherwise it'd quietly
+   * drift out of sync with the rest of the UI's blue every time
+   * --primary changes, the way it just did in light mode. */
+  --gradient-messaging: linear-gradient(135deg, #070a8f, #06b6d4);
 }
 
 @theme inline {
@@ -84,6 +88,7 @@
   --accent: #f43f5e;
   --accent-foreground: #ffffff;
   --ring: #6366f1;
+  --gradient-messaging: linear-gradient(135deg, #6366f1, #06b6d4);
 }
 
 body {
