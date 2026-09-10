@@ -352,6 +352,14 @@ export interface Database {
           part_of_speech: string;
           definition: string;
           example_sentence: string;
+          // Pronunciation fields, filled by scripts/enrich-vocabulary.mjs
+          // from the Free Dictionary API — null until that's run against
+          // the environment (the Word of the Day card degrades gracefully
+          // when they're missing).
+          phonetic: string | null;
+          audio_url: string | null;
+          source_url: string | null;
+          enriched_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -360,9 +368,20 @@ export interface Database {
           part_of_speech: string;
           definition: string;
           example_sentence: string;
+          phonetic?: string | null;
+          audio_url?: string | null;
+          source_url?: string | null;
+          enriched_at?: string | null;
           created_at?: string;
         };
-        Update: never;
+        // Only scripts/enrich-vocabulary.mjs writes here, as the service
+        // role — no browser-client path and no column grant.
+        Update: {
+          phonetic?: string | null;
+          audio_url?: string | null;
+          source_url?: string | null;
+          enriched_at?: string | null;
+        };
         Relationships: [];
       };
       challenge_attempts: {
