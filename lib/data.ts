@@ -721,7 +721,7 @@ export async function getConversations(userId: string): Promise<ChatConversation
   const { data: conversations, error } = await supabase
     .from("conversations")
     .select(
-      `id, type, name,
+      `id, type, name, icon_url,
        user_a:profiles!conversations_user_a_id_fkey(id, username, full_name, avatar_url),
        user_b:profiles!conversations_user_b_id_fkey(id, username, full_name, avatar_url)`,
     )
@@ -816,7 +816,7 @@ export async function getConversations(userId: string): Promise<ChatConversation
         id: c.id,
         type: "group" as const,
         title: c.name ?? "Group",
-        avatarUrl: null,
+        avatarUrl: c.icon_url,
         memberCount: memberCountByConversation.get(c.id) ?? 0,
         lastMessage,
         unreadCount,
@@ -887,11 +887,13 @@ export type GroupMember = {
 /** Group name + ordered member list (earliest-joined first), for the
  * thread header and the /chat/[id]/info page. Null if `id` isn't a group
  * conversation the viewer belongs to (RLS-gated, same as getConversation). */
-export async function getGroupInfo(id: string): Promise<{ id: string; name: string; members: GroupMember[] } | null> {
+export async function getGroupInfo(
+  id: string,
+): Promise<{ id: string; name: string; iconUrl: string | null; members: GroupMember[] } | null> {
   const supabase = await createClient();
   const { data: conversation } = await supabase
     .from("conversations")
-    .select("id, name, type")
+    .select("id, name, icon_url, type")
     .eq("id", id)
     .eq("type", "group")
     .maybeSingle();
@@ -906,6 +908,7 @@ export async function getGroupInfo(id: string): Promise<{ id: string; name: stri
   return {
     id: conversation.id,
     name: conversation.name ?? "Group",
+    iconUrl: conversation.icon_url,
     members: (members ?? []).map((m) => {
       const profile = m.profiles as unknown as (FeedAuthor & { id: string }) | null;
       return {

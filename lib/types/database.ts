@@ -476,6 +476,7 @@ export interface Database {
           user_a_id: string | null;
           user_b_id: string | null;
           name: string | null;
+          icon_url: string | null;
           created_by: string | null;
           created_at: string;
         };
@@ -485,13 +486,15 @@ export interface Database {
           user_a_id?: string | null;
           user_b_id?: string | null;
           name?: string | null;
+          icon_url?: string | null;
           created_by?: string | null;
           created_at?: string;
         };
-        // Only `name` is writable by a client, via the group-rename RLS
-        // policy + column-scoped grant (0019_group_chats.sql) — everything
-        // else here is set once at creation by a SECURITY DEFINER RPC.
-        Update: { name?: string };
+        // Only `name`/`icon_url` are writable by a client, via the
+        // group-rename RLS policy + column-scoped grant (0019_group_chats
+        // .sql, extended by 0022_group_icons.sql) — everything else here
+        // is set once at creation by a SECURITY DEFINER RPC.
+        Update: { name?: string; icon_url?: string | null };
         Relationships: [
           {
             foreignKeyName: "conversations_user_a_id_fkey";

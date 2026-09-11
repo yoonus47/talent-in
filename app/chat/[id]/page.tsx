@@ -45,7 +45,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
             href={`/chat/${conversation.id}/info`}
             className="flex min-w-0 flex-1 items-center gap-2"
           >
-            <Avatar name={groupInfo.name} size={36} />
+            <Avatar name={groupInfo.name} src={groupInfo.iconUrl} size={36} />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-semibold text-foreground">
                 {groupInfo.name}

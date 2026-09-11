@@ -3,6 +3,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getUnreadMessageCount } from "@/lib/data";
+import { validateImageFile, extensionFor } from "@/lib/uploads";
+
+const MAX_GROUP_ICON_BYTES = 3 * 1024 * 1024;
 
 /**
  * Fresh unread-conversations count, callable from the client. Same
@@ -105,6 +108,87 @@ export async function renameGroupConversation(conversationId: string, name: stri
   const { error } = await supabase
     .from("conversations")
     .update({ name: trimmed })
+    .eq("id", conversationId);
+
+  if (error) {
+    return { error: error.message };
+  }
+  return { error: null };
+}
+
+/** Deletes every possible extension for a group's icon path — upsert-by-
+ * path means a re-upload in a different format would otherwise orphan the
+ * old file, same as removeAvatarFiles in lib/actions/profile.ts. */
+async function removeGroupIconFiles(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  conversationId: string,
+) {
+  await supabase.storage
+    .from("group-icons")
+    .remove(["jpeg", "png", "webp", "gif"].map((ext) => `${conversationId}/icon.${ext}`));
+}
+
+/** Admin-only — the group-icons Storage bucket's RLS policies and the
+ * conversations UPDATE policy (0022_group_icons.sql) are the real guard;
+ * a non-admin's upload/update just gets rejected by Postgres. */
+export async function uploadGroupIcon(conversationId: string, formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const file = formData.get("icon");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Choose an image first." };
+  }
+
+  const validationError = validateImageFile(file, MAX_GROUP_ICON_BYTES);
+  if (validationError) {
+    return { error: validationError };
+  }
+
+  const path = `${conversationId}/icon.${extensionFor(file.type)}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("group-icons")
+    .upload(path, file, { upsert: true, contentType: file.type });
+
+  if (uploadError) {
+    return { error: uploadError.message };
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("group-icons").getPublicUrl(path);
+  // Cache-bust: upsert keeps the same path, so browsers/CDNs would
+  // otherwise keep showing the old image after a re-upload.
+  const iconUrl = `${publicUrl}?t=${Date.now()}`;
+
+  const { error: updateError } = await supabase
+    .from("conversations")
+    .update({ icon_url: iconUrl })
+    .eq("id", conversationId);
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+  return { error: null };
+}
+
+/** Admin-only — same guard as uploadGroupIcon. */
+export async function removeGroupIcon(conversationId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  await removeGroupIconFiles(supabase, conversationId);
+
+  const { error } = await supabase
+    .from("conversations")
+    .update({ icon_url: null })
     .eq("id", conversationId);
 
   if (error) {

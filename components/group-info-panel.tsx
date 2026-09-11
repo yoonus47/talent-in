@@ -1,23 +1,28 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Pencil, UserMinus, UserPlus, X } from "lucide-react";
+import { ArrowLeft, Camera, Check, Pencil, UserMinus, UserPlus, X } from "lucide-react";
 import {
   addGroupMembers,
   leaveGroup,
+  removeGroupIcon,
   removeGroupMember,
   renameGroupConversation,
+  uploadGroupIcon,
 } from "@/lib/actions/chat";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { validateImageFile } from "@/lib/uploads";
+import { isHeicFile, convertToJpeg, setInputFile } from "@/lib/image-client";
 import type { GroupMember } from "@/lib/data";
 import type { Profile } from "@/lib/types/database";
 
 const MAX_MEMBERS = 100;
+const MAX_ICON_BYTES = 3 * 1024 * 1024;
 
 export function GroupInfoPanel({
   conversationId,
@@ -27,7 +32,7 @@ export function GroupInfoPanel({
   addableCandidates,
 }: {
   conversationId: string;
-  groupInfo: { id: string; name: string; members: GroupMember[] };
+  groupInfo: { id: string; name: string; iconUrl: string | null; members: GroupMember[] };
   viewerId: string;
   isAdmin: boolean;
   addableCandidates: Profile[];
@@ -37,6 +42,11 @@ export function GroupInfoPanel({
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(groupInfo.name);
   const [error, setError] = useState<string | null>(null);
+
+  const [iconFile, setIconFile] = useState<File | null>(null);
+  const [iconPreview, setIconPreview] = useState<string | null>(null);
+  const [iconConverting, setIconConverting] = useState(false);
+  const iconInputRef = useRef<HTMLInputElement>(null);
 
   const [addingMembers, setAddingMembers] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -55,6 +65,70 @@ export function GroupInfoPanel({
       }
       setError(null);
       setEditingName(false);
+      router.refresh();
+    });
+  }
+
+  async function handleIconFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    let file = e.target.files?.[0];
+    setError(null);
+    if (!file) return;
+
+    if (isHeicFile(file)) {
+      setIconConverting(true);
+      try {
+        file = await convertToJpeg(file);
+        if (iconInputRef.current) setInputFile(iconInputRef.current, file);
+      } catch {
+        setIconConverting(false);
+        setError("Couldn't read that iPhone photo format — try a different one.");
+        if (iconInputRef.current) iconInputRef.current.value = "";
+        return;
+      }
+      setIconConverting(false);
+    }
+
+    const validationError = validateImageFile(file, MAX_ICON_BYTES);
+    if (validationError) {
+      setError(validationError);
+      if (iconInputRef.current) iconInputRef.current.value = "";
+      return;
+    }
+
+    setIconFile(file);
+    setIconPreview(URL.createObjectURL(file));
+  }
+
+  function cancelIconChange() {
+    setIconFile(null);
+    setIconPreview(null);
+    if (iconInputRef.current) iconInputRef.current.value = "";
+  }
+
+  function saveIcon() {
+    if (!iconFile) return;
+    const formData = new FormData();
+    formData.set("icon", iconFile);
+    startTransition(async () => {
+      const result = await uploadGroupIcon(conversationId, formData);
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+      setError(null);
+      cancelIconChange();
+      router.refresh();
+    });
+  }
+
+  function handleRemoveIcon() {
+    startTransition(async () => {
+      const result = await removeGroupIcon(conversationId);
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+      setError(null);
       router.refresh();
     });
   }
@@ -107,36 +181,88 @@ export function GroupInfoPanel({
         <h1 className="text-lg font-bold">Group info</h1>
       </div>
 
-      <Card className="space-y-2 p-4">
-        {editingName ? (
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={60}
-              autoFocus
-              className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-            <Button type="button" size="sm" onClick={saveName} disabled={isPending}>
-              Save
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-lg font-semibold text-foreground">{groupInfo.name}</span>
+      <Card className="space-y-3 p-4">
+        <div className="flex items-center gap-3">
+          <div className="relative shrink-0">
+            <Avatar name={groupInfo.name} src={iconPreview ?? groupInfo.iconUrl} size={56} />
             {isAdmin && (
-              <button
-                type="button"
-                onClick={() => setEditingName(true)}
-                aria-label="Rename group"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Pencil className="h-4 w-4" />
-              </button>
+              <label className="absolute -bottom-1 -right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:bg-muted">
+                <Camera className="h-3.5 w-3.5" />
+                <input
+                  ref={iconInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
+                  onChange={handleIconFileChange}
+                  disabled={iconConverting}
+                  className="sr-only"
+                />
+              </label>
             )}
           </div>
+
+          <div className="min-w-0 flex-1">
+            {editingName ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={60}
+                  autoFocus
+                  className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <Button type="button" size="sm" onClick={saveName} disabled={isPending}>
+                  Save
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-lg font-semibold text-foreground">{groupInfo.name}</span>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setEditingName(true)}
+                    aria-label="Rename group"
+                    className="shrink-0 text-muted-foreground hover:text-foreground"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {iconPreview ? (
+          <div className="flex items-center gap-3">
+            <Button type="button" size="sm" onClick={saveIcon} disabled={isPending}>
+              {isPending ? "Uploading…" : "Save icon"}
+            </Button>
+            <button
+              type="button"
+              onClick={cancelIconChange}
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          isAdmin &&
+          groupInfo.iconUrl && (
+            <button
+              type="button"
+              onClick={handleRemoveIcon}
+              disabled={isPending}
+              className="text-sm text-muted-foreground hover:text-destructive"
+            >
+              Remove icon
+            </button>
+          )
         )}
+        {isAdmin && (
+          <p className="text-xs text-muted-foreground">JPEG, PNG, WebP, or GIF. Max 3MB.</p>
+        )}
+
         {error && <p className="text-sm text-destructive">{error}</p>}
       </Card>
 
