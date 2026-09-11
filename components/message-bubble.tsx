@@ -32,7 +32,24 @@ export function MessageBubble({
   senderName?: string;
 }) {
   return (
-    <div className={cn("flex flex-col", isOwn ? "items-end" : "items-start")}>
+    // max-w-[75%] lives here, NOT on the bubble div below — this outer div
+    // is a plain block box (a normal child of ChatThread's non-flex message
+    // list), so the percentage resolves against a real, definite width.
+    // It used to sit on the bubble div itself, but that div is a flex item
+    // inside the "group flex" row below, and once this wrapper became
+    // `flex flex-col items-start/items-end` (to stack the sender-name label
+    // above the bubble), that made the row's own width indeterminate
+    // (align-items other than the default `stretch` shrinks a flex item to
+    // its content). A `max-width: 75%` resolving against an indeterminate
+    // ancestor is undefined per spec, and in practice collapsed short,
+    // space-less content (e.g. "Hi") to a single character per line: with
+    // `overflow-wrap: break-word` set, a browser's min-content fallback for
+    // an unbreakable run is just its narrowest character, and that's what
+    // the box shrank to. Longer messages hid the bug — they have spaces,
+    // real wrap points, so their min-content is a whole word, not one
+    // glyph. Confirmed live (two throwaway accounts, a 2-char group
+    // message) before and after this fix.
+    <div className={cn("flex max-w-[75%] flex-col", isOwn ? "ml-auto items-end" : "items-start")}>
       {senderName && (
         <span className="mb-0.5 px-1 text-xs font-medium text-muted-foreground">{senderName}</span>
       )}
@@ -63,7 +80,7 @@ export function MessageBubble({
           // timeAgo's rounded relative value doesn't have that problem.
           title={timeAgo(message.created_at)}
           className={cn(
-            "max-w-[75%] rounded-2xl px-4 py-2 text-sm",
+            "rounded-2xl px-4 py-2 text-sm",
             isOwn
               ? cn("bg-primary text-primary-foreground", isLastInRun && "rounded-br-sm")
               : cn("bg-muted text-foreground", isLastInRun && "rounded-bl-sm"),
