@@ -42,7 +42,8 @@ export type NotificationType =
   | "share"
   | "reply"
   | "mention"
-  | "comment_reaction";
+  | "comment_reaction"
+  | "group_added";
 
 export interface Database {
   public: {
@@ -413,6 +414,7 @@ export interface Database {
           post_id: string | null;
           comment_id: string | null;
           reaction_type: ReactionType | null;
+          conversation_id: string | null;
           read_at: string | null;
           created_at: string;
         };
@@ -424,6 +426,7 @@ export interface Database {
           post_id?: string | null;
           comment_id?: string | null;
           reaction_type?: ReactionType | null;
+          conversation_id?: string | null;
           read_at?: string | null;
           created_at?: string;
         };
@@ -457,22 +460,38 @@ export interface Database {
             referencedRelation: "comments";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "notifications_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
         ];
       };
       conversations: {
         Row: {
           id: string;
-          user_a_id: string;
-          user_b_id: string;
+          type: "dm" | "group";
+          user_a_id: string | null;
+          user_b_id: string | null;
+          name: string | null;
+          created_by: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
-          user_a_id: string;
-          user_b_id: string;
+          type?: "dm" | "group";
+          user_a_id?: string | null;
+          user_b_id?: string | null;
+          name?: string | null;
+          created_by?: string | null;
           created_at?: string;
         };
-        Update: never;
+        // Only `name` is writable by a client, via the group-rename RLS
+        // policy + column-scoped grant (0019_group_chats.sql) — everything
+        // else here is set once at creation by a SECURITY DEFINER RPC.
+        Update: { name?: string };
         Relationships: [
           {
             foreignKeyName: "conversations_user_a_id_fkey";
@@ -484,6 +503,46 @@ export interface Database {
           {
             foreignKeyName: "conversations_user_b_id_fkey";
             columns: ["user_b_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversations_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      conversation_members: {
+        Row: {
+          conversation_id: string;
+          user_id: string;
+          role: "admin" | "member";
+          joined_at: string;
+        };
+        Insert: {
+          conversation_id: string;
+          user_id: string;
+          role?: "admin" | "member";
+          joined_at?: string;
+        };
+        // Role changes are trigger-only (promote_next_admin,
+        // 0019_group_chats.sql) — no client ever updates a member row.
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "conversation_members_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversation_members_user_id_fkey";
+            columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];
@@ -622,6 +681,18 @@ export interface Database {
         Args: Record<PropertyKey, never>;
         Returns: undefined;
       };
+      start_dm_conversation: {
+        Args: { p_other_id: string };
+        Returns: string;
+      };
+      create_group_conversation: {
+        Args: { p_name: string; p_member_ids: string[] };
+        Returns: string;
+      };
+      add_group_members: {
+        Args: { p_conversation_id: string; p_member_ids: string[] };
+        Returns: undefined;
+      };
     };
   };
 }
@@ -637,5 +708,6 @@ export type ChallengeAttempt = Database["public"]["Tables"]["challenge_attempts"
 export type VocabularyWord = Database["public"]["Tables"]["vocabulary_words"]["Row"];
 export type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 export type Conversation = Database["public"]["Tables"]["conversations"]["Row"];
+export type ConversationMember = Database["public"]["Tables"]["conversation_members"]["Row"];
 export type Message = Database["public"]["Tables"]["messages"]["Row"];
 export type LinkPreview = Database["public"]["Tables"]["link_previews"]["Row"];

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Moon, Send, Sun } from "lucide-react";
+import { MessageCircle, Moon, Send, Sun } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { markConversationRead } from "@/lib/actions/chat";
 import { MessageBubble } from "@/components/message-bubble";
@@ -9,6 +9,77 @@ import { useThemeToggle } from "@/components/theme-toggle";
 import type { Message } from "@/lib/types/database";
 
 type LocalMessage = Message & { pending?: boolean };
+type SenderProfile = { full_name: string; avatar_url: string | null };
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/** UTC-based day key/label, deliberately NOT toLocaleDateString — its
+ * output depends on the runtime's locale/timezone, which differs between
+ * this component's server render and the browser's hydration (the exact
+ * hydration-mismatch class MessageBubble's timeAgo comment documents).
+ * `created_at` is a UTC ISO timestamp, so slicing/reading it in UTC gives
+ * the same string on both sides no matter where either runs. */
+function dayKey(iso: string) {
+  return iso.slice(0, 10);
+}
+function dayLabel(iso: string) {
+  const d = new Date(iso);
+  return `${WEEKDAYS[d.getUTCDay()]}, ${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
+}
+
+/** Consecutive messages from the same sender, less than 5 minutes apart,
+ * on the same calendar day, render as one visually grouped run (tail
+ * corner + sender name only on/above the boundary bubbles). */
+const GROUP_WINDOW_MS = 5 * 60 * 1000;
+
+type RenderItem =
+  | { kind: "separator"; key: string; label: string }
+  | { kind: "message"; message: LocalMessage; isLastInRun: boolean; senderName?: string };
+
+function buildRenderItems(
+  messages: LocalMessage[],
+  myId: string,
+  conversationType: "dm" | "group",
+  memberProfiles: Record<string, SenderProfile>,
+): RenderItem[] {
+  const items: RenderItem[] = [];
+  let lastDayKey: string | null = null;
+
+  messages.forEach((message, i) => {
+    const key = dayKey(message.created_at);
+    if (key !== lastDayKey) {
+      items.push({ kind: "separator", key, label: dayLabel(message.created_at) });
+      lastDayKey = key;
+    }
+
+    const next = messages[i + 1];
+    const sameDayNext = next && dayKey(next.created_at) === key;
+    const isLastInRun =
+      !sameDayNext ||
+      next.sender_id !== message.sender_id ||
+      new Date(next.created_at).getTime() - new Date(message.created_at).getTime() > GROUP_WINDOW_MS;
+
+    const prev = messages[i - 1];
+    const samePrevRun =
+      prev &&
+      dayKey(prev.created_at) === key &&
+      prev.sender_id === message.sender_id &&
+      new Date(message.created_at).getTime() - new Date(prev.created_at).getTime() <= GROUP_WINDOW_MS;
+
+    const isFirstInRun = !samePrevRun;
+    const senderName =
+      conversationType === "group" && message.sender_id !== myId && isFirstInRun
+        ? memberProfiles[message.sender_id]?.full_name
+        : undefined;
+
+    items.push({ kind: "message", message, isLastInRun, senderName });
+  });
+
+  return items;
+}
 
 /** Static, in-flow dark-mode toggle for the mobile composer row — see
  * ThemeToggle's comment in components/theme-toggle.tsx for why the
@@ -29,26 +100,37 @@ function MobileThemeToggle() {
 }
 
 /**
- * The live chat thread. Unlike every other mutation in this app, sending a
- * message is a direct client-side insert (see lib/actions/chat.ts's header
- * comment) — RLS is the real guard, not a Server Action. A realtime
- * subscription is the single source of truth for anything that isn't the
- * sender's own optimistic echo: new messages, unsends, and the other
- * participant's read-marker (for the "Seen" indicator) all arrive the same
- * way, for both people in the conversation.
+ * The live chat thread — dm or group alike. Unlike every other mutation in
+ * this app, sending a message is a direct client-side insert (see
+ * lib/actions/chat.ts's header comment) — RLS is the real guard, not a
+ * Server Action. A realtime subscription is the single source of truth for
+ * anything that isn't the sender's own optimistic echo: new messages,
+ * unsends, and (dm only) the other participant's read-marker all arrive
+ * the same way. RLS already scopes delivery to conversations this user is
+ * a member of (conversation_members, 0019_group_chats.sql), so this
+ * subscription needs no dm/group branching of its own.
  */
 export function ChatThread({
   conversationId,
   myId,
+  conversationType,
   otherUserId,
+  memberProfiles = {},
   initialMessages,
-  initialOtherLastReadAt,
+  initialOtherLastReadAt = null,
 }: {
   conversationId: string;
   myId: string;
-  otherUserId: string;
+  conversationType: "dm" | "group";
+  /** dm only — used for the "Seen" indicator. */
+  otherUserId?: string;
+  /** group only — id → profile, for sender-name attribution. Built from
+   * actual message senders (lib/data.ts's getMessageSenderProfiles), not
+   * current membership, so a departed member's old messages still show a
+   * name. */
+  memberProfiles?: Record<string, SenderProfile>;
   initialMessages: Message[];
-  initialOtherLastReadAt: string | null;
+  initialOtherLastReadAt?: string | null;
 }) {
   const [messages, setMessages] = useState<LocalMessage[]>(initialMessages);
   const [otherLastReadAt, setOtherLastReadAt] = useState(initialOtherLastReadAt);
@@ -202,12 +284,15 @@ export function ChatThread({
 
   const lastMessage = messages[messages.length - 1];
   const showSeen = Boolean(
-    lastMessage &&
+    conversationType === "dm" &&
+      lastMessage &&
       !lastMessage.pending &&
       lastMessage.sender_id === myId &&
       otherLastReadAt &&
       otherLastReadAt >= lastMessage.created_at,
   );
+
+  const renderItems = buildRenderItems(messages, myId, conversationType, memberProfiles);
 
   return (
     // A bounded dvh height + an internally-scrolling message list, with the
@@ -223,16 +308,36 @@ export function ChatThread({
     // is exactly the combination WebKit's keyboard-resize handling and
     // sticky repaint both handle poorly).
     <div className="flex h-[calc(100dvh-9.25rem)] flex-col sm:h-[calc(100dvh-7rem)]">
-      <div className="flex-1 space-y-2 overflow-y-auto px-4 py-4">
-        {messages.map((message) => (
-          <MessageBubble
-            key={message.id}
-            message={message}
-            isOwn={message.sender_id === myId}
-            pending={message.pending}
-          />
-        ))}
-        {showSeen && <p className="pr-1 text-right text-xs text-muted-foreground">Seen</p>}
+      <div className="flex-1 space-y-1 overflow-y-auto px-4 py-4">
+        {messages.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
+            <MessageCircle className="h-8 w-8 opacity-40" />
+            <p className="text-sm">No messages yet — say hi 👋</p>
+          </div>
+        ) : (
+          renderItems.map((item, i) =>
+            item.kind === "separator" ? (
+              <div key={item.key} className="flex justify-center py-2">
+                <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                  {item.label}
+                </span>
+              </div>
+            ) : (
+              <div key={item.message.id} className={item.isLastInRun ? "pb-1.5" : ""}>
+                <MessageBubble
+                  message={item.message}
+                  isOwn={item.message.sender_id === myId}
+                  pending={item.message.pending}
+                  isLastInRun={item.isLastInRun}
+                  senderName={item.senderName}
+                />
+                {i === renderItems.length - 1 && showSeen && (
+                  <p className="pr-1 pt-1 text-right text-xs text-muted-foreground">Seen</p>
+                )}
+              </div>
+            ),
+          )
+        )}
         <div ref={bottomRef} />
       </div>
 

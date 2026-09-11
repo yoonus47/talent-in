@@ -510,6 +510,7 @@ export type FeedNotification = {
   actor: FeedAuthor & { id: string };
   post: { id: string; content: string } | null;
   comment: { id: string; content: string } | null;
+  conversation: { id: string; name: string | null } | null;
 };
 
 /** Most recent notifications for `userId`, newest first. */
@@ -521,7 +522,8 @@ export async function getNotifications(userId: string): Promise<FeedNotification
       `id, type, reaction_type, created_at, read_at,
        profiles!notifications_actor_id_fkey(id, username, full_name, avatar_url),
        posts!notifications_post_id_fkey(id, content),
-       comments!notifications_comment_id_fkey(id, content)`,
+       comments!notifications_comment_id_fkey(id, content),
+       conversations!notifications_conversation_id_fkey(id, name)`,
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
@@ -544,6 +546,7 @@ export async function getNotifications(userId: string): Promise<FeedNotification
     },
     post: (n.posts as unknown as { id: string; content: string } | null) ?? null,
     comment: (n.comments as unknown as { id: string; content: string } | null) ?? null,
+    conversation: (n.conversations as unknown as { id: string; name: string | null } | null) ?? null,
   }));
 }
 
@@ -645,12 +648,13 @@ export async function getLatestQuizResult(userId: string): Promise<QuizResult | 
   return data;
 }
 
-// ── Direct messages ─────────────────────────────────────────────────────
+// ── Direct messages & groups ────────────────────────────────────────────
 
 /**
  * People `userId` follows AND who follow `userId` back — the only people
- * DMs can be started with (see lib/actions/chat.ts's startConversation).
- * Two queries + a JS intersection, same shape as the follow queries in
+ * DMs/groups can be started with (see lib/actions/chat.ts's
+ * startConversation / createGroupConversation). Two queries + a JS
+ * intersection, same shape as the follow queries in
  * getFollowStats/attachIsFollowing above.
  */
 export async function getMutualFollowProfiles(userId: string): Promise<Profile[]> {
@@ -677,23 +681,51 @@ export async function getMutualFollowProfiles(userId: string): Promise<Profile[]
 
 export type ChatConversation = {
   id: string;
-  otherUser: FeedAuthor & { id: string };
-  lastMessage: { content: string; createdAt: string; isOwn: boolean } | null;
+  type: "dm" | "group";
+  title: string;
+  avatarUrl: string | null;
+  /** dm only — for linking the row's avatar to a profile. */
+  otherUserId?: string;
+  /** group only. */
+  memberCount?: number;
+  lastMessage: {
+    content: string;
+    createdAt: string;
+    isOwn: boolean;
+    /** group only, and only for messages from someone else. */
+    senderName?: string;
+  } | null;
   unreadCount: number;
 };
 
-/** All of `userId`'s conversations, newest activity first. */
+/** All of `userId`'s conversations (dm and group alike), newest activity
+ * first. Membership comes from conversation_members — the same table
+ * that gates RLS on every table involved here — rather than the old
+ * user_a_id/user_b_id column check, so dm and group rows are fetched
+ * uniformly. */
 export async function getConversations(userId: string): Promise<ChatConversation[]> {
   const supabase = await createClient();
+
+  const { data: memberRows, error: memberError } = await supabase
+    .from("conversation_members")
+    .select("conversation_id")
+    .eq("user_id", userId);
+
+  if (memberError) {
+    console.error("getConversations failed:", memberError.message);
+    return [];
+  }
+  const conversationIds = (memberRows ?? []).map((m) => m.conversation_id);
+  if (conversationIds.length === 0) return [];
 
   const { data: conversations, error } = await supabase
     .from("conversations")
     .select(
-      `id, created_at,
+      `id, type, name,
        user_a:profiles!conversations_user_a_id_fkey(id, username, full_name, avatar_url),
        user_b:profiles!conversations_user_b_id_fkey(id, username, full_name, avatar_url)`,
     )
-    .or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`);
+    .in("id", conversationIds);
 
   if (error) {
     console.error("getConversations failed:", error.message);
@@ -701,9 +733,9 @@ export async function getConversations(userId: string): Promise<ChatConversation
   }
   if (!conversations || conversations.length === 0) return [];
 
-  const conversationIds = conversations.map((c) => c.id);
+  const groupIds = conversations.filter((c) => c.type === "group").map((c) => c.id);
 
-  const [{ data: messages }, { data: reads }] = await Promise.all([
+  const [{ data: messages }, { data: reads }, { data: groupMemberRows }] = await Promise.all([
     supabase
       .from("messages")
       .select("conversation_id, content, sender_id, created_at")
@@ -714,7 +746,15 @@ export async function getConversations(userId: string): Promise<ChatConversation
       .select("conversation_id, last_read_at")
       .eq("user_id", userId)
       .in("conversation_id", conversationIds),
+    groupIds.length > 0
+      ? supabase.from("conversation_members").select("conversation_id").in("conversation_id", groupIds)
+      : Promise.resolve({ data: [] as { conversation_id: string }[] }),
   ]);
+
+  const memberCountByConversation = new Map<string, number>();
+  for (const m of groupMemberRows ?? []) {
+    memberCountByConversation.set(m.conversation_id, (memberCountByConversation.get(m.conversation_id) ?? 0) + 1);
+  }
 
   // Batch-fetched newest-first — keep only the first (latest) per
   // conversation, same "batch then reduce in JS" style used for reactions
@@ -725,6 +765,17 @@ export async function getConversations(userId: string): Promise<ChatConversation
       latestByConversation.set(m.conversation_id, m);
     }
   }
+
+  // Sender names for group "Alex: message" previews — looked up from the
+  // actual senders of fetched messages (via profiles), NOT current group
+  // membership, so a departed member's last message still shows a name
+  // instead of going blank.
+  const latestSenderIds = [...new Set([...latestByConversation.values()].map((m) => m.sender_id))];
+  const { data: senderProfiles } =
+    latestSenderIds.length > 0
+      ? await supabase.from("profiles").select("id, full_name").in("id", latestSenderIds)
+      : { data: [] as { id: string; full_name: string }[] };
+  const nameBySenderId = new Map((senderProfiles ?? []).map((p) => [p.id, p.full_name]));
 
   const lastReadByConversation = new Map(
     (reads ?? []).map((r) => [r.conversation_id, r.last_read_at]),
@@ -748,18 +799,47 @@ export async function getConversations(userId: string): Promise<ChatConversation
   }
 
   const result: ChatConversation[] = conversations.map((c) => {
+    const latest = latestByConversation.get(c.id);
+    const unreadCount = unreadCountByConversation.get(c.id) ?? 0;
+
+    if (c.type === "group") {
+      const lastMessage = latest
+        ? {
+            content: latest.content,
+            createdAt: latest.created_at,
+            isOwn: latest.sender_id === userId,
+            senderName: latest.sender_id === userId ? undefined : nameBySenderId.get(latest.sender_id),
+          }
+        : null;
+
+      return {
+        id: c.id,
+        type: "group" as const,
+        title: c.name ?? "Group",
+        avatarUrl: null,
+        memberCount: memberCountByConversation.get(c.id) ?? 0,
+        lastMessage,
+        unreadCount,
+      };
+    }
+
     const userA = c.user_a as unknown as (FeedAuthor & { id: string }) | null;
     const userB = c.user_b as unknown as (FeedAuthor & { id: string }) | null;
     const otherUser = (userA?.id === userId ? userB : userA) ?? { id: "", ...UNKNOWN_AUTHOR };
 
-    const latest = latestByConversation.get(c.id);
     const lastMessage = latest
       ? { content: latest.content, createdAt: latest.created_at, isOwn: latest.sender_id === userId }
       : null;
 
-    const unreadCount = unreadCountByConversation.get(c.id) ?? 0;
-
-    return { id: c.id, otherUser, lastMessage, unreadCount };
+    return {
+      id: c.id,
+      type: "dm" as const,
+      title: otherUser.full_name,
+      avatarUrl: otherUser.avatar_url,
+      otherUserId: otherUser.id,
+      lastMessage,
+      unreadCount,
+    };
   });
 
   result.sort((a, b) => {
@@ -777,23 +857,16 @@ export async function getUnreadMessageCount(userId: string): Promise<number> {
   return conversations.reduce((sum, c) => sum + c.unreadCount, 0);
 }
 
-/** A single conversation, only if `viewerId` is a participant (defense in
- * depth on top of RLS — used by the thread page to 404/redirect otherwise). */
-export async function getConversation(
-  id: string,
-  viewerId: string,
-): Promise<Conversation | null> {
+/** A single conversation (dm or group). RLS (conversation_members
+ * membership, 0019_group_chats.sql) is the real guard — a non-member gets
+ * null back regardless — the thread page 404s/redirects on that. */
+export async function getConversation(id: string): Promise<Conversation | null> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("conversations")
-    .select("*")
-    .eq("id", id)
-    .or(`user_a_id.eq.${viewerId},user_b_id.eq.${viewerId}`)
-    .maybeSingle();
+  const { data } = await supabase.from("conversations").select("*").eq("id", id).maybeSingle();
   return data;
 }
 
-/** The other participant in a conversation the viewer is part of. */
+/** The other participant in a *dm* conversation the viewer is part of. */
 export async function getOtherParticipant(
   conversation: Conversation,
   viewerId: string,
@@ -801,8 +874,49 @@ export async function getOtherParticipant(
   const supabase = await createClient();
   const otherId =
     conversation.user_a_id === viewerId ? conversation.user_b_id : conversation.user_a_id;
+  if (!otherId) return null;
   const { data } = await supabase.from("profiles").select("*").eq("id", otherId).maybeSingle();
   return data;
+}
+
+export type GroupMember = {
+  id: string;
+  role: "admin" | "member";
+} & FeedAuthor;
+
+/** Group name + ordered member list (earliest-joined first), for the
+ * thread header and the /chat/[id]/info page. Null if `id` isn't a group
+ * conversation the viewer belongs to (RLS-gated, same as getConversation). */
+export async function getGroupInfo(id: string): Promise<{ id: string; name: string; members: GroupMember[] } | null> {
+  const supabase = await createClient();
+  const { data: conversation } = await supabase
+    .from("conversations")
+    .select("id, name, type")
+    .eq("id", id)
+    .eq("type", "group")
+    .maybeSingle();
+  if (!conversation) return null;
+
+  const { data: members } = await supabase
+    .from("conversation_members")
+    .select("user_id, role, profiles(id, username, full_name, avatar_url)")
+    .eq("conversation_id", id)
+    .order("joined_at", { ascending: true });
+
+  return {
+    id: conversation.id,
+    name: conversation.name ?? "Group",
+    members: (members ?? []).map((m) => {
+      const profile = m.profiles as unknown as (FeedAuthor & { id: string }) | null;
+      return {
+        id: m.user_id,
+        role: m.role,
+        username: profile?.username ?? "unknown",
+        full_name: profile?.full_name ?? "Unknown",
+        avatar_url: profile?.avatar_url ?? null,
+      };
+    }),
+  };
 }
 
 /** Most recent 50 messages in a conversation, oldest first for rendering.
@@ -823,7 +937,28 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
   return (data ?? []).reverse();
 }
 
-/** The other participant's last-read timestamp, for the "Seen" indicator. */
+/** Profile lookup for a set of messages' senders — built from the actual
+ * senders (via profiles), not current group membership, so a departed
+ * member's old messages still render a name/avatar in group threads
+ * instead of going blank. Used by ChatThread for sender attribution. */
+export async function getMessageSenderProfiles(
+  messages: Pick<Message, "sender_id">[],
+): Promise<Map<string, FeedAuthor & { id: string }>> {
+  const senderIds = [...new Set(messages.map((m) => m.sender_id))];
+  if (senderIds.length === 0) return new Map();
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, username, full_name, avatar_url")
+    .in("id", senderIds);
+
+  return new Map((data ?? []).map((p) => [p.id, p]));
+}
+
+/** The other participant's last-read timestamp, for the "Seen" indicator
+ * — dm only, see the chat plan's v1 cuts for why groups don't get a
+ * "seen by N" equivalent yet. */
 export async function getOtherLastReadAt(
   conversationId: string,
   otherUserId: string,

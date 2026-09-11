@@ -1,19 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MessageCirclePlus } from "lucide-react";
+import Link from "next/link";
+import { MessageCirclePlus, MessageSquare, Users } from "lucide-react";
 import { startConversation } from "@/lib/actions/chat";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import type { Profile } from "@/lib/types/database";
 
 /**
- * "New message" entry point on /chat — lists mutual-follow profiles
- * (already fetched server-side, no autocomplete action needed: this list
- * is small, unlike the platform-wide mention search) with a client-side
- * filter. Picking one starts (or resumes) a conversation via
- * startConversation, same bound-server-action-in-a-form idiom as
- * ProfileRow's Follow button.
+ * "New" entry point on /chat — opens a two-choice menu (Direct Message /
+ * New Group). Direct Message expands in place into the original
+ * mutual-follow search list (unchanged); New Group is a plain link to
+ * /chat/new-group, which needs its own page (multi-select + a name field
+ * don't fit this small dropdown).
  *
  * Click-outside is a `pointerdown` listener on `document`, NOT a
  * `fixed inset-0` backdrop element. A backdrop here was a real bug: this
@@ -25,6 +25,7 @@ import type { Profile } from "@/lib/types/database";
  */
 export function NewChatPicker({ candidates }: { candidates: Profile[] }) {
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"menu" | "dm">("menu");
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -44,18 +45,44 @@ export function NewChatPicker({ candidates }: { candidates: Profile[] }) {
     };
   }, [open]);
 
+  function toggle() {
+    setOpen((v) => !v);
+    setMode("menu");
+    setQuery("");
+  }
+
   const filtered = candidates.filter((p) =>
     `${p.full_name} ${p.username}`.toLowerCase().includes(query.toLowerCase()),
   );
 
   return (
     <div className="relative" ref={rootRef}>
-      <Button type="button" size="sm" variant="outline" onClick={() => setOpen((v) => !v)}>
+      <Button type="button" size="sm" variant="outline" onClick={toggle}>
         <MessageCirclePlus className="h-4 w-4" />
         New
       </Button>
 
-      {open && (
+      {open && mode === "menu" && (
+        <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-lg border border-border bg-card p-1.5 shadow-md">
+          <button
+            type="button"
+            onClick={() => setMode("dm")}
+            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm hover:bg-muted"
+          >
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            Direct message
+          </button>
+          <Link
+            href="/chat/new-group"
+            className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm hover:bg-muted"
+          >
+            <Users className="h-4 w-4 text-muted-foreground" />
+            New group
+          </Link>
+        </div>
+      )}
+
+      {open && mode === "dm" && (
         <div className="absolute right-0 top-full z-20 mt-2 w-72 rounded-lg border border-border bg-card p-2 shadow-md">
           <input
             type="text"

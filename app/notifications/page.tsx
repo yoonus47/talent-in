@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AtSign, Heart, MessageCircle, Reply, Repeat2, UserPlus } from "lucide-react";
+import { AtSign, Heart, MessageCircle, Reply, Repeat2, UserPlus, Users } from "lucide-react";
 import { getCurrentProfile, getNotifications, type FeedNotification } from "@/lib/data";
 import { markAllNotificationsRead } from "@/lib/actions/notifications";
 import { REACTIONS } from "@/lib/reactions";
@@ -28,6 +28,8 @@ function describe(n: FeedNotification): string {
       const reaction = REACTIONS.find((r) => r.type === n.reactionType);
       return `reacted ${reaction?.emoji ?? ""} to your comment`;
     }
+    case "group_added":
+      return `added you to "${n.conversation?.name ?? "a group"}"`;
   }
 }
 
@@ -46,6 +48,8 @@ function iconFor(type: FeedNotification["type"]) {
       return Reply;
     case "mention":
       return AtSign;
+    case "group_added":
+      return Users;
     default:
       return Heart;
   }
@@ -79,7 +83,13 @@ export default async function NotificationsPage() {
           {notifications.map((n) => {
             const Icon = iconFor(n.type);
             const href =
-              n.type === "follow" ? `/profile/${n.actor.username}` : n.post ? "/feed" : "/feed";
+              n.type === "follow"
+                ? `/profile/${n.actor.username}`
+                : n.type === "group_added" && n.conversation
+                  ? `/chat/${n.conversation.id}`
+                  : n.post
+                    ? "/feed"
+                    : "/feed";
             return (
               <Link
                 key={n.id}

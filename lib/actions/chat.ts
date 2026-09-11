@@ -21,10 +21,9 @@ export async function fetchUnreadMessageCount(): Promise<number> {
 
 /**
  * Starts (or resumes) a conversation with `otherUserId` and redirects into
- * it. Re-checks mutual follow here as defense in depth, but the real guard
- * is the `conversations` insert RLS policy (0015_direct_messages.sql) — a
- * client can't create a DM thread without it no matter what this function
- * does.
+ * it. Thin wrapper around the start_dm_conversation RPC
+ * (0019_group_chats.sql) — that function is the real guard (mutual-follow
+ * check + atomic find-or-create + membership rows), not this action.
  */
 export async function startConversation(otherUserId: string) {
   const supabase = await createClient();
@@ -34,47 +33,121 @@ export async function startConversation(otherUserId: string) {
   if (!user) redirect("/login");
   if (otherUserId === user.id) return;
 
-  const [{ data: iFollowThem }, { data: theyFollowMe }] = await Promise.all([
-    supabase
-      .from("follows")
-      .select("follower_id")
-      .eq("follower_id", user.id)
-      .eq("following_id", otherUserId)
-      .maybeSingle(),
-    supabase
-      .from("follows")
-      .select("follower_id")
-      .eq("follower_id", otherUserId)
-      .eq("following_id", user.id)
-      .maybeSingle(),
-  ]);
-  if (!iFollowThem || !theyFollowMe) return;
+  const { data: conversationId, error } = await supabase.rpc("start_dm_conversation", {
+    p_other_id: otherUserId,
+  });
 
-  // Canonical ordering matches the `user_a_id < user_b_id` check constraint
-  // — a pair only ever gets one row regardless of who starts it.
-  const [userAId, userBId] = [user.id, otherUserId].sort();
-
-  const { data: existing } = await supabase
-    .from("conversations")
-    .select("id")
-    .eq("user_a_id", userAId)
-    .eq("user_b_id", userBId)
-    .maybeSingle();
-
-  if (existing) redirect(`/chat/${existing.id}`);
-
-  const { data: created, error } = await supabase
-    .from("conversations")
-    .insert({ user_a_id: userAId, user_b_id: userBId })
-    .select("id")
-    .single();
-
-  if (error || !created) {
+  if (error || !conversationId) {
     console.error("startConversation failed:", error?.message);
     return;
   }
 
-  redirect(`/chat/${created.id}`);
+  redirect(`/chat/${conversationId}`);
+}
+
+/**
+ * Creates a group with `memberIds` (plus the caller) and redirects into
+ * it. Thin wrapper around create_group_conversation — see that function
+ * for the real validation (name, member cap, mutual-follow-per-member).
+ */
+export async function createGroupConversation(name: string, memberIds: string[]) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: conversationId, error } = await supabase.rpc("create_group_conversation", {
+    p_name: name,
+    p_member_ids: memberIds,
+  });
+
+  if (error || !conversationId) {
+    return { error: error?.message ?? "Could not create group." };
+  }
+
+  redirect(`/chat/${conversationId}`);
+}
+
+/** Admin-only — see add_group_members for the real guard. */
+export async function addGroupMembers(conversationId: string, memberIds: string[]) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { error } = await supabase.rpc("add_group_members", {
+    p_conversation_id: conversationId,
+    p_member_ids: memberIds,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+  return { error: null };
+}
+
+/** Admin-only — RLS (the group-rename policy in 0019_group_chats.sql) is
+ * the real guard; a non-admin's update just matches zero rows. */
+export async function renameGroupConversation(conversationId: string, name: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length > 60) {
+    return { error: "Group name must be 1-60 characters." };
+  }
+
+  const { error } = await supabase
+    .from("conversations")
+    .update({ name: trimmed })
+    .eq("id", conversationId);
+
+  if (error) {
+    return { error: error.message };
+  }
+  return { error: null };
+}
+
+/**
+ * Removes the caller's own membership row and sends them back to the
+ * conversation list — their thread page's RLS access is gone the instant
+ * this commits, so leaving them on it would just start silently failing.
+ */
+export async function leaveGroup(conversationId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  await supabase
+    .from("conversation_members")
+    .delete()
+    .eq("conversation_id", conversationId)
+    .eq("user_id", user.id);
+
+  redirect("/chat");
+}
+
+/** Admin-only removal of another member — same delete policy as leaving,
+ * just targeting someone else's row. */
+export async function removeGroupMember(conversationId: string, memberId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  await supabase
+    .from("conversation_members")
+    .delete()
+    .eq("conversation_id", conversationId)
+    .eq("user_id", memberId);
 }
 
 /**
