@@ -319,8 +319,8 @@ begin
   if v_member_ids is null or array_length(v_member_ids, 1) = 0 then
     raise exception 'A group needs at least one other member';
   end if;
-  if array_length(v_member_ids, 1) + 1 > 50 then
-    raise exception 'Groups are capped at 50 members';
+  if array_length(v_member_ids, 1) + 1 > 100 then
+    raise exception 'Groups are capped at 100 members';
   end if;
 
   foreach v_member_id in array v_member_ids loop
@@ -409,8 +409,8 @@ begin
   from public.conversation_members where conversation_id = p_conversation_id;
 
   v_new_count := array_length(v_member_ids, 1);
-  if v_existing_count + v_new_count > 50 then
-    raise exception 'Groups are capped at 50 members';
+  if v_existing_count + v_new_count > 100 then
+    raise exception 'Groups are capped at 100 members';
   end if;
 
   insert into public.conversation_members (conversation_id, user_id, role)

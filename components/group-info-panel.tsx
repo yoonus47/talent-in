@@ -17,7 +17,7 @@ import { Card } from "@/components/ui/card";
 import type { GroupMember } from "@/lib/data";
 import type { Profile } from "@/lib/types/database";
 
-const MAX_MEMBERS = 50;
+const MAX_MEMBERS = 100;
 
 export function GroupInfoPanel({
   conversationId,

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { Profile } from "@/lib/types/database";
 
-const MAX_MEMBERS = 50;
+const MAX_MEMBERS = 100;
 
 /** Name + mutual-follow multi-select for creating a group — the picker
  * list itself reuses the same candidates create_group_conversation
