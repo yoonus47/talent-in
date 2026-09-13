@@ -3,19 +3,33 @@
  * or any other server code, it uses MediaRecorder/Web Audio APIs that
  * don't exist in Node. Mirrors lib/image-client.ts's role for photos.
  *
- * Bitrate/codec choice is deliberate, not arbitrary: 24kbps mono Opus is
- * the cheapest point on Opus's *fullband* speech tier (20kbps and below is
- * only wideband — a real, audible step down, not just fewer bits) and
- * costs a few dollars a month even at tens of thousands of MAU. Opus
- * requires Chrome/Firefox/Android; Safari/iOS's MediaRecorder only offers
- * 'audio/mp4' (AAC), whose bitrate isn't controllable the same precise
- * way — a known, accepted platform gap, not a bug.
+ * Bitrate/codec choice is deliberate, not arbitrary — but it's codec-
+ * *aware*, not one blanket number. Opus (Chrome/Firefox/Android) at
+ * 24kbps mono is the cheapest point on Opus's *fullband* speech tier
+ * (20kbps and below is only wideband — a real, audible step down, not
+ * just fewer bits). Safari/iOS's MediaRecorder doesn't expose Opus at
+ * all — its only option is 'audio/mp4' (AAC-LC) — and AAC-LC needs
+ * roughly double the bitrate to sound as clean as Opus for speech at a
+ * given size (confirmed live: 24kbps AAC on an iPhone sounded noticeably
+ * worse than WhatsApp, which uses Opus even on iOS via its native app's
+ * own encoder, something a browser's MediaRecorder simply can't do).
+ * Using the *same* 24kbps for both was the mistake — see BITRATE_BY_MIME.
  */
 
 export const MAX_RECORDING_MS = 120_000; // 2 minutes — also enforced by messages.duration_ms's DB check
-const TARGET_BITRATE = 24_000;
 
 const CANDIDATE_MIME_TYPES = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4"];
+
+// AAC-LC's quality falls off fast below ~48-64kbps for speech in a way
+// Opus doesn't — 64kbps mono AAC is roughly Instagram's own tier (per the
+// cost analysis this was chosen from) and is what actually gets AAC to a
+// "clean voice message" result instead of a muffled one.
+const BITRATE_BY_MIME: Record<string, number> = {
+  "audio/webm;codecs=opus": 24_000,
+  "audio/ogg;codecs=opus": 24_000,
+  "audio/mp4": 64_000,
+};
+const DEFAULT_BITRATE = 24_000;
 
 export function getSupportedMimeType(): string | null {
   if (typeof MediaRecorder === "undefined") return null;
@@ -65,7 +79,23 @@ export class VoiceRecorder {
   }
 
   async start(onAutoStop: () => void): Promise<void> {
-    this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Plain `{ audio: true }` was the other real gap here — it leaves the
+    // browser's mic capture running with none of the processing that
+    // actually makes a voice recording sound clean (this, not just
+    // bitrate, is a lot of what separates "clear like WhatsApp" from
+    // "muffled/noisy"): echoCancellation/noiseSuppression/autoGainControl
+    // aren't reliably on by default across browsers, and without an
+    // explicit channelCount the capture can end up stereo, which for a
+    // fixed low bitrate means splitting bits across two channels instead
+    // of spending all of them on one.
+    this.stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
 
     // Live amplitude for the recording UI's level bar — not used for the
     // recording itself, just visual feedback.
@@ -78,7 +108,7 @@ export class VoiceRecorder {
     this.chunks = [];
     this.mediaRecorder = new MediaRecorder(this.stream, {
       mimeType: this.mimeType,
-      audioBitsPerSecond: TARGET_BITRATE,
+      audioBitsPerSecond: BITRATE_BY_MIME[this.mimeType] ?? DEFAULT_BITRATE,
     });
     this.mediaRecorder.ondataavailable = (e) => {
       if (e.data.size > 0) this.chunks.push(e.data);

@@ -66,6 +66,13 @@ export interface Database {
           // No self-serve upgrade path exists yet (no payment integration)
           // — set via service-role/SQL only. See 0023_voice_messages.sql.
           tier: "free" | "pro";
+          // Coarse platform mix, set from the User-Agent header at signup
+          // and refreshed on every login — see lib/user-agent.ts and
+          // 0025_platform_tracking.sql. Null until a user's first login
+          // after this migration.
+          platform_os: string | null;
+          platform_browser: string | null;
+          platform_updated_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -83,6 +90,9 @@ export interface Database {
           interests?: string[];
           is_minor?: boolean;
           tier?: "free" | "pro";
+          platform_os?: string | null;
+          platform_browser?: string | null;
+          platform_updated_at?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;

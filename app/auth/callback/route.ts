@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { parsePlatformOs, parsePlatformBrowser } from "@/lib/user-agent";
 
 // Handles the redirect back from Supabase after email confirmation or
 // Google OAuth, exchanges the `code` for a session, then sends the user
@@ -22,8 +23,23 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // Covers Google OAuth sign-in and email-confirmation completion —
+      // see lib/user-agent.ts and 0025_platform_tracking.sql. A brand-new
+      // user has no profiles row yet (created during onboarding, next),
+      // so this just affects 0 rows for them, harmlessly.
+      if (data.user) {
+        const userAgent = request.headers.get("user-agent");
+        await supabase
+          .from("profiles")
+          .update({
+            platform_os: parsePlatformOs(userAgent),
+            platform_browser: parsePlatformBrowser(userAgent),
+            platform_updated_at: new Date().toISOString(),
+          })
+          .eq("id", data.user.id);
+      }
       return NextResponse.redirect(`${safeOrigin}/onboarding`);
     }
   }

@@ -4,6 +4,25 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { signInSchema, signUpSchema } from "@/lib/validation";
+import { parsePlatformOs, parsePlatformBrowser } from "@/lib/user-agent";
+
+/** Refreshes the signed-in user's coarse platform on every login — see
+ * lib/user-agent.ts and 0025_platform_tracking.sql. A brand-new user has
+ * no profiles row yet at this point (that's only created during
+ * onboarding, see lib/actions/profile.ts's completeOnboarding), so this
+ * update just affects 0 rows for them — harmless, not an error. */
+async function recordPlatform(userId: string) {
+  const supabase = await createClient();
+  const userAgent = (await headers()).get("user-agent");
+  await supabase
+    .from("profiles")
+    .update({
+      platform_os: parsePlatformOs(userAgent),
+      platform_browser: parsePlatformBrowser(userAgent),
+      platform_updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId);
+}
 
 async function siteUrl() {
   if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
@@ -62,11 +81,13 @@ export async function signIn(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
+
+  if (data.user) await recordPlatform(data.user.id);
 
   // ?welcome=1 triggers components/brand-splash.tsx's entrance animation
   // — this redirect happens as a client-side navigation (per Next's

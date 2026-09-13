@@ -2,10 +2,12 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { onboardingSchema } from "@/lib/validation";
 import { notify } from "@/lib/notify";
 import { validateImageFile, extensionFor } from "@/lib/uploads";
+import { parsePlatformOs, parsePlatformBrowser } from "@/lib/user-agent";
 
 /** Follows/reactions/comments/shares render on the feed, profiles, and
  * follower/following lists — revalidate all of them after a graph change. */
@@ -59,6 +61,11 @@ export async function completeOnboarding(formData: FormData) {
   const fullName = `${firstName} ${lastName}`.trim();
   const isMinor = true; // v1 audience is 13-18; adjust if you add a DOB field later.
 
+  // First and only guaranteed point a profiles row is created — the
+  // natural place to capture a new user's platform for the first time.
+  // See lib/user-agent.ts and 0025_platform_tracking.sql.
+  const userAgent = (await headers()).get("user-agent");
+
   const { error } = await supabase.from("profiles").insert({
     id: user.id,
     username,
@@ -72,6 +79,9 @@ export async function completeOnboarding(formData: FormData) {
     bio: bio || null,
     interests,
     is_minor: isMinor,
+    platform_os: parsePlatformOs(userAgent),
+    platform_browser: parsePlatformBrowser(userAgent),
+    platform_updated_at: new Date().toISOString(),
   });
 
   if (error) {
