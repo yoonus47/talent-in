@@ -1,0 +1,17 @@
+-- TalentZify — fix unsend not appearing live for the other participant.
+-- Run this in the Supabase SQL editor after 0023_voice_messages.sql.
+--
+-- Found via live testing while verifying voice messages: unsending a
+-- message deletes the row correctly (confirmed server-side), but
+-- components/chat-thread.tsx's realtime DELETE subscription — filtered on
+-- `conversation_id=eq.${conversationId}` — never fires, so the bubble only
+-- disappears after a manual reload. Root cause: a table's default
+-- REPLICA IDENTITY only includes primary-key columns in a DELETE event's
+-- replication data ("old row"). `messages`' primary key is just `id` —
+-- `conversation_id` isn't part of it, so Postgres's logical replication
+-- stream never carries the value the filter needs to evaluate, and
+-- Realtime silently drops the event for every filtered subscriber. INSERT
+-- and UPDATE aren't affected (their payload always carries the full *new*
+-- row regardless of replica identity) — this is why sending a message and
+-- the "Seen" indicator both already worked live, and only unsend didn't.
+alter table public.messages replica identity full;

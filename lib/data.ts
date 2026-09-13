@@ -738,7 +738,7 @@ export async function getConversations(userId: string): Promise<ChatConversation
   const [{ data: messages }, { data: reads }, { data: groupMemberRows }] = await Promise.all([
     supabase
       .from("messages")
-      .select("conversation_id, content, sender_id, created_at")
+      .select("conversation_id, type, content, sender_id, created_at")
       .in("conversation_id", conversationIds)
       .order("created_at", { ascending: false }),
     supabase
@@ -759,7 +759,10 @@ export async function getConversations(userId: string): Promise<ChatConversation
   // Batch-fetched newest-first — keep only the first (latest) per
   // conversation, same "batch then reduce in JS" style used for reactions
   // elsewhere in this file.
-  const latestByConversation = new Map<string, { content: string; sender_id: string; created_at: string }>();
+  const latestByConversation = new Map<
+    string,
+    { type: "text" | "voice"; content: string | null; sender_id: string; created_at: string }
+  >();
   for (const m of messages ?? []) {
     if (!latestByConversation.has(m.conversation_id)) {
       latestByConversation.set(m.conversation_id, m);
@@ -805,7 +808,7 @@ export async function getConversations(userId: string): Promise<ChatConversation
     if (c.type === "group") {
       const lastMessage = latest
         ? {
-            content: latest.content,
+            content: latest.type === "voice" ? "🎤 Voice message" : (latest.content ?? ""),
             createdAt: latest.created_at,
             isOwn: latest.sender_id === userId,
             senderName: latest.sender_id === userId ? undefined : nameBySenderId.get(latest.sender_id),
@@ -828,7 +831,11 @@ export async function getConversations(userId: string): Promise<ChatConversation
     const otherUser = (userA?.id === userId ? userB : userA) ?? { id: "", ...UNKNOWN_AUTHOR };
 
     const lastMessage = latest
-      ? { content: latest.content, createdAt: latest.created_at, isOwn: latest.sender_id === userId }
+      ? {
+          content: latest.type === "voice" ? "🎤 Voice message" : (latest.content ?? ""),
+          createdAt: latest.created_at,
+          isOwn: latest.sender_id === userId,
+        }
       : null;
 
     return {

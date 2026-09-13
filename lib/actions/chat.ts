@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getUnreadMessageCount } from "@/lib/data";
-import { validateImageFile, extensionFor } from "@/lib/uploads";
+import { validateImageFile, extensionFor, storagePathFromPublicUrl } from "@/lib/uploads";
 
 const MAX_GROUP_ICON_BYTES = 3 * 1024 * 1024;
 
@@ -265,6 +265,22 @@ export async function deleteMessage(messageId: string) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  // Voice messages need their Storage object removed too — fetch first
+  // (also re-confirms ownership before the delete below) rather than
+  // guessing the path, since voice-messages filenames are random (see
+  // audio-client.ts), unlike avatars/group-icons' fixed "icon.<ext>" name.
+  const { data: message } = await supabase
+    .from("messages")
+    .select("type, audio_url")
+    .eq("id", messageId)
+    .eq("sender_id", user.id)
+    .maybeSingle();
+
+  if (message?.type === "voice" && message.audio_url) {
+    const path = storagePathFromPublicUrl(message.audio_url, "voice-messages");
+    if (path) await supabase.storage.from("voice-messages").remove([path]);
+  }
 
   await supabase.from("messages").delete().eq("id", messageId).eq("sender_id", user.id);
 }

@@ -5,10 +5,19 @@ import { MessageCircle, Moon, Send, Sun } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { markConversationRead } from "@/lib/actions/chat";
 import { MessageBubble } from "@/components/message-bubble";
+import { VoiceRecorderButton } from "@/components/voice-recorder";
 import { useThemeToggle } from "@/components/theme-toggle";
+import { audioExtensionFor } from "@/lib/audio-client";
 import type { Message } from "@/lib/types/database";
 
-type LocalMessage = Message & { pending?: boolean };
+type LocalMessage = Message & {
+  pending?: boolean;
+  /** Voice only — a client-generated id embedded in the Storage filename
+   * *before* upload starts (see handleSendVoice), so a pending placeholder
+   * can be matched to its eventual real row even though the placeholder
+   * plays from a local blob URL, never the real audio_url. */
+  clientId?: string;
+};
 type SenderProfile = { full_name: string; avatar_url: string | null };
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -136,6 +145,7 @@ export function ChatThread({
   const [otherLastReadAt, setOtherLastReadAt] = useState(initialOtherLastReadAt);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [recorderActive, setRecorderActive] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -150,12 +160,25 @@ export function ChatThread({
     // Merges a confirmed row from the server in, whichever path noticed it
     // first (the sender's own insert response, or this realtime echo) —
     // the other one then just no-ops, since the id is already present.
+    // Matching a pending optimistic echo to its confirmed row can't use
+    // `content` for voice messages (always null on both sides) — two voice
+    // notes sent close together would both match the first confirmed row
+    // that arrives ("Hi" === "Hi" is fine because content is unique-ish;
+    // null === null isn't). Voice instead matches via `clientId`, a
+    // client-generated id embedded in the Storage filename *before*
+    // upload — see handleSendVoice — so it's a substring of the real
+    // audio_url regardless of when the upload actually finishes.
     function reconcile(newRow: Message) {
       setMessages((prev) => {
         if (prev.some((m) => m.id === newRow.id)) return prev;
-        const withoutOwnPending = prev.filter(
-          (m) => !(m.pending && m.sender_id === newRow.sender_id && m.content === newRow.content),
-        );
+        const withoutOwnPending = prev.filter((m) => {
+          if (!m.pending || m.sender_id !== newRow.sender_id || m.type !== newRow.type) return true;
+          const matches =
+            newRow.type === "voice"
+              ? Boolean(m.clientId && newRow.audio_url?.includes(m.clientId))
+              : m.content === newRow.content;
+          return !matches;
+        });
         return [...withoutOwnPending, newRow].sort((a, b) =>
           a.created_at.localeCompare(b.created_at),
         );
@@ -246,7 +269,10 @@ export function ChatThread({
       id: `temp-${crypto.randomUUID()}`,
       conversation_id: conversationId,
       sender_id: myId,
+      type: "text",
       content,
+      audio_url: null,
+      duration_ms: null,
       created_at: new Date().toISOString(),
       pending: true,
     };
@@ -255,7 +281,7 @@ export function ChatThread({
     const supabase = createClient();
     const { data, error } = await supabase
       .from("messages")
-      .insert({ conversation_id: conversationId, sender_id: myId, content })
+      .insert({ conversation_id: conversationId, sender_id: myId, type: "text", content })
       .select()
       .single();
 
@@ -273,6 +299,88 @@ export function ChatThread({
       }
       return prev.map((m) => (m.id === optimistic.id ? data : m));
     });
+  }
+
+  /**
+   * Sends a recorded voice note: uploads the blob straight to Storage from
+   * the browser (RLS-gated, no server round-trip — same "direct client
+   * mutation" exception documented at the top of this file for text), then
+   * inserts the messages row the same way text does. The optimistic
+   * placeholder plays instantly from the in-memory blob's own object URL
+   * while the real upload happens in the background.
+   */
+  async function handleSendVoice(blob: Blob, mimeType: string, durationMs: number) {
+    if (sending) return;
+    setSending(true);
+
+    const clientId = crypto.randomUUID();
+    const ext = audioExtensionFor(mimeType);
+    const path = `${conversationId}/${myId}/${clientId}.${ext}`;
+    const localUrl = URL.createObjectURL(blob);
+
+    const optimistic: LocalMessage = {
+      id: `temp-${clientId}`,
+      conversation_id: conversationId,
+      sender_id: myId,
+      type: "voice",
+      content: null,
+      audio_url: localUrl,
+      duration_ms: durationMs,
+      created_at: new Date().toISOString(),
+      pending: true,
+      clientId,
+    };
+    setMessages((prev) => [...prev, optimistic]);
+
+    const supabase = createClient();
+    const { error: uploadError } = await supabase.storage
+      .from("voice-messages")
+      .upload(path, blob, { contentType: mimeType });
+
+    if (uploadError) {
+      console.error("voice upload failed:", uploadError.message);
+      setSending(false);
+      setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
+      URL.revokeObjectURL(localUrl);
+      return;
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("voice-messages").getPublicUrl(path);
+
+    const { data, error } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: conversationId,
+        sender_id: myId,
+        type: "voice",
+        audio_url: publicUrl,
+        duration_ms: durationMs,
+      })
+      .select()
+      .single();
+
+    setSending(false);
+
+    if (error || !data) {
+      console.error("send voice message failed:", error?.message);
+      // The file uploaded but the row never landed — clean it up so it
+      // doesn't sit there forever as an orphan the retention job will
+      // never find (that job only walks messages rows).
+      await supabase.storage.from("voice-messages").remove([path]);
+      setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
+      URL.revokeObjectURL(localUrl);
+      return;
+    }
+
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === data.id)) {
+        return prev.filter((m) => m.id !== optimistic.id);
+      }
+      return prev.map((m) => (m.id === optimistic.id ? data : m));
+    });
+    URL.revokeObjectURL(localUrl);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -347,30 +455,40 @@ export function ChatThread({
           with anymore — MobileThemeToggle below is a plain in-flow member
           of this same row instead. */}
       <div className="flex items-end gap-2 border-t border-border bg-background p-3">
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Message…"
-          rows={1}
-          // text-base (16px), not text-sm — iOS Safari auto-zooms the page
-          // in on focus for any text input under 16px, which is the actual
-          // cause of the "zooms in when I try to type" behavior. WhatsApp's
-          // input (and every other mobile-polished text field) is 16px+
-          // for exactly this reason, not because of any deliberate zoom
-          // handling.
-          className="max-h-32 flex-1 resize-none rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        />
-        <button
-          type="button"
-          onClick={handleSend}
-          disabled={input.trim().length === 0 || sending}
-          aria-label="Send"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
-        >
-          <Send className="h-4 w-4" />
-        </button>
-        <MobileThemeToggle />
+        {!recorderActive && (
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Message…"
+            rows={1}
+            // text-base (16px), not text-sm — iOS Safari auto-zooms the page
+            // in on focus for any text input under 16px, which is the actual
+            // cause of the "zooms in when I try to type" behavior. WhatsApp's
+            // input (and every other mobile-polished text field) is 16px+
+            // for exactly this reason, not because of any deliberate zoom
+            // handling.
+            className="max-h-32 flex-1 resize-none rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        )}
+        {input.trim().length === 0 ? (
+          <VoiceRecorderButton
+            onSend={handleSendVoice}
+            onActiveChange={setRecorderActive}
+            disabled={sending}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={input.trim().length === 0 || sending}
+            aria-label="Send"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        )}
+        {!recorderActive && <MobileThemeToggle />}
       </div>
     </div>
   );

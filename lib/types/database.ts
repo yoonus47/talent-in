@@ -63,6 +63,9 @@ export interface Database {
           state: string | null;
           interests: string[];
           is_minor: boolean;
+          // No self-serve upgrade path exists yet (no payment integration)
+          // — set via service-role/SQL only. See 0023_voice_messages.sql.
+          tier: "free" | "pro";
           created_at: string;
         };
         Insert: {
@@ -79,6 +82,7 @@ export interface Database {
           state?: string | null;
           interests?: string[];
           is_minor?: boolean;
+          tier?: "free" | "pro";
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
@@ -557,14 +561,20 @@ export interface Database {
           id: string;
           conversation_id: string;
           sender_id: string;
-          content: string;
+          type: "text" | "voice";
+          content: string | null;
+          audio_url: string | null;
+          duration_ms: number | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           conversation_id: string;
           sender_id: string;
-          content: string;
+          type?: "text" | "voice";
+          content?: string | null;
+          audio_url?: string | null;
+          duration_ms?: number | null;
           created_at?: string;
         };
         Update: never;
