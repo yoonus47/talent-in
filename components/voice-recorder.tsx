@@ -1,36 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Mic, Send, Trash2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Mic, Send, Square, Trash2 } from "lucide-react";
 import { VoiceRecorder as Recorder, getSupportedMimeType } from "@/lib/audio-client";
-import { cn } from "@/lib/utils";
-
-const MOBILE_BREAKPOINT_QUERY = "(max-width: 639px)"; // matches Tailwind's `sm` breakpoint
-const CANCEL_DRAG_PX = 60; // drag this far up while holding to cancel instead of send
-
-// useSyncExternalStore, not useState+useEffect — this is a browser-only
-// API (matchMedia doesn't exist during SSR), and its getServerSnapshot
-// argument is exactly the mechanism React provides for "render a safe
-// default on the server, without a hydration mismatch, then subscribe to
-// the real value on the client." The only place this value visibly
-// affects markup is a tooltip's title text and text that only ever
-// appears after a real (client-only) recording-state transition, so a
-// "renders as desktop, then possibly flips" first paint is unnoticeable.
-function subscribeToViewport(callback: () => void) {
-  const mql = window.matchMedia(MOBILE_BREAKPOINT_QUERY);
-  mql.addEventListener("change", callback);
-  return () => mql.removeEventListener("change", callback);
-}
-function getViewportSnapshot() {
-  return window.matchMedia(MOBILE_BREAKPOINT_QUERY).matches;
-}
-function getServerViewportSnapshot() {
-  return false;
-}
-
-function useIsMobile() {
-  return useSyncExternalStore(subscribeToViewport, getViewportSnapshot, getServerViewportSnapshot);
-}
+import { AudioPlayer } from "@/components/audio-player";
 
 function formatDuration(ms: number) {
   const totalSeconds = Math.floor(ms / 1000);
@@ -40,7 +13,7 @@ function formatDuration(ms: number) {
 }
 
 /** Live amplitude meter — a handful of bars reacting to the mic level, not
- * a real waveform (a deliberate v1 scope cut, see the voice-messages plan). */
+ * a real waveform (a deliberate scope cut). */
 function LevelMeter({ level }: { level: number }) {
   const bars = [0.6, 1, 0.8, 1, 0.6];
   return (
@@ -58,12 +31,19 @@ function LevelMeter({ level }: { level: number }) {
 
 /**
  * The mic control that replaces the send button when the composer is
- * empty (WhatsApp's convention). Behavior deliberately differs by device,
- * per the user's own call: mobile holds the phone one-handed and expects
- * true hold-to-talk (release = send immediately, drag up = cancel);
- * desktop has a free hand and a mouse, so a safer tap → stop → preview →
- * send/discard flow fits better there (no fighting a press-and-hold
- * gesture with a pointer).
+ * empty. One interaction on every device — tap to start, tap to stop,
+ * review, then send or discard — deliberately not press-and-hold.
+ *
+ * An earlier version tried hold-to-talk on mobile: press-and-hold starts
+ * recording, release sends. Confirmed live that this fights the browser —
+ * holding a pointer down without suppressing the default drag-select
+ * gesture made the browser start a text selection instead of recording,
+ * and a mouse has no real equivalent of a touch long-press to begin with
+ * (a click is instantaneous; there's no native "hold" gesture to hook).
+ * A plain tap has none of that fragility, needs no pointer-capture or
+ * drag-cancel-zone logic, and behaves identically with a mouse, trackpad,
+ * or finger — simpler and considerably more robust for one interaction
+ * that has to work everywhere.
  */
 export function VoiceRecorderButton({
   onSend,
@@ -76,16 +56,7 @@ export function VoiceRecorderButton({
   onActiveChange?: (active: boolean) => void;
   disabled?: boolean;
 }) {
-  const isMobile = useIsMobile();
-  const [phase, setPhaseState] = useState<"idle" | "recording" | "cancel-zone" | "preview">("idle");
-  const setPhase = (next: "idle" | "recording" | "cancel-zone" | "preview") => {
-    setPhaseState((prev) => {
-      const wasActive = prev !== "idle";
-      const isActive = next !== "idle";
-      if (wasActive !== isActive) onActiveChange?.(isActive);
-      return next;
-    });
-  };
+  const [phase, setPhaseState] = useState<"idle" | "recording" | "preview">("idle");
   const [elapsedMs, setElapsedMs] = useState(0);
   const [level, setLevel] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -94,9 +65,22 @@ export function VoiceRecorderButton({
   );
 
   const recorderRef = useRef<Recorder | null>(null);
-  const startYRef = useRef(0);
   const rafRef = useRef<number | null>(null);
   const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const setPhase = setPhaseState;
+
+  // Notifying the parent belongs in an effect, not inside the state
+  // updater above (which is what this replaced) — calling a different
+  // component's setState from within another component's updater function
+  // runs during React's render phase and triggers "Cannot update a
+  // component while rendering a different component" (confirmed live via
+  // the console). An effect fires after render, which is the correct time
+  // to synchronize an external component with this one's derived state.
+  useEffect(() => {
+    onActiveChange?.(phase !== "idle");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   useEffect(() => {
     return () => {
@@ -122,10 +106,8 @@ export function VoiceRecorderButton({
     try {
       const recorder = new Recorder();
       recorderRef.current = recorder;
-      await recorder.start(() => {
-        // Auto-stop at MAX_RECORDING_MS — treat it the same as a manual stop.
-        finishRecording();
-      });
+      // Auto-stop at the 2-minute cap is treated the same as a manual stop.
+      await recorder.start(() => finishRecording());
       setPhase("recording");
       setElapsedMs(0);
       const startedAt = Date.now();
@@ -155,14 +137,13 @@ export function VoiceRecorderButton({
       setPhase("idle");
       return;
     }
-
-    if (isMobile) {
-      onSend(result.blob, result.mimeType, result.durationMs);
-      setPhase("idle");
-    } else {
-      setPreview({ blob: result.blob, mimeType: result.mimeType, durationMs: result.durationMs, url: URL.createObjectURL(result.blob) });
-      setPhase("preview");
-    }
+    setPreview({
+      blob: result.blob,
+      mimeType: result.mimeType,
+      durationMs: result.durationMs,
+      url: URL.createObjectURL(result.blob),
+    });
+    setPhase("preview");
   }
 
   function cancelRecording() {
@@ -186,49 +167,29 @@ export function VoiceRecorderButton({
     setPhase("idle");
   }
 
-  // ── mobile: press-and-hold, drag up to cancel ───────────────────────────
-  function onPointerDown(e: React.PointerEvent) {
-    if (!isMobile || disabled) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    startYRef.current = e.clientY;
-    beginRecording();
-  }
-  function onPointerMove(e: React.PointerEvent) {
-    if (!isMobile || (phase !== "recording" && phase !== "cancel-zone")) return;
-    const draggedUp = startYRef.current - e.clientY;
-    setPhase(draggedUp > CANCEL_DRAG_PX ? "cancel-zone" : "recording");
-  }
-  function onPointerUp() {
-    if (!isMobile) return;
-    if (phase === "cancel-zone") cancelRecording();
-    else if (phase === "recording") finishRecording();
-  }
-
-  // ── desktop: tap to start, tap to stop ──────────────────────────────────
-  function onClick() {
-    if (isMobile || disabled) return;
+  function handleMicClick() {
+    if (disabled) return;
     if (phase === "idle") beginRecording();
     else if (phase === "recording") finishRecording();
   }
 
   if (phase === "preview" && preview) {
     return (
-      <div className="flex flex-1 items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5">
-        <audio src={preview.url} controls className="h-8 flex-1" />
-        <span className="shrink-0 text-xs text-muted-foreground">{formatDuration(preview.durationMs)}</span>
+      <div className="flex flex-1 select-none items-center gap-1.5 rounded-lg border border-border bg-card py-1.5 pl-1.5 pr-2">
         <button
           type="button"
           onClick={discardPreview}
           aria-label="Discard recording"
-          className="text-muted-foreground hover:text-destructive"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-destructive"
         >
           <Trash2 className="h-4 w-4" />
         </button>
+        <AudioPlayer src={preview.url} durationMs={preview.durationMs} tone="neutral" />
         <button
           type="button"
           onClick={sendPreview}
           aria-label="Send voice message"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary-hover"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary-hover"
         >
           <Send className="h-4 w-4" />
         </button>
@@ -236,42 +197,28 @@ export function VoiceRecorderButton({
     );
   }
 
-  if (phase === "recording" || phase === "cancel-zone") {
+  if (phase === "recording") {
     return (
-      <div className="flex flex-1 items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5">
+      <div className="flex flex-1 select-none items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5">
         <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-destructive" />
         <span className="shrink-0 text-sm tabular-nums text-foreground">{formatDuration(elapsedMs)}</span>
         <LevelMeter level={level} />
-        <span className={cn("flex-1 truncate text-right text-xs", phase === "cancel-zone" ? "font-medium text-destructive" : "text-muted-foreground")}>
-          {isMobile
-            ? phase === "cancel-zone"
-              ? "Release to cancel"
-              : "Slide up to cancel"
-            : "Recording… tap the mic to stop"}
-        </span>
-        {!isMobile && (
-          <button
-            type="button"
-            onClick={cancelRecording}
-            aria-label="Cancel recording"
-            className="text-muted-foreground hover:text-destructive"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
+        <span className="flex-1" />
         <button
           type="button"
-          onClick={onClick}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          aria-label="Stop recording"
-          className={cn(
-            "flex h-9 w-9 shrink-0 touch-none items-center justify-center rounded-full text-white",
-            phase === "cancel-zone" ? "bg-muted-foreground" : "bg-destructive",
-          )}
+          onClick={cancelRecording}
+          aria-label="Cancel recording"
+          className="text-muted-foreground hover:text-destructive"
         >
-          <Mic className="h-4 w-4" />
+          <Trash2 className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={handleMicClick}
+          aria-label="Stop recording"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-destructive text-white"
+        >
+          <Square className="h-3 w-3" fill="currentColor" />
         </button>
       </div>
     );
@@ -281,14 +228,11 @@ export function VoiceRecorderButton({
     <div className="flex shrink-0 flex-col items-end">
       <button
         type="button"
-        onClick={onClick}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
+        onClick={handleMicClick}
         disabled={disabled}
         aria-label="Record a voice message"
-        title={isMobile ? "Hold to record" : "Tap to record"}
-        className="flex h-9 w-9 shrink-0 touch-none items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
+        title="Record a voice message"
+        className="flex h-9 w-9 shrink-0 select-none items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
       >
         <Mic className="h-4 w-4" />
       </button>
@@ -296,4 +240,3 @@ export function VoiceRecorderButton({
     </div>
   );
 }
-

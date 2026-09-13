@@ -13,11 +13,10 @@ export const config = {
      * Match all request paths except:
      * - _next/static, _next/image (Next.js internals)
      * - static assets (svg, png, jpg, jpeg, gif, webp, ico)
-     * - api/ (API routes handle their own auth — this app's first one,
-     *   /api/cron/expire-voice-messages, is called by an external
-     *   scheduler with no user session at all, just a shared-secret
-     *   header; the login-redirect above would otherwise 307 it before
-     *   the route handler ever runs, confirmed live)
+     * - api/ (API routes handle their own auth, not cookie-based sessions
+     *   — confirmed live with an earlier cron route: the login-redirect
+     *   above 307'd it before the handler ever ran, since a route hit by
+     *   an external caller has no session at all)
      */
     "/((?!api/|_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
