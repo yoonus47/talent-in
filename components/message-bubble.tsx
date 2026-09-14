@@ -1,37 +1,102 @@
 "use client";
 
-import { X } from "lucide-react";
+import { useState } from "react";
+import { Copy, Reply, Trash2 } from "lucide-react";
 import { deleteMessage } from "@/lib/actions/chat";
 import { AudioPlayer } from "@/components/audio-player";
+import { MessageText } from "@/components/message-text";
+import { MessageActionMenu, type MessageMenuItem } from "@/components/message-action-menu";
 import { cn, timeAgo } from "@/lib/utils";
 import type { Message } from "@/lib/types/database";
 
-/** One message bubble — right-aligned/accent when it's mine, with an
- * unsend control that shows on hover, mirroring DeleteCommentButton.
- * Bubbles from the same sender in a row are visually grouped: only the
- * *last* bubble in a run gets the tail corner, and a group thread shows
- * the sender's name once, above the first bubble in a run — see
- * ChatThread's run-detection for how `isLastInRun`/`senderName` are
- * computed. */
+/** The small quoted block shown above a message's own content when it's a
+ * reply — rendered straight from the reply_to_* snapshot columns (server-
+ * computed by the insert trigger, see supabase/migrations/0026_chat_reply_
+ * and_mentions.sql), never a live lookup. "You" is resolved here, at
+ * render time, from the viewer's own id — a stored snapshot can't say
+ * "You" to the right person for every viewer at once. Deliberately NOT
+ * clickable/scroll-to-original (see the chat plan's v1 cuts) — only the
+ * last 50 messages are ever loaded, so the original is frequently not
+ * even on screen to jump to. */
+function ReplyQuote({ message, myId, tone }: { message: Message; myId: string; tone: "own" | "other" }) {
+  if (!message.reply_to_sender_name) return null;
+  const label = message.reply_to_sender_id === myId ? "You" : message.reply_to_sender_name;
+  const preview = message.reply_to_type === "voice" ? "🎤 Voice message" : message.reply_to_preview;
+  return (
+    <div
+      className={cn(
+        "mb-1 rounded-lg border-l-2 px-2 py-1 text-xs",
+        tone === "own"
+          ? "border-primary-foreground/40 bg-primary-foreground/10 text-primary-foreground/80"
+          : "border-primary/40 bg-foreground/5 text-muted-foreground",
+      )}
+    >
+      <p className="font-medium">{label}</p>
+      <p className="truncate">{preview}</p>
+    </div>
+  );
+}
+
+/** One message bubble — right-aligned/accent when it's mine, with a
+ * "⋯" actions menu (Reply / Copy / Unsend) that replaces what used to be
+ * a hover-only unsend button (confirmed live to be unusable on touch —
+ * see components/message-action-menu.tsx). Bubbles from the same sender
+ * in a row are visually grouped: only the *last* bubble in a run gets the
+ * tail corner, and a group thread shows the sender's name once, above the
+ * first bubble in a run — see ChatThread's run-detection for how
+ * `isLastInRun`/`senderName` are computed. */
 export function MessageBubble({
   message,
+  myId,
   isOwn,
   pending = false,
   isLastInRun = true,
   senderName,
+  onReply,
 }: {
   message: Message;
+  /** Needed to resolve "You" in a reply quote's label — see ReplyQuote. */
+  myId: string;
   isOwn: boolean;
   /** True while the message is still an optimistic local echo, before the
-   * server has assigned it a real id — hides the unsend control until
-   * there's something real to delete. */
+   * server has assigned it a real id — hides Reply/Unsend until there's a
+   * real row to act on (a temp- id isn't a valid uuid to reply to). */
   pending?: boolean;
   isLastInRun?: boolean;
   /** Group threads only — the sender's name, shown once above the first
    * bubble of a consecutive run from someone else. Undefined in dm
    * threads (redundant there) and on every bubble but the first in a run. */
   senderName?: string;
+  /** Opens the reply-preview strip in the composer for this message. */
+  onReply?: (message: Message) => void;
 }) {
+  const [showTime, setShowTime] = useState(false);
+  const tone = isOwn ? "own" : "other";
+
+  const items: MessageMenuItem[] = [];
+  if (!pending) {
+    items.push({ key: "reply", label: "Reply", icon: Reply, onClick: () => onReply?.(message) });
+    if (message.type === "text" && message.content) {
+      items.push({
+        key: "copy",
+        label: "Copy text",
+        icon: Copy,
+        onClick: () => navigator.clipboard.writeText(message.content ?? "").catch(() => {}),
+      });
+    }
+    if (isOwn) {
+      items.push({
+        key: "unsend",
+        label: "Unsend",
+        icon: Trash2,
+        destructive: true,
+        onClick: () => {
+          if (confirm("Unsend this message?")) deleteMessage(message.id);
+        },
+      });
+    }
+  }
+
   return (
     // max-w-[75%] lives here, NOT on the bubble div below — this outer div
     // is a plain block box (a normal child of ChatThread's non-flex message
@@ -55,49 +120,39 @@ export function MessageBubble({
         <span className="mb-0.5 px-1 text-xs font-medium text-muted-foreground">{senderName}</span>
       )}
       <div className={cn("group flex items-center gap-1.5", isOwn ? "justify-end" : "justify-start")}>
-        {isOwn && !pending && (
-          <form
-            action={deleteMessage.bind(null, message.id)}
-            onSubmit={(e) => {
-              if (!confirm("Unsend this message?")) e.preventDefault();
-            }}
-            className="opacity-0 transition-opacity group-hover:opacity-100"
-          >
-            <button
-              type="submit"
-              aria-label="Unsend message"
-              title="Unsend message"
-              className="text-muted-foreground hover:text-destructive"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </form>
-        )}
+        {isOwn && <MessageActionMenu items={items} align="end" />}
         <div
+          onClick={() => setShowTime((v) => !v)}
           // timeAgo, not toLocaleString — a locale/timezone-formatted string
           // renders differently on the server (Node's environment locale)
           // than on the client (the browser's), which is a real hydration
           // mismatch for any message loaded via the page's initial render.
           // timeAgo's rounded relative value doesn't have that problem.
+          // The title attribute is a harmless desktop-hover fallback for
+          // the same value — the actual fix for "invisible on touch" is
+          // the tap-driven showTime caption below the bubble.
           title={timeAgo(message.created_at)}
           className={cn(
-            "rounded-2xl px-4 py-2 text-sm",
+            "cursor-pointer select-none rounded-2xl px-4 py-2 text-sm",
             isOwn
               ? cn("bg-primary text-primary-foreground", isLastInRun && "rounded-br-sm")
               : cn("bg-muted text-foreground", isLastInRun && "rounded-bl-sm"),
           )}
         >
+          <ReplyQuote message={message} myId={myId} tone={tone} />
           {message.type === "voice" && message.audio_url ? (
-            <AudioPlayer
-              src={message.audio_url}
-              durationMs={message.duration_ms ?? 0}
-              tone={isOwn ? "own" : "other"}
-            />
+            <div onClick={(e) => e.stopPropagation()}>
+              <AudioPlayer src={message.audio_url} durationMs={message.duration_ms ?? 0} tone={tone} />
+            </div>
           ) : (
-            <p className="whitespace-pre-wrap break-words">{message.content}</p>
+            <MessageText content={message.content ?? ""} tone={tone} />
           )}
         </div>
+        {!isOwn && <MessageActionMenu items={items} align="start" />}
       </div>
+      {showTime && (
+        <span className="mt-0.5 px-1 text-[11px] text-muted-foreground">{timeAgo(message.created_at)}</span>
+      )}
     </div>
   );
 }

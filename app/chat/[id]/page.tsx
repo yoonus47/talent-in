@@ -63,6 +63,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
           myId={viewer.id}
           conversationType="group"
           memberProfiles={Object.fromEntries(senderProfiles)}
+          groupMembers={groupInfo.members}
           initialMessages={messages}
         />
       </div>
@@ -97,6 +98,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
         myId={viewer.id}
         conversationType="dm"
         otherUserId={otherUser.id}
+        otherUserName={otherUser.full_name}
         initialMessages={messages}
         initialOtherLastReadAt={otherLastReadAt}
       />

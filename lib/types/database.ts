@@ -575,6 +575,25 @@ export interface Database {
           content: string | null;
           audio_url: string | null;
           duration_ms: number | null;
+          // Reply-quote snapshot, server-computed by a BEFORE INSERT
+          // trigger (0026_chat_reply_and_mentions.sql) from whatever
+          // reply_to_id the client sent — never trust these 4 as
+          // client-authored, even though they're technically writable on
+          // insert (see that migration's header comment). reply_to_id can
+          // independently null out later (on delete set null, when the
+          // original is unsent) while the rest of the snapshot stays.
+          reply_to_id: string | null;
+          reply_to_sender_id: string | null;
+          reply_to_sender_name: string | null;
+          reply_to_type: "text" | "voice" | null;
+          reply_to_preview: string | null;
+          // Also server-filtered by the same trigger down to actual
+          // current conversation members minus the sender — see
+          // components/message-text.tsx for how @all/@everyone/@username
+          // get rendered from the stored text (presentation-time only,
+          // same as comments.mentioned_user_ids; this array itself is
+          // only used to decide who gets a "mention" notification).
+          mentioned_user_ids: string[];
           created_at: string;
         };
         Insert: {
@@ -585,6 +604,12 @@ export interface Database {
           content?: string | null;
           audio_url?: string | null;
           duration_ms?: number | null;
+          reply_to_id?: string | null;
+          reply_to_sender_id?: string | null;
+          reply_to_sender_name?: string | null;
+          reply_to_type?: "text" | "voice" | null;
+          reply_to_preview?: string | null;
+          mentioned_user_ids?: string[];
           created_at?: string;
         };
         Update: never;
@@ -601,6 +626,13 @@ export interface Database {
             columns: ["sender_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "messages_reply_to_id_fkey";
+            columns: ["reply_to_id"];
+            isOneToOne: false;
+            referencedRelation: "messages";
             referencedColumns: ["id"];
           },
         ];

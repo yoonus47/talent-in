@@ -23,7 +23,7 @@ function describe(n: FeedNotification): string {
     case "reply":
       return "replied to your comment";
     case "mention":
-      return "tagged you in a comment";
+      return n.conversation ? "mentioned you in a group message" : "tagged you in a comment";
     case "comment_reaction": {
       const reaction = REACTIONS.find((r) => r.type === n.reactionType);
       return `reacted ${reaction?.emoji ?? ""} to your comment`;
@@ -85,7 +85,7 @@ export default async function NotificationsPage() {
             const href =
               n.type === "follow"
                 ? `/profile/${n.actor.username}`
-                : n.type === "group_added" && n.conversation
+                : (n.type === "group_added" || n.type === "mention") && n.conversation
                   ? `/chat/${n.conversation.id}`
                   : n.post
                     ? "/feed"

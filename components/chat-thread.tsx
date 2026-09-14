@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MessageCircle, Moon, Send, Sun } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { markConversationRead } from "@/lib/actions/chat";
 import { MessageBubble } from "@/components/message-bubble";
-import { VoiceRecorderButton } from "@/components/voice-recorder";
-import { useThemeToggle } from "@/components/theme-toggle";
+import { ChatComposer } from "@/components/chat-composer";
 import { audioExtensionFor } from "@/lib/audio-client";
 import type { Message } from "@/lib/types/database";
+import type { GroupMember } from "@/lib/data";
 
 type LocalMessage = Message & {
   pending?: boolean;
@@ -19,6 +19,21 @@ type LocalMessage = Message & {
   clientId?: string;
 };
 type SenderProfile = { full_name: string; avatar_url: string | null };
+
+/** What's being replied to, kept in ChatThread (a sibling of both the
+ * message list and the composer) rather than in ChatComposer itself —
+ * it's set from a message row, not from anything the composer owns. Built
+ * entirely from data already in memory (no query): the target message's
+ * own fields plus its sender's display name, resolved once here via
+ * senderDisplayName so both the compose-time strip and (eventually) any
+ * other consumer agree on the same "You"/name logic. */
+type ReplyingTo = {
+  id: string;
+  senderId: string;
+  senderName: string;
+  type: "text" | "voice";
+  content: string | null;
+};
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -90,24 +105,6 @@ function buildRenderItems(
   return items;
 }
 
-/** Static, in-flow dark-mode toggle for the mobile composer row — see
- * ThemeToggle's comment in components/theme-toggle.tsx for why the
- * floating one is hidden here instead of trying to keep it aligned. */
-function MobileThemeToggle() {
-  const { isDark, toggle } = useThemeToggle();
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-muted sm:hidden"
-    >
-      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-    </button>
-  );
-}
-
 /**
  * The live chat thread — dm or group alike. Unlike every other mutation in
  * this app, sending a message is a direct client-side insert (see
@@ -124,7 +121,9 @@ export function ChatThread({
   myId,
   conversationType,
   otherUserId,
+  otherUserName,
   memberProfiles = {},
+  groupMembers,
   initialMessages,
   initialOtherLastReadAt = null,
 }: {
@@ -133,19 +132,24 @@ export function ChatThread({
   conversationType: "dm" | "group";
   /** dm only — used for the "Seen" indicator. */
   otherUserId?: string;
+  /** dm only — used to resolve the reply-quote/reply-strip's sender label;
+   * no extra query, already fetched by app/chat/[id]/page.tsx. */
+  otherUserName?: string;
   /** group only — id → profile, for sender-name attribution. Built from
    * actual message senders (lib/data.ts's getMessageSenderProfiles), not
    * current membership, so a departed member's old messages still show a
    * name. */
   memberProfiles?: Record<string, SenderProfile>;
+  /** group only — the FULL current member list (unlike memberProfiles
+   * above), for the @mention autocomplete in ChatComposer. From
+   * getGroupInfo, already fetched for the thread header. */
+  groupMembers?: GroupMember[];
   initialMessages: Message[];
   initialOtherLastReadAt?: string | null;
 }) {
   const [messages, setMessages] = useState<LocalMessage[]>(initialMessages);
   const [otherLastReadAt, setOtherLastReadAt] = useState(initialOtherLastReadAt);
-  const [input, setInput] = useState("");
-  const [sending, setSending] = useState(false);
-  const [recorderActive, setRecorderActive] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<ReplyingTo | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -259,11 +263,40 @@ export function ChatThread({
     };
   }, [conversationId, myId, otherUserId]);
 
-  async function handleSend() {
-    const content = input.trim();
-    if (!content || sending) return;
-    setInput("");
-    setSending(true);
+  /** "You" for the current viewer, the group sender's attributed name, or
+   * the dm partner's name — shared by both the pre-send reply strip and
+   * (indirectly, via the stored snapshot) the persisted quote block, so
+   * they never disagree. */
+  function senderDisplayName(senderId: string): string {
+    if (senderId === myId) return "You";
+    if (conversationType === "group") return memberProfiles[senderId]?.full_name ?? "Someone";
+    return otherUserName ?? "Someone";
+  }
+
+  function replySnapshotFields(reply: ReplyingTo | null) {
+    return {
+      reply_to_id: reply?.id ?? null,
+      reply_to_sender_id: reply?.senderId ?? null,
+      reply_to_sender_name: reply?.senderName ?? null,
+      reply_to_type: reply?.type ?? null,
+      reply_to_preview: reply && reply.type === "text" ? (reply.content ?? "").slice(0, 120) : null,
+    };
+  }
+
+  /**
+   * Sends a text message, optionally as a reply and/or with @mentions
+   * (mentionedUserIds are the composer's own best-effort picks — the
+   * insert trigger, 0026_chat_reply_and_mentions.sql, is what actually
+   * sanitizes them down to real current members, so the batched
+   * notification insert below reads the *returned* row's ids, not these).
+   * The full reply_to_* snapshot is built here too, client-side, purely so
+   * the optimistic echo shows its quote block immediately — the real
+   * insert only sends reply_to_id; the trigger fills the rest server-side,
+   * and the reconciled real row (whichever path notices it first) is what
+   * actually persists.
+   */
+  async function handleSend(content: string, mentionedUserIds: string[]) {
+    if (!content) return;
 
     const optimistic: LocalMessage = {
       id: `temp-${crypto.randomUUID()}`,
@@ -273,19 +306,28 @@ export function ChatThread({
       content,
       audio_url: null,
       duration_ms: null,
+      mentioned_user_ids: mentionedUserIds,
       created_at: new Date().toISOString(),
       pending: true,
+      ...replySnapshotFields(replyingTo),
     };
     setMessages((prev) => [...prev, optimistic]);
+    const replyToId = replyingTo?.id ?? null;
+    setReplyingTo(null);
 
     const supabase = createClient();
     const { data, error } = await supabase
       .from("messages")
-      .insert({ conversation_id: conversationId, sender_id: myId, type: "text", content })
+      .insert({
+        conversation_id: conversationId,
+        sender_id: myId,
+        type: "text",
+        content,
+        reply_to_id: replyToId,
+        mentioned_user_ids: mentionedUserIds,
+      })
       .select()
       .single();
-
-    setSending(false);
 
     if (error || !data) {
       console.error("send message failed:", error?.message);
@@ -299,6 +341,21 @@ export function ChatThread({
       }
       return prev.map((m) => (m.id === optimistic.id ? data : m));
     });
+
+    // Trigger-sanitized recipients only — never the pre-send guess above,
+    // which could include a stale/tampered client's picks (see the
+    // migration's header comment for why that filtering has to happen
+    // server-side, not here).
+    if (conversationType === "group" && data.mentioned_user_ids.length > 0) {
+      const rows = data.mentioned_user_ids.map((userId) => ({
+        user_id: userId,
+        actor_id: myId,
+        type: "mention" as const,
+        conversation_id: conversationId,
+      }));
+      const { error: notifyError } = await supabase.from("notifications").insert(rows);
+      if (notifyError) console.error("mention notification insert failed:", notifyError.message);
+    }
   }
 
   /**
@@ -307,12 +364,11 @@ export function ChatThread({
    * mutation" exception documented at the top of this file for text), then
    * inserts the messages row the same way text does. The optimistic
    * placeholder plays instantly from the in-memory blob's own object URL
-   * while the real upload happens in the background.
+   * while the real upload happens in the background. Voice messages never
+   * carry @mentions (only the text composer offers the autocomplete), but
+   * can still be sent as a reply, same as text.
    */
   async function handleSendVoice(blob: Blob, mimeType: string, durationMs: number) {
-    if (sending) return;
-    setSending(true);
-
     const clientId = crypto.randomUUID();
     const ext = audioExtensionFor(mimeType);
     const path = `${conversationId}/${myId}/${clientId}.${ext}`;
@@ -326,11 +382,15 @@ export function ChatThread({
       content: null,
       audio_url: localUrl,
       duration_ms: durationMs,
+      mentioned_user_ids: [],
       created_at: new Date().toISOString(),
       pending: true,
       clientId,
+      ...replySnapshotFields(replyingTo),
     };
     setMessages((prev) => [...prev, optimistic]);
+    const replyToId = replyingTo?.id ?? null;
+    setReplyingTo(null);
 
     const supabase = createClient();
     const { error: uploadError } = await supabase.storage
@@ -339,7 +399,6 @@ export function ChatThread({
 
     if (uploadError) {
       console.error("voice upload failed:", uploadError.message);
-      setSending(false);
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
       URL.revokeObjectURL(localUrl);
       return;
@@ -357,17 +416,15 @@ export function ChatThread({
         type: "voice",
         audio_url: publicUrl,
         duration_ms: durationMs,
+        reply_to_id: replyToId,
       })
       .select()
       .single();
 
-    setSending(false);
-
     if (error || !data) {
       console.error("send voice message failed:", error?.message);
       // The file uploaded but the row never landed — clean it up so it
-      // doesn't sit there forever as an orphan the retention job will
-      // never find (that job only walks messages rows).
+      // doesn't sit there forever as an orphan.
       await supabase.storage.from("voice-messages").remove([path]);
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
       URL.revokeObjectURL(localUrl);
@@ -381,13 +438,6 @@ export function ChatThread({
       return prev.map((m) => (m.id === optimistic.id ? data : m));
     });
     URL.revokeObjectURL(localUrl);
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
   }
 
   const lastMessage = messages[messages.length - 1];
@@ -434,10 +484,20 @@ export function ChatThread({
               <div key={item.message.id} className={item.isLastInRun ? "pb-1.5" : ""}>
                 <MessageBubble
                   message={item.message}
+                  myId={myId}
                   isOwn={item.message.sender_id === myId}
                   pending={item.message.pending}
                   isLastInRun={item.isLastInRun}
                   senderName={item.senderName}
+                  onReply={(message) =>
+                    setReplyingTo({
+                      id: message.id,
+                      senderId: message.sender_id,
+                      senderName: senderDisplayName(message.sender_id),
+                      type: message.type,
+                      content: message.content,
+                    })
+                  }
                 />
                 {i === renderItems.length - 1 && showSeen && (
                   <p className="pr-1 pt-1 text-right text-xs text-muted-foreground">Seen</p>
@@ -449,47 +509,26 @@ export function ChatThread({
         <div ref={bottomRef} />
       </div>
 
-      {/* No more pr-16/pb-[27px] collision-avoidance here: ThemeToggle
-          hides itself on mobile for this exact route (see its comment),
-          so there's no floating button in this corner to clear or align
-          with anymore — MobileThemeToggle below is a plain in-flow member
-          of this same row instead. */}
-      <div className="flex items-end gap-2 border-t border-border bg-background p-3">
-        {!recorderActive && (
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Message…"
-            rows={1}
-            // text-base (16px), not text-sm — iOS Safari auto-zooms the page
-            // in on focus for any text input under 16px, which is the actual
-            // cause of the "zooms in when I try to type" behavior. WhatsApp's
-            // input (and every other mobile-polished text field) is 16px+
-            // for exactly this reason, not because of any deliberate zoom
-            // handling.
-            className="max-h-32 flex-1 resize-none rounded-lg border border-border bg-card px-3 py-2 text-base text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-        )}
-        {input.trim().length === 0 ? (
-          <VoiceRecorderButton
-            onSend={handleSendVoice}
-            onActiveChange={setRecorderActive}
-            disabled={sending}
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={input.trim().length === 0 || sending}
-            aria-label="Send"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary-hover disabled:opacity-50"
-          >
-            <Send className="h-4 w-4" />
-          </button>
-        )}
-        {!recorderActive && <MobileThemeToggle />}
-      </div>
+      <ChatComposer
+        onSend={handleSend}
+        onSendVoice={handleSendVoice}
+        replyingTo={
+          replyingTo && {
+            senderName: replyingTo.senderName,
+            type: replyingTo.type,
+            preview: replyingTo.type === "voice" ? null : replyingTo.content,
+          }
+        }
+        onCancelReply={() => setReplyingTo(null)}
+        // Excludes myself — the picker is for tagging someone ELSE; the
+        // insert trigger would silently drop a self-mention anyway (it
+        // filters mentioned_user_ids to exclude the sender), but leaving
+        // yourself in the dropdown would look like a working option when
+        // picking it does nothing observable.
+        groupMembers={
+          conversationType === "group" ? groupMembers?.filter((m) => m.id !== myId) : undefined
+        }
+      />
     </div>
   );
 }
