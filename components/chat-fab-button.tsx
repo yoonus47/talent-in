@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MessageCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchUnreadMessageCount } from "@/lib/actions/chat";
+import { TransitionLink } from "@/components/transition-link";
 
 /**
  * The actual floating button — split from ChatFab (which fetches the
@@ -82,8 +82,9 @@ export function ChatFabButton({ userId, unreadCount: initialUnreadCount }: { use
   if (pathname.startsWith("/chat")) return null;
 
   return (
-    <Link
+    <TransitionLink
       href="/chat"
+      direction="forward"
       aria-label="Messages"
       title="Messages"
       // Stacked above ThemeToggle (fixed bottom-4 right-4, h-11) so the two
@@ -102,6 +103,6 @@ export function ChatFabButton({ userId, unreadCount: initialUnreadCount }: { use
           {unreadCount > 9 ? "9+" : unreadCount}
         </span>
       )}
-    </Link>
+    </TransitionLink>
   );
 }

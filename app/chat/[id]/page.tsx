@@ -12,6 +12,8 @@ import {
 } from "@/lib/data";
 import { markConversationRead } from "@/lib/actions/chat";
 import { ChatThread } from "@/components/chat-thread";
+import { BackLink } from "@/components/back-link";
+import { TransitionLink } from "@/components/transition-link";
 import { Avatar } from "@/components/ui/avatar";
 
 export default async function ChatThreadPage({ params }: { params: Promise<{ id: string }> }) {
@@ -38,11 +40,12 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
     return (
       <div className="mx-auto max-w-xl">
         <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-          <Link href="/chat" aria-label="Back to messages">
+          <BackLink fallbackHref="/chat" aria-label="Back to messages">
             <ArrowLeft className="h-5 w-5 text-muted-foreground hover:text-foreground" />
-          </Link>
-          <Link
+          </BackLink>
+          <TransitionLink
             href={`/chat/${conversation.id}/info`}
+            direction="forward"
             className="flex min-w-0 flex-1 items-center gap-2"
           >
             <Avatar name={groupInfo.name} src={groupInfo.iconUrl} size={36} />
@@ -55,7 +58,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
               </span>
             </span>
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-          </Link>
+          </TransitionLink>
         </div>
 
         <ChatThread
@@ -84,9 +87,9 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
   return (
     <div className="mx-auto max-w-xl">
       <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-        <Link href="/chat" aria-label="Back to messages">
+        <BackLink fallbackHref="/chat" aria-label="Back to messages">
           <ArrowLeft className="h-5 w-5 text-muted-foreground hover:text-foreground" />
-        </Link>
+        </BackLink>
         <Link href={`/profile/${otherUser.username}`} className="flex items-center gap-2">
           <Avatar name={otherUser.full_name} src={otherUser.avatar_url} size={36} />
           <span className="text-sm font-semibold text-foreground">{otherUser.full_name}</span>

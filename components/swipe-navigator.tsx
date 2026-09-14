@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { DEFAULT_NAV_ICON, NAV_ICONS, isActiveRoute, type NavRoute } from "@/lib/nav-links";
+import { clearNavDirection, readNavDirection } from "@/lib/nav-direction";
 
 // SSR-safe useLayoutEffect: this only ever runs in the browser (the
 // component is "use client" and the effect touches refs/DOM), but plain
@@ -14,9 +15,10 @@ const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffec
 
 // Entrance animation for *plain* Link-tap navigation (see AnimatedPage
 // below) — a completed drag handles its own motion end-to-end instead and
-// doesn't touch this, so the two mechanisms never fight each other.
-const DIRECTION_KEY = "talentzify-swipe-direction";
-
+// doesn't touch this, so the two mechanisms never fight each other. The
+// direction itself is read from lib/nav-direction.ts, written by
+// components/transition-link.tsx and components/back-link.tsx on click —
+// this file only ever reads it.
 const DIRECTION_LOCK_PX = 10; // how far a touch has to move before committing to horizontal vs vertical
 const MIN_HORIZONTAL_RATIO = 1.3; // how much more horizontal than vertical a drag has to be
 const COMMIT_MS = 240;
@@ -24,14 +26,9 @@ const SNAP_BACK_MS = 220;
 const EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 
 function readAnimationClass(): string {
-  try {
-    const direction = sessionStorage.getItem(DIRECTION_KEY);
-    if (direction === "forward") return "animate-slide-in-from-right";
-    if (direction === "back") return "animate-slide-in-from-left";
-  } catch {
-    // sessionStorage can throw in some locked-down browser contexts —
-    // just skip the animation rather than fail the navigation.
-  }
+  const direction = readNavDirection();
+  if (direction === "forward") return "animate-slide-in-from-right";
+  if (direction === "back") return "animate-slide-in-from-left";
   return "";
 }
 
@@ -49,11 +46,7 @@ function AnimatedPage({ children }: { children: React.ReactNode }) {
   const [animationClass] = useState(readAnimationClass);
 
   useEffect(() => {
-    try {
-      sessionStorage.removeItem(DIRECTION_KEY);
-    } catch {
-      // ignore
-    }
+    clearNavDirection();
   }, []);
 
   return <div className={animationClass}>{children}</div>;

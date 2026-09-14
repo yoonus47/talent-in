@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { Avatar } from "@/components/ui/avatar";
+import { TransitionLink } from "@/components/transition-link";
 import { cn, timeAgo } from "@/lib/utils";
 import type { ChatConversation } from "@/lib/data";
 
@@ -22,8 +22,9 @@ export function ConversationRow({ conversation }: { conversation: ChatConversati
       : "Say hi 👋";
 
   return (
-    <Link
+    <TransitionLink
       href={`/chat/${conversation.id}`}
+      direction="forward"
       className={cn(
         "flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50",
         unread && "bg-primary/5",
@@ -53,6 +54,6 @@ export function ConversationRow({ conversation }: { conversation: ChatConversati
           {unreadCount > 99 ? "99+" : unreadCount}
         </span>
       )}
-    </Link>
+    </TransitionLink>
   );
 }

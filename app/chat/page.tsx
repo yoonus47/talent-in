@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { getConversations, getCurrentProfile, getMutualFollowProfiles } from "@/lib/data";
 import { ConversationRow } from "@/components/conversation-row";
 import { NewChatPicker } from "@/components/new-chat-picker";
+import { BackLink } from "@/components/back-link";
 import { Card } from "@/components/ui/card";
 
 export default async function ChatListPage() {
@@ -16,7 +18,16 @@ export default async function ChatListPage() {
   return (
     <div className="mx-auto max-w-xl space-y-4 px-4 py-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold">Messages</h1>
+        <div className="flex items-center gap-3">
+          {/* Wherever the viewer opened chat from (a profile, the feed,
+              wherever) — not a fixed destination, see components/back-
+              link.tsx. This is the one page in the chat section that used
+              to have no way back at all except the main nav tabs. */}
+          <BackLink fallbackHref="/feed" aria-label="Back">
+            <ArrowLeft className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+          </BackLink>
+          <h1 className="text-lg font-bold">Messages</h1>
+        </div>
         <NewChatPicker candidates={mutualFollows} />
       </div>
 

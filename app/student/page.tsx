@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { BackLink } from "@/components/back-link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -34,13 +35,13 @@ export default async function StudentLandingPage() {
   return (
     <div>
       <div className="mx-auto max-w-3xl px-4 pt-6">
-        <Link
-          href="/"
+        <BackLink
+          fallbackHref="/"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           Not a student?
-        </Link>
+        </BackLink>
       </div>
 
       <section className="mx-auto max-w-3xl px-4 py-16 text-center">

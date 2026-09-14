@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Clock3 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { BackLink } from "@/components/back-link";
 import { ROLES } from "@/lib/roles";
 
 export default async function ComingSoonPage({
@@ -33,12 +34,12 @@ export default async function ComingSoonPage({
           <Link href="/student">
             <Button className="w-full sm:w-auto">Explore as a student</Button>
           </Link>
-          <Link href="/">
+          <BackLink fallbackHref="/">
             <Button variant="outline" className="w-full gap-1.5 sm:w-auto">
               <ArrowLeft className="h-4 w-4" />
               Choose a different role
             </Button>
-          </Link>
+          </BackLink>
         </div>
       </Card>
     </div>

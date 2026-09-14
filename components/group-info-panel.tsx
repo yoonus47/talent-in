@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Camera, Check, Pencil, UserMinus, UserPlus, X } from "lucide-react";
 import {
@@ -12,6 +11,7 @@ import {
   renameGroupConversation,
   uploadGroupIcon,
 } from "@/lib/actions/chat";
+import { BackLink } from "@/components/back-link";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -175,9 +175,9 @@ export function GroupInfoPanel({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <Link href={`/chat/${conversationId}`} aria-label="Back to chat">
+        <BackLink fallbackHref={`/chat/${conversationId}`} aria-label="Back to chat">
           <ArrowLeft className="h-5 w-5 text-muted-foreground hover:text-foreground" />
-        </Link>
+        </BackLink>
         <h1 className="text-lg font-bold">Group info</h1>
       </div>
 

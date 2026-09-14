@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentProfile, getFollowersList, getProfileByUsername } from "@/lib/data";
 import { ProfileRow } from "@/components/profile-row";
+import { BackLink } from "@/components/back-link";
 import { Card } from "@/components/ui/card";
 
 export default async function FollowersPage({
@@ -21,13 +21,13 @@ export default async function FollowersPage({
 
   return (
     <div className="mx-auto max-w-xl px-4 py-6">
-      <Link
-        href={`/profile/${profile.username}`}
+      <BackLink
+        fallbackHref={`/profile/${profile.username}`}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to profile
-      </Link>
+      </BackLink>
       <h1 className="mt-3 text-xl font-bold">{profile.full_name}&apos;s followers</h1>
 
       {followers.length === 0 ? (

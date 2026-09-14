@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { DEFAULT_NAV_ICON, NAV_ICONS, isActiveRoute, type NavRoute } from "@/lib/nav-links";
+import { directionBetweenTabs } from "@/lib/nav-direction";
+import { TransitionLink } from "@/components/transition-link";
 import { cn } from "@/lib/utils";
 
 export type NavLink = NavRoute;
@@ -24,9 +25,13 @@ export function NavLinks({ links, variant }: { links: NavLink[]; variant: "deskt
           const active = isActiveRoute(pathname, link.href);
           const Icon = NAV_ICONS[link.href] ?? DEFAULT_NAV_ICON;
           return (
-            <Link
+            <TransitionLink
               key={link.href}
               href={link.href}
+              // Same forward/back rule a swipe between these same tabs
+              // already uses (lib/nav-direction.ts) — so tapping a tab
+              // slides the same direction swiping there would have.
+              direction={directionBetweenTabs(links, pathname, link.href)}
               className={cn(
                 "flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors",
                 active
@@ -36,7 +41,7 @@ export function NavLinks({ links, variant }: { links: NavLink[]; variant: "deskt
             >
               <Icon className="h-4 w-4" />
               {link.label}
-            </Link>
+            </TransitionLink>
           );
         })}
       </div>
@@ -49,9 +54,10 @@ export function NavLinks({ links, variant }: { links: NavLink[]; variant: "deskt
         const active = isActiveRoute(pathname, link.href);
         const Icon = NAV_ICONS[link.href] ?? DEFAULT_NAV_ICON;
         return (
-          <Link
+          <TransitionLink
             key={link.href}
             href={link.href}
+            direction={directionBetweenTabs(links, pathname, link.href)}
             className={cn(
               "flex flex-col items-center gap-0.5 rounded-lg px-2 py-1 text-[11px] font-medium transition-colors",
               active ? "text-primary" : "text-muted-foreground",
@@ -59,7 +65,7 @@ export function NavLinks({ links, variant }: { links: NavLink[]; variant: "deskt
           >
             <Icon className="h-5 w-5" />
             {link.label}
-          </Link>
+          </TransitionLink>
         );
       })}
     </div>
