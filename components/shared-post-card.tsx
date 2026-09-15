@@ -8,10 +8,12 @@ export function SharedPostCard({
   sharer,
   post,
   sharedAt,
+  viewer,
 }: {
   sharer: FeedAuthor & { id: string };
   post: FeedPost;
   sharedAt: string;
+  viewer: FeedAuthor;
 }) {
   return (
     <div>
@@ -22,7 +24,7 @@ export function SharedPostCard({
         </Link>
         shared this · {timeAgo(sharedAt)}
       </div>
-      <PostCard post={post} />
+      <PostCard post={post} viewer={viewer} />
     </div>
   );
 }

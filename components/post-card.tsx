@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { MessageCircle, Repeat2 } from "lucide-react";
-import type { FeedPost } from "@/lib/data";
+import type { FeedAuthor, FeedPost } from "@/lib/data";
 import { setReaction, toggleShare } from "@/lib/actions/posts";
 import { Avatar } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { DoubleTapReact, DOUBLE_TAP_REACTION } from "@/components/double-tap-rea
 import { PostImage } from "@/components/post-image";
 import { PostContent } from "@/components/post-content";
 import { LinkPreviewCard } from "@/components/link-preview-card";
-import { CommentThread } from "@/components/comment-thread";
+import { PostComments } from "@/components/post-comments";
 import { MentionInput } from "@/components/mention-input";
 import { extractFirstUrl } from "@/lib/links";
 import { timeAgo } from "@/lib/utils";
@@ -20,7 +20,7 @@ function countAllComments(post: FeedPost): number {
   return post.comments.reduce((total, c) => total + 1 + c.replies.length, 0);
 }
 
-export function PostCard({ post }: { post: FeedPost }) {
+export function PostCard({ post, viewer }: { post: FeedPost; viewer: FeedAuthor }) {
   // A post never stacks two "media-like" blocks — a link preview only
   // shows up when there's no uploaded photo. Matches lib/data.ts's
   // getFeedItems, which only ever populates post.linkPreview under the
@@ -28,7 +28,7 @@ export function PostCard({ post }: { post: FeedPost }) {
   const previewUrl = post.image_url ? null : extractFirstUrl(post.content);
 
   return (
-    <Card className="p-4">
+    <Card className="p-4 transition-shadow hover:shadow-md">
       <div className="flex items-center gap-3">
         <Link href={`/profile/${post.author.username}`}>
           <Avatar name={post.author.full_name} src={post.author.avatar_url} size={40} />
@@ -102,20 +102,21 @@ export function PostCard({ post }: { post: FeedPost }) {
       </div>
 
       {post.comments.length > 0 && (
-        <div className="mt-3 space-y-3 border-t border-border pt-3">
-          {post.comments.map((comment) => (
-            <CommentThread key={comment.id} comment={comment} postId={post.id} />
-          ))}
+        <div className="mt-3 border-t border-border pt-3">
+          <PostComments comments={post.comments} postId={post.id} />
         </div>
       )}
 
-      <div className="mt-3">
-        <MentionInput
-          postId={post.id}
-          recipientId={post.author.id}
-          parentCommentId={null}
-          placeholder="Add a comment…"
-        />
+      <div className="mt-3 flex items-start gap-2">
+        <Avatar name={viewer.full_name} src={viewer.avatar_url} size={28} className="mt-0.5" />
+        <div className="min-w-0 flex-1">
+          <MentionInput
+            postId={post.id}
+            recipientId={post.author.id}
+            parentCommentId={null}
+            placeholder="Add a comment…"
+          />
+        </div>
       </div>
     </Card>
   );

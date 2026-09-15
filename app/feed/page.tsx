@@ -17,7 +17,7 @@ export default async function FeedPage() {
       <Composer profile={profile} />
 
       {items.length === 0 ? (
-        <Card className="p-8 text-center text-sm text-muted-foreground">
+        <Card className="animate-fade-up p-8 text-center text-sm text-muted-foreground">
           Your feed is quiet. Follow a few people from{" "}
           <Link href="/discover" className="font-medium text-primary hover:underline">
             Discover
@@ -26,7 +26,7 @@ export default async function FeedPage() {
         </Card>
       ) : (
         <>
-          <FeedList items={items} />
+          <FeedList items={items} viewer={profile} />
           <EndOfFeed />
         </>
       )}

@@ -108,7 +108,7 @@ export default async function ProfilePage({
           {isOwnProfile ? "You haven't posted yet." : `${profile.full_name} hasn't posted yet.`}
         </Card>
       ) : (
-        <FeedList items={items} />
+        <FeedList items={items} viewer={viewer} />
       )}
     </div>
   );

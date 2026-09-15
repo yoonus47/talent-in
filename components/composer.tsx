@@ -8,7 +8,7 @@ import type { Profile } from "@/lib/types/database";
 
 export function Composer({ profile }: { profile: Profile }) {
   return (
-    <Card className="p-4">
+    <Card className="p-4 transition-shadow focus-within:shadow-md">
       <form action={createPost} className="flex gap-3">
         <Avatar name={profile.full_name} src={profile.avatar_url} size={40} />
         <div className="flex-1 space-y-2">
