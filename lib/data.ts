@@ -11,7 +11,11 @@ import type {
   LinkPreview,
   Message,
   NotificationType,
+  CommunityReply,
+  CommunityThread,
+  CommunityTopic,
   Profile,
+  QuizQuestion,
   QuizResult,
   VocabularyWord,
 } from "@/lib/types/database";
@@ -635,6 +639,23 @@ export async function getChallengeStats(userId: string): Promise<ChallengeStats>
   return { totalPoints, currentStreak };
 }
 
+/** The career quiz's questions, in display order — previously fetched
+ * directly in app/quiz/page.tsx; that page is gone (the quiz now lives
+ * inline on /dashboard, see components/career-quiz-card.tsx) but the
+ * query itself is unchanged. */
+export async function getQuizQuestions(): Promise<QuizQuestion[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("quiz_questions")
+    .select("*")
+    .order("order", { ascending: true });
+  if (error) {
+    console.error("getQuizQuestions failed:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
 /** Most recent career-quiz result, if the user has taken it. */
 export async function getLatestQuizResult(userId: string): Promise<QuizResult | null> {
   const supabase = await createClient();
@@ -981,4 +1002,80 @@ export async function getOtherLastReadAt(
     .eq("user_id", otherUserId)
     .maybeSingle();
   return data?.last_read_at ?? null;
+}
+
+// ── Community ────────────────────────────────────────────────────────────
+// v1 — see supabase/migrations/0028_community.sql for the data model and
+// its explicit v1 cuts. Mirrors this file's existing embedded-select join
+// style (getConversations' user_a:profiles!fkey(...) pattern) — no
+// disambiguating !fkey needed here since community_threads/
+// community_replies each have only one FK to profiles.
+
+export type CommunityThreadListItem = CommunityThread & {
+  author: FeedAuthor & { id: string };
+  topic: Pick<CommunityTopic, "id" | "slug" | "name">;
+};
+
+/** The curated topic list, in display order. */
+export async function getCommunityTopics(): Promise<CommunityTopic[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("community_topics")
+    .select("*")
+    .order("order", { ascending: true });
+  if (error) {
+    console.error("getCommunityTopics failed:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
+/** Threads newest-activity-first, optionally scoped to one topic — pass
+ * the topic's id (the caller already has the topics list loaded for the
+ * chip row, so resolving a slug from the URL to an id costs nothing
+ * extra). */
+export async function getCommunityThreads(topicId?: string): Promise<CommunityThreadListItem[]> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("community_threads")
+    .select("*, author:profiles(id, username, full_name, avatar_url), topic:community_topics(id, slug, name)")
+    .order("last_activity_at", { ascending: false });
+  if (topicId) query = query.eq("topic_id", topicId);
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("getCommunityThreads failed:", error.message);
+    return [];
+  }
+  return (data ?? []) as unknown as CommunityThreadListItem[];
+}
+
+/** A single thread + its author/topic — RLS (open select) means a null
+ * result here only ever means "doesn't exist," not "not allowed to see." */
+export async function getCommunityThread(id: string): Promise<CommunityThreadListItem | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("community_threads")
+    .select("*, author:profiles(id, username, full_name, avatar_url), topic:community_topics(id, slug, name)")
+    .eq("id", id)
+    .maybeSingle();
+  return data as unknown as CommunityThreadListItem | null;
+}
+
+export type CommunityReplyItem = CommunityReply & { author: FeedAuthor & { id: string } };
+
+/** A thread's replies, oldest first (chronological discussion order, same
+ * as getMessages for chat). */
+export async function getCommunityReplies(threadId: string): Promise<CommunityReplyItem[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("community_replies")
+    .select("*, author:profiles(id, username, full_name, avatar_url)")
+    .eq("thread_id", threadId)
+    .order("created_at", { ascending: true });
+  if (error) {
+    console.error("getCommunityReplies failed:", error.message);
+    return [];
+  }
+  return (data ?? []) as unknown as CommunityReplyItem[];
 }

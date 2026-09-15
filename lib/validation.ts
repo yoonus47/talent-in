@@ -44,3 +44,16 @@ export const postSchema = z.object({
 export const commentSchema = z.object({
   content: z.string().trim().min(1).max(500),
 });
+
+// Bounds match the check constraints on community_threads/community_replies
+// (supabase/migrations/0028_community.sql) — kept in sync deliberately,
+// same "client-side validation mirrors the DB constraint" pattern as
+// every other schema here.
+export const communityThreadSchema = z.object({
+  title: z.string().trim().min(1, "Give it a title").max(120),
+  body: z.string().trim().min(1, "Say something first").max(3000),
+});
+
+export const communityReplySchema = z.object({
+  content: z.string().trim().min(1).max(1000),
+});

@@ -7,9 +7,12 @@ import type { DailyChallengeAnswer, DailyChallengeResult } from "@/lib/types/dat
 
 /**
  * Grades today's daily challenge server-side via the `submit_daily_challenge`
- * RPC (see supabase/migrations/0002_dashboard_and_share.sql) — the answer
- * key never reaches the client, before or after submission (the RPC only
- * returns per-question correct/incorrect, not the right answer itself).
+ * RPC (see supabase/migrations/0002_dashboard_and_share.sql, extended by
+ * 0027_challenge_explanations.sql) — the answer key never reaches the
+ * client *before* submission (get_daily_challenge, used to fetch the
+ * questions, never includes it). Once grading has actually happened here,
+ * each result also carries the correct option's index and a short
+ * explanation, for the results recap in components/daily-challenge.tsx.
  */
 export async function submitDailyChallenge(
   answers: DailyChallengeAnswer[],

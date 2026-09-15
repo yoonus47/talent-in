@@ -1,34 +1,37 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { Flame, Trophy } from "lucide-react";
 import {
   getChallengeStats,
   getCurrentProfile,
   getLatestQuizResult,
+  getQuizQuestions,
   getTodayAttempt,
   getTodayChallenge,
   getWordOfTheDay,
 } from "@/lib/data";
 import { DailyChallenge } from "@/components/daily-challenge";
+import { CareerQuizCard } from "@/components/career-quiz-card";
 import { WordOfTheDay } from "@/components/word-of-the-day";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 export default async function DashboardPage() {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/onboarding");
 
-  const [stats, todayAttempt, quizResult, wordOfTheDay] = await Promise.all([
-    getChallengeStats(profile.id),
-    getTodayAttempt(profile.id),
-    getLatestQuizResult(profile.id),
-    getWordOfTheDay(),
-  ]);
-
-  const todayQuestions = todayAttempt ? [] : await getTodayChallenge();
+  const [stats, todayAttempt, quizResult, quizQuestions, todayQuestions, wordOfTheDay] =
+    await Promise.all([
+      getChallengeStats(profile.id),
+      getTodayAttempt(profile.id),
+      getLatestQuizResult(profile.id),
+      getQuizQuestions(),
+      // Always fetched now, even if todayAttempt is already set — see
+      // components/daily-challenge.tsx's header comment for why the
+      // already-completed/questions decision moved inside that component.
+      getTodayChallenge(),
+      getWordOfTheDay(),
+    ]);
 
   return (
     <div className="mx-auto max-w-xl space-y-4 px-4 py-6">
@@ -72,47 +75,12 @@ export default async function DashboardPage() {
 
       <div>
         <h2 className="mb-2 text-sm font-semibold text-muted-foreground">Daily Challenge</h2>
-        {todayAttempt ? (
-          <Card className="p-6 text-center">
-            <p className="text-2xl">✅</p>
-            <p className="mt-2 font-semibold">
-              Completed today: {todayAttempt.score}/{todayAttempt.total}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Come back tomorrow for a new one.
-            </p>
-          </Card>
-        ) : (
-          <DailyChallenge questions={todayQuestions} />
-        )}
+        <DailyChallenge questions={todayQuestions} todayAttempt={todayAttempt} />
       </div>
 
       <div>
         <h2 className="mb-2 text-sm font-semibold text-muted-foreground">Career Quiz</h2>
-        <Card className="p-6">
-          {quizResult ? (
-            <>
-              <p className="text-sm text-muted-foreground">Your latest result:</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {quizResult.suggested_streams.map((stream) => (
-                  <Badge key={stream} variant="accent">
-                    {stream}
-                  </Badge>
-                ))}
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              You haven&apos;t taken the career quiz yet.
-            </p>
-          )}
-          <Link
-            href="/quiz"
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-4")}
-          >
-            {quizResult ? "Retake quiz" : "Take the quiz"}
-          </Link>
-        </Card>
+        <CareerQuizCard questions={quizQuestions} quizResult={quizResult} />
       </div>
     </div>
   );

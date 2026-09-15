@@ -243,6 +243,45 @@ body {
   animation: wotd-bump 420ms ease-out;
 }
 
+/* components/daily-challenge.tsx — each question enters with a quick
+   fade+slide (smaller/faster than animate-fade-up, which is sized for a
+   whole-page entrance, not one card swapping for the next), and a
+   freshly-tapped option gets one brief pulse before the quiz advances —
+   real right/wrong feedback can't be shown until the whole attempt is
+   graded (submit_daily_challenge only reveals correct_index/explanation
+   post-submission, see 0027_challenge_explanations.sql), so this is
+   purely "your tap registered," not a correctness hint. */
+@keyframes challenge-step-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes challenge-option-pulse {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-challenge-step-in {
+  animation: challenge-step-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-challenge-option-pulse {
+  animation: challenge-option-pulse 220ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .animate-blob,
@@ -250,6 +289,8 @@ body {
   .animate-slide-in-from-left,
   .animate-wotd-reveal,
   .animate-wotd-bump,
+  .animate-challenge-step-in,
+  .animate-challenge-option-pulse,
   .brand-curtain-wipe {
     animation: none;
   }

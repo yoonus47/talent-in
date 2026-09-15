@@ -32,7 +32,11 @@ export type DailyChallengeAnswer = { question_id: string; selected_index: number
 export type DailyChallengeResult = {
   score: number;
   total: number;
-  results: { question_id: string; correct: boolean }[];
+  // correct_index/explanation are only ever populated here, post-grading
+  // (see submit_daily_challenge in supabase/migrations/0027_challenge_
+  // explanations.sql) — get_daily_challenge's pre-answer question list
+  // still never includes them.
+  results: { question_id: string; correct: boolean; correct_index: number; explanation: string }[];
 };
 
 export type NotificationType =
@@ -721,6 +725,95 @@ export interface Database {
         };
         Relationships: [];
       };
+      community_topics: {
+        Row: {
+          id: string;
+          slug: string;
+          name: string;
+          description: string;
+          order: number;
+          created_at: string;
+        };
+        // Curated, not client-writable — no insert/update policy exists,
+        // seeded once by 0028_community.sql. Insert/Update kept here only
+        // to satisfy GenericTable's shape.
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      community_threads: {
+        Row: {
+          id: string;
+          topic_id: string;
+          author_id: string;
+          title: string;
+          body: string;
+          // Server-maintained only (sync_community_thread_activity
+          // trigger, 0028_community.sql) — never part of a client insert.
+          reply_count: number;
+          last_activity_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          topic_id: string;
+          author_id: string;
+          title: string;
+          body: string;
+          created_at?: string;
+        };
+        // Immutable once posted — same convention as comments.
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "community_threads_topic_id_fkey";
+            columns: ["topic_id"];
+            isOneToOne: false;
+            referencedRelation: "community_topics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "community_threads_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      community_replies: {
+        Row: {
+          id: string;
+          thread_id: string;
+          author_id: string;
+          content: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          thread_id: string;
+          author_id: string;
+          content: string;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "community_replies_thread_id_fkey";
+            columns: ["thread_id"];
+            isOneToOne: false;
+            referencedRelation: "community_threads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "community_replies_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -766,3 +859,6 @@ export type Conversation = Database["public"]["Tables"]["conversations"]["Row"];
 export type ConversationMember = Database["public"]["Tables"]["conversation_members"]["Row"];
 export type Message = Database["public"]["Tables"]["messages"]["Row"];
 export type LinkPreview = Database["public"]["Tables"]["link_previews"]["Row"];
+export type CommunityTopic = Database["public"]["Tables"]["community_topics"]["Row"];
+export type CommunityThread = Database["public"]["Tables"]["community_threads"]["Row"];
+export type CommunityReply = Database["public"]["Tables"]["community_replies"]["Row"];

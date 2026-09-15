@@ -36,34 +36,45 @@ export default async function DiscoverPage({
   searchParams: Promise<DiscoverSearchParams>;
 }) {
   const params = await searchParams;
-  const tab = params.tab === "people" ? "people" : "content";
+  // People is the default now — a bare /discover means People,
+  // ?tab=content is the explicit opt-in (the inverse of before).
+  const tab = params.tab === "content" ? "content" : "people";
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6">
+    <div className="animate-fade-up mx-auto max-w-3xl px-4 py-6">
       <h1 className="text-2xl font-bold">Discover</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Career resources and fellow students, in one place.
+        Fellow students and career resources, in one place.
       </p>
 
-      <div className="mt-5 flex gap-1 rounded-lg border border-border p-1">
-        <Link
-          href="/discover"
-          className={cn(
-            "flex-1 rounded-md py-2 text-center text-sm font-medium",
-            tab === "content" ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-          )}
-        >
-          Content
-        </Link>
-        <Link
-          href="/discover?tab=people"
-          className={cn(
-            "flex-1 rounded-md py-2 text-center text-sm font-medium",
-            tab === "people" ? "bg-primary text-primary-foreground" : "text-muted-foreground",
-          )}
-        >
-          People
-        </Link>
+      <div className="mt-5 rounded-lg border border-border bg-muted p-1">
+        <div className="relative flex">
+          <div
+            aria-hidden
+            className={cn(
+              "absolute inset-y-0 h-full w-1/2 rounded-md bg-primary transition-transform duration-300 ease-out",
+              tab === "content" && "translate-x-full",
+            )}
+          />
+          <Link
+            href="/discover"
+            className={cn(
+              "relative z-10 flex-1 rounded-md py-2 text-center text-sm font-medium transition-colors",
+              tab === "people" ? "text-primary-foreground" : "text-muted-foreground",
+            )}
+          >
+            People
+          </Link>
+          <Link
+            href="/discover?tab=content"
+            className={cn(
+              "relative z-10 flex-1 rounded-md py-2 text-center text-sm font-medium transition-colors",
+              tab === "content" ? "text-primary-foreground" : "text-muted-foreground",
+            )}
+          >
+            Content
+          </Link>
+        </div>
       </div>
 
       {tab === "content" ? (
@@ -122,7 +133,7 @@ async function ContentTab({ category }: { category?: string }) {
               rel="noreferrer"
               className="block"
             >
-              <Card className="h-full p-4 transition-shadow hover:shadow-md">
+              <Card className="h-full p-4 transition-all hover:-translate-y-0.5 hover:shadow-md">
                 <div className="flex items-center justify-between">
                   <Badge variant="accent">{categoryLabel(item.category)}</Badge>
                   {item.type === "video" ? (
@@ -170,47 +181,49 @@ async function PeopleTab({
 
   return (
     <div>
-      <form method="get" className="mt-5 space-y-2">
-        <input type="hidden" name="tab" value="people" />
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            name="q"
-            defaultValue={query}
-            placeholder="Search by name or username…"
-            className="pl-9"
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <select name="grade" defaultValue={grade ?? ""} className={selectClass}>
-            <option value="">Any class</option>
-            {GRADES.map((g) => (
-              <option key={g} value={g}>
-                Class {g}
-              </option>
-            ))}
-          </select>
-          <select name="interest" defaultValue={interest ?? ""} className={cn(selectClass, "flex-1")}>
-            <option value="">Any hobby</option>
-            {HOBBY_CATEGORIES.map((category) => (
-              <optgroup key={category.name} label={category.name}>
-                {category.hobbies.map((hobby) => (
-                  <option key={hobby} value={hobby}>
-                    {hobby}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-          <button
-            type="submit"
-            className="rounded-lg border border-border px-4 text-sm font-medium hover:bg-muted"
-          >
-            Apply
-          </button>
-        </div>
-      </form>
+      <Card className="mt-5 p-4">
+        <form method="get" className="space-y-2">
+          <input type="hidden" name="tab" value="people" />
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              name="q"
+              defaultValue={query}
+              placeholder="Search by name or username…"
+              className="pl-9"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <select name="grade" defaultValue={grade ?? ""} className={selectClass}>
+              <option value="">Any class</option>
+              {GRADES.map((g) => (
+                <option key={g} value={g}>
+                  Class {g}
+                </option>
+              ))}
+            </select>
+            <select name="interest" defaultValue={interest ?? ""} className={cn(selectClass, "flex-1")}>
+              <option value="">Any hobby</option>
+              {HOBBY_CATEGORIES.map((category) => (
+                <optgroup key={category.name} label={category.name}>
+                  {category.hobbies.map((hobby) => (
+                    <option key={hobby} value={hobby}>
+                      {hobby}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="rounded-lg border border-border px-4 text-sm font-medium hover:bg-muted"
+            >
+              Apply
+            </button>
+          </div>
+        </form>
+      </Card>
 
       {!hasFilters && suggested.length > 0 && (
         <div className="mt-6">

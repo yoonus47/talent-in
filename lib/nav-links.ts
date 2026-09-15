@@ -1,19 +1,21 @@
-import { Compass, GraduationCap, Home, LayoutDashboard, User, type LucideIcon } from "lucide-react";
+import { Compass, Home, LayoutDashboard, MessagesSquare, User, type LucideIcon } from "lucide-react";
 
 export type NavRoute = { href: string; label: string };
 
 /**
- * The Feed/Dashboard/Discover/Career Quiz/Profile tab order — shared by
+ * The Feed/Dashboard/Discover/Community/Profile tab order — shared by
  * components/navbar.tsx (what's rendered) and components/swipe-navigator.tsx
  * (what swiping left/right moves between), so the two can never drift out
- * of sync with each other.
+ * of sync with each other. The Career Quiz used to live here as its own
+ * page/tab — it moved onto /dashboard (components/career-quiz-card.tsx),
+ * and this slot became Community instead.
  */
 export function getNavRoutes(username: string): NavRoute[] {
   return [
     { href: "/feed", label: "Feed" },
     { href: "/dashboard", label: "Dashboard" },
     { href: "/discover", label: "Discover" },
-    { href: "/quiz", label: "Career Quiz" },
+    { href: "/community", label: "Community" },
     { href: `/profile/${username}`, label: "Profile" },
   ];
 }
@@ -24,7 +26,7 @@ export const NAV_ICONS: Record<string, LucideIcon> = {
   "/feed": Home,
   "/dashboard": LayoutDashboard,
   "/discover": Compass,
-  "/quiz": GraduationCap,
+  "/community": MessagesSquare,
 };
 
 /** Fallback icon for any route not in NAV_ICONS (e.g. the Profile tab,
