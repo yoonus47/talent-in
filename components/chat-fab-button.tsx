@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { MessageCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { fetchUnreadMessageCount } from "@/lib/actions/chat";
+import { fetchUnreadMessageCount, markConversationDelivered } from "@/lib/actions/chat";
 import { TransitionLink } from "@/components/transition-link";
+import type { Message } from "@/lib/types/database";
 
 /**
  * The actual floating button — split from ChatFab (which fetches the
@@ -52,7 +53,24 @@ export function ChatFabButton({ userId, unreadCount: initialUnreadCount }: { use
 
       channel = supabase
         .channel(`unread-messages:${userId}`)
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, refresh)
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "messages" },
+          (payload) => {
+            refresh();
+            // The real "my device is online and received this" signal —
+            // this subscription is already global (no conversation_id
+            // filter) and lives in the root layout, so it fires no matter
+            // which page the app is on. See lib/actions/chat.ts's
+            // markConversationDelivered and supabase/migrations/
+            // 0029_delivery_receipts.sql for the other two (catch-up)
+            // call sites this alone doesn't cover — offline at send time.
+            const newRow = payload.new as Message;
+            if (newRow.sender_id !== userId) {
+              markConversationDelivered(newRow.conversation_id);
+            }
+          },
+        )
         // markConversationRead upserts: the *first* time a given
         // conversation is ever read, that's a plain INSERT into
         // conversation_reads (no existing row for this pair yet), not an

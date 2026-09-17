@@ -670,6 +670,35 @@ export interface Database {
           },
         ];
       };
+      conversation_deliveries: {
+        Row: {
+          conversation_id: string;
+          user_id: string;
+          last_delivered_at: string;
+        };
+        Insert: {
+          conversation_id: string;
+          user_id: string;
+          last_delivered_at?: string;
+        };
+        Update: { last_delivered_at?: string };
+        Relationships: [
+          {
+            foreignKeyName: "conversation_deliveries_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversation_deliveries_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       reports: {
         Row: {
           id: string;

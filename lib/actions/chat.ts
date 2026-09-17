@@ -258,6 +258,33 @@ export async function markConversationRead(conversationId: string) {
     );
 }
 
+/**
+ * Marks a conversation delivered as of now, for the current user only —
+ * the same watermark shape as markConversationRead above, just for
+ * "my device has received everything up to now" rather than "I've opened
+ * and seen it." Called from three places that together approximate a real
+ * phone's delivery behavior without a background push service: live,
+ * globally, whenever a new message arrives while the app is open anywhere
+ * (components/chat-fab-button.tsx's existing app-wide realtime
+ * subscription), and as a catch-up on loading the chat list or a specific
+ * thread (app/chat/page.tsx, app/chat/[id]/page.tsx) — see
+ * supabase/migrations/0029_delivery_receipts.sql's header comment.
+ */
+export async function markConversationDelivered(conversationId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  await supabase
+    .from("conversation_deliveries")
+    .upsert(
+      { conversation_id: conversationId, user_id: user.id, last_delivered_at: new Date().toISOString() },
+      { onConflict: "conversation_id,user_id" },
+    );
+}
+
 /** Ownership-checked delete — "unsend" — mirrors deleteComment. */
 export async function deleteMessage(messageId: string) {
   const supabase = await createClient();

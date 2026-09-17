@@ -1010,6 +1010,19 @@ export async function getConversationReadReceipts(
   return Object.fromEntries((data ?? []).map((r) => [r.user_id, r.last_read_at]));
 }
 
+/** Same shape as getConversationReadReceipts, for the delivery watermark
+ * instead — see supabase/migrations/0029_delivery_receipts.sql. */
+export async function getConversationDeliveryReceipts(
+  conversationId: string,
+): Promise<Record<string, string>> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("conversation_deliveries")
+    .select("user_id, last_delivered_at")
+    .eq("conversation_id", conversationId);
+  return Object.fromEntries((data ?? []).map((r) => [r.user_id, r.last_delivered_at]));
+}
+
 // ── Community ────────────────────────────────────────────────────────────
 // v1 — see supabase/migrations/0028_community.sql for the data model and
 // its explicit v1 cuts. Mirrors this file's existing embedded-select join

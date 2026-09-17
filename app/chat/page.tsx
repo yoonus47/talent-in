@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getConversations, getCurrentProfile, getMutualFollowProfiles } from "@/lib/data";
+import { markConversationDelivered } from "@/lib/actions/chat";
 import { ConversationRow } from "@/components/conversation-row";
 import { NewChatPicker } from "@/components/new-chat-picker";
 import { BackLink } from "@/components/back-link";
@@ -14,6 +15,12 @@ export default async function ChatListPage() {
     getConversations(profile.id),
     getMutualFollowProfiles(profile.id),
   ]);
+
+  // Catch-up delivery: whatever arrived while this user's device was
+  // fully offline (app not open anywhere — see components/chat-fab-
+  // button.tsx's global subscription for the live case) all catches up
+  // the moment they open their inbox, same as a phone syncing on reconnect.
+  await Promise.all(conversations.map((c) => markConversationDelivered(c.id)));
 
   return (
     <div className="mx-auto max-w-xl space-y-4 px-4 py-6">

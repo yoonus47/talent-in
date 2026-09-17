@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import {
   getConversation,
+  getConversationDeliveryReceipts,
   getConversationReadReceipts,
   getCurrentProfile,
   getGroupInfo,
@@ -10,7 +11,7 @@ import {
   getMessageSenderProfiles,
   getOtherParticipant,
 } from "@/lib/data";
-import { markConversationRead } from "@/lib/actions/chat";
+import { markConversationDelivered, markConversationRead } from "@/lib/actions/chat";
 import { ChatThread } from "@/components/chat-thread";
 import { BackLink } from "@/components/back-link";
 import { TransitionLink } from "@/components/transition-link";
@@ -32,13 +33,16 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
     if (!groupInfo) notFound();
 
     const messages = await getMessages(conversation.id);
-    const [senderProfiles, readReceipts] = await Promise.all([
+    const [senderProfiles, readReceipts, deliveryReceipts] = await Promise.all([
       getMessageSenderProfiles(messages),
       getConversationReadReceipts(conversation.id),
+      getConversationDeliveryReceipts(conversation.id),
     ]);
 
-    // Clears the unread badge the instant the thread is opened.
-    await markConversationRead(conversation.id);
+    // Clears the unread badge the instant the thread is opened, and
+    // catches up delivery for a direct deep link that skipped /chat's own
+    // catch-up (app/chat/page.tsx).
+    await Promise.all([markConversationRead(conversation.id), markConversationDelivered(conversation.id)]);
 
     return (
       <div className="mx-auto max-w-xl">
@@ -72,6 +76,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
           groupMembers={groupInfo.members}
           initialMessages={messages}
           initialReadReceipts={readReceipts}
+          initialDeliveryReceipts={deliveryReceipts}
         />
       </div>
     );
@@ -80,13 +85,16 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
   const otherUser = await getOtherParticipant(conversation, viewer.id);
   if (!otherUser) notFound();
 
-  const [messages, readReceipts] = await Promise.all([
+  const [messages, readReceipts, deliveryReceipts] = await Promise.all([
     getMessages(conversation.id),
     getConversationReadReceipts(conversation.id),
+    getConversationDeliveryReceipts(conversation.id),
   ]);
 
-  // Clears the unread badge the instant the thread is opened.
-  await markConversationRead(conversation.id);
+  // Clears the unread badge the instant the thread is opened, and catches
+  // up delivery for a direct deep link that skipped /chat's own catch-up
+  // (app/chat/page.tsx).
+  await Promise.all([markConversationRead(conversation.id), markConversationDelivered(conversation.id)]);
 
   return (
     <div className="mx-auto max-w-xl">
@@ -108,6 +116,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
         otherUserName={otherUser.full_name}
         initialMessages={messages}
         initialReadReceipts={readReceipts}
+        initialDeliveryReceipts={deliveryReceipts}
       />
     </div>
   );

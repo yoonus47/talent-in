@@ -5,6 +5,7 @@ import { MessageCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { markConversationRead } from "@/lib/actions/chat";
 import { MessageBubble } from "@/components/message-bubble";
+import { MessageInfoPanel } from "@/components/message-info-panel";
 import { ChatComposer } from "@/components/chat-composer";
 import { audioExtensionFor } from "@/lib/audio-client";
 import type { Message } from "@/lib/types/database";
@@ -61,7 +62,22 @@ const GROUP_WINDOW_MS = 5 * 60 * 1000;
 
 type RenderItem =
   | { kind: "separator"; key: string; label: string }
-  | { kind: "message"; message: LocalMessage; isLastInRun: boolean; senderName?: string };
+  | {
+      kind: "message";
+      message: LocalMessage;
+      isLastInRun: boolean;
+      senderName?: string;
+      /** Group, non-own messages only, and only on the *last* bubble of a
+       * run (the one with the tail corner) — the name label above uses
+       * the *first* bubble instead, matching Telegram/iMessage's own
+       * convention for a consecutive run: name at the top, avatar at the
+       * bottom, both naturally coinciding for the (most common)
+       * single-bubble case. `null` (not just absent) means "group,
+       * non-own, right run position, but this sender has no avatar" —
+       * MessageBubble still needs to render the initials fallback then,
+       * which `undefined` (no avatar column at all) would suppress. */
+      senderAvatarUrl?: string | null;
+    };
 
 function buildRenderItems(
   messages: LocalMessage[],
@@ -94,12 +110,13 @@ function buildRenderItems(
       new Date(message.created_at).getTime() - new Date(prev.created_at).getTime() <= GROUP_WINDOW_MS;
 
     const isFirstInRun = !samePrevRun;
+    const isGroupOther = conversationType === "group" && message.sender_id !== myId;
     const senderName =
-      conversationType === "group" && message.sender_id !== myId && isFirstInRun
-        ? memberProfiles[message.sender_id]?.full_name
-        : undefined;
+      isGroupOther && isFirstInRun ? memberProfiles[message.sender_id]?.full_name : undefined;
+    const senderAvatarUrl =
+      isGroupOther && isLastInRun ? (memberProfiles[message.sender_id]?.avatar_url ?? null) : undefined;
 
-    items.push({ kind: "message", message, isLastInRun, senderName });
+    items.push({ kind: "message", message, isLastInRun, senderName, senderAvatarUrl });
   });
 
   return items;
@@ -126,6 +143,7 @@ export function ChatThread({
   groupMembers,
   initialMessages,
   initialReadReceipts = {},
+  initialDeliveryReceipts = {},
 }: {
   conversationId: string;
   myId: string;
@@ -150,10 +168,15 @@ export function ChatThread({
    * alike — see lib/data.ts's getConversationReadReceipts. Powers the
    * WhatsApp-style per-message check/checkmark in message-bubble.tsx. */
   initialReadReceipts?: Record<string, string>;
+  /** Same shape, for the delivery watermark — see lib/data.ts's
+   * getConversationDeliveryReceipts. */
+  initialDeliveryReceipts?: Record<string, string>;
 }) {
   const [messages, setMessages] = useState<LocalMessage[]>(initialMessages);
   const [readReceipts, setReadReceipts] = useState(initialReadReceipts);
+  const [deliveryReceipts, setDeliveryReceipts] = useState(initialDeliveryReceipts);
   const [replyingTo, setReplyingTo] = useState<ReplyingTo | null>(null);
+  const [infoMessage, setInfoMessage] = useState<LocalMessage | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Whoever ELSE needs to have read a message for it to count as "read" —
@@ -285,6 +308,34 @@ export function ChatThread({
           (payload) => {
             const row = payload.new as { user_id: string; last_read_at: string };
             setReadReceipts((prev) => ({ ...prev, [row.user_id]: row.last_read_at }));
+          },
+        )
+        // Same pair (UPDATE + INSERT, same first-ever-write gap) as
+        // conversation_reads just above, for the delivery watermark.
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "conversation_deliveries",
+            filter: `conversation_id=eq.${conversationId}`,
+          },
+          (payload) => {
+            const row = payload.new as { user_id: string; last_delivered_at: string };
+            setDeliveryReceipts((prev) => ({ ...prev, [row.user_id]: row.last_delivered_at }));
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "conversation_deliveries",
+            filter: `conversation_id=eq.${conversationId}`,
+          },
+          (payload) => {
+            const row = payload.new as { user_id: string; last_delivered_at: string };
+            setDeliveryReceipts((prev) => ({ ...prev, [row.user_id]: row.last_delivered_at }));
           },
         )
         .subscribe();
@@ -475,25 +526,64 @@ export function ChatThread({
     URL.revokeObjectURL(localUrl);
   }
 
-  /** WhatsApp-style per-message status for one of MY OWN messages —
-   * "pending" while still an optimistic local echo, then "read" once
-   * *every* other relevant participant's last_read_at (dm: the one other
-   * person; group: all current other members) covers this message's
-   * created_at, "sent" in between. A read watermark, not a per-message
-   * receipt — exactly how WhatsApp's own checkmarks work too (an old
-   * message you sent silently "becomes" read the moment the recipient's
-   * marker passes it, no separate event needed per message). */
-  function messageStatus(message: LocalMessage): "pending" | "sent" | "read" {
+  function wasReadBy(id: string, message: LocalMessage): boolean {
+    const lastRead = readReceipts[id];
+    return Boolean(lastRead) && lastRead >= message.created_at;
+  }
+
+  // Reading implies receiving — a member whose read watermark covers this
+  // message counts as delivered-to even if their delivery watermark
+  // somehow lags behind (shouldn't normally happen, but the two are
+  // written independently, by different call sites, so this keeps the
+  // ladder internally consistent regardless).
+  function wasDeliveredTo(id: string, message: LocalMessage): boolean {
+    const lastDelivered = deliveryReceipts[id];
+    return (Boolean(lastDelivered) && lastDelivered >= message.created_at) || wasReadBy(id, message);
+  }
+
+  /** WhatsApp-style per-message status for one of MY OWN messages — a real
+   * 4-state ladder, not just sent-vs-read:
+   * "pending" (still an optimistic local echo) -> "sent" (confirmed, not
+   * yet delivered to everyone relevant) -> "delivered" (every other
+   * relevant participant's device has it, per conversation_deliveries) ->
+   * "read" (every one of them has actually opened the thread past it).
+   * "Relevant" is the dm's one other person, or — for a group — *every*
+   * other current member, matching WhatsApp's own group aggregate (the
+   * simple checkmark reflects the slowest member; components/message-
+   * info-panel.tsx is where you see who specifically). Both watermarks,
+   * not per-message receipts — an old message silently "becomes"
+   * delivered/read the moment a marker passes it, no event needed per
+   * message; see supabase/migrations/0029_delivery_receipts.sql. */
+  function messageStatus(message: LocalMessage): "pending" | "sent" | "delivered" | "read" {
     if (message.pending) return "pending";
     if (otherMemberIds.length === 0) return "sent";
-    const allRead = otherMemberIds.every((id) => {
-      const lastRead = readReceipts[id];
-      return Boolean(lastRead) && lastRead >= message.created_at;
-    });
-    return allRead ? "read" : "sent";
+    if (otherMemberIds.every((id) => wasReadBy(id, message))) return "read";
+    if (otherMemberIds.every((id) => wasDeliveredTo(id, message))) return "delivered";
+    return "sent";
   }
 
   const renderItems = buildRenderItems(messages, myId, conversationType, memberProfiles);
+
+  // Read-by / delivered-to breakdown for whichever message's "Message
+  // info" was tapped (group only, see onShowInfo above) — computed from
+  // data already in memory, no extra query. A member appears in exactly
+  // one list: read-by takes precedence (reading implies receiving), so
+  // deliveredTo here only ever holds "received it, hasn't read it yet."
+  // Members satisfying neither simply aren't in either list, same as
+  // WhatsApp's own info screen not listing who hasn't gotten it yet.
+  const infoLists = infoMessage
+    ? (() => {
+        const others = (groupMembers ?? []).filter((m) => m.id !== myId);
+        return {
+          readBy: others
+            .filter((m) => wasReadBy(m.id, infoMessage))
+            .map((m) => ({ ...m, at: readReceipts[m.id] })),
+          deliveredTo: others
+            .filter((m) => !wasReadBy(m.id, infoMessage) && wasDeliveredTo(m.id, infoMessage))
+            .map((m) => ({ ...m, at: deliveryReceipts[m.id] ?? readReceipts[m.id] })),
+        };
+      })()
+    : null;
 
   return (
     // A bounded dvh height + an internally-scrolling message list, with the
@@ -532,6 +622,7 @@ export function ChatThread({
                   pending={item.message.pending}
                   isLastInRun={item.isLastInRun}
                   senderName={item.senderName}
+                  senderAvatarUrl={item.senderAvatarUrl}
                   status={item.message.sender_id === myId ? messageStatus(item.message) : undefined}
                   onReply={(message) =>
                     setReplyingTo({
@@ -542,6 +633,10 @@ export function ChatThread({
                       content: message.content,
                     })
                   }
+                  // Group only — a dm's one other participant makes a
+                  // breakdown redundant, the checkmark already says it
+                  // all (see messageStatus's own comment).
+                  onShowInfo={conversationType === "group" ? () => setInfoMessage(item.message) : undefined}
                 />
               </div>
             ),
@@ -570,6 +665,14 @@ export function ChatThread({
           conversationType === "group" ? groupMembers?.filter((m) => m.id !== myId) : undefined
         }
       />
+
+      {infoMessage && infoLists && (
+        <MessageInfoPanel
+          readBy={infoLists.readBy}
+          deliveredTo={infoLists.deliveredTo}
+          onClose={() => setInfoMessage(null)}
+        />
+      )}
     </div>
   );
 }
