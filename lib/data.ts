@@ -990,18 +990,24 @@ export async function getMessageSenderProfiles(
 /** The other participant's last-read timestamp, for the "Seen" indicator
  * — dm only, see the chat plan's v1 cuts for why groups don't get a
  * "seen by N" equivalent yet. */
-export async function getOtherLastReadAt(
+/**
+ * Every member's read-marker for a conversation, as user_id -> last_read_at
+ * — dm and group alike (a dm is really just a 2-member group for this
+ * purpose). Powers the WhatsApp-style per-message check/checkmark status
+ * in components/message-bubble.tsx: a member with no row here has never
+ * opened the thread at all (markConversationRead upserts lazily, on
+ * first open — see components/chat-fab-button.tsx's own comment on that),
+ * which correctly reads as "hasn't seen this" rather than an error.
+ */
+export async function getConversationReadReceipts(
   conversationId: string,
-  otherUserId: string,
-): Promise<string | null> {
+): Promise<Record<string, string>> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("conversation_reads")
-    .select("last_read_at")
-    .eq("conversation_id", conversationId)
-    .eq("user_id", otherUserId)
-    .maybeSingle();
-  return data?.last_read_at ?? null;
+    .select("user_id, last_read_at")
+    .eq("conversation_id", conversationId);
+  return Object.fromEntries((data ?? []).map((r) => [r.user_id, r.last_read_at]));
 }
 
 // ── Community ────────────────────────────────────────────────────────────

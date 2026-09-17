@@ -50,6 +50,18 @@
    * for a UI icon, which cyan-500 (2.4:1) missed. Same value in both
    * themes — nothing here derives from --primary anymore. */
   --messaging: #0891b2;
+
+  /* components/message-bubble.tsx's "read" checkmark — deliberately its
+   * own variable, not a reuse of --messaging above: that one is pinned to
+   * the same value in both themes on purpose (a fixed FAB background),
+   * but this sits ON TOP of --primary (an own message bubble's
+   * background), which itself flips from a very dark navy in light mode
+   * to a light sky blue in dark mode — the same fixed cyan that reads
+   * clearly on the dark navy would wash out against the light sky bubble.
+   * Cyan-600 here for light mode's dark bubble, a deep sky-900 navy below
+   * for dark mode's light one — the same "swap which end of the scale"
+   * logic --primary-foreground already uses for its own contrast flip. */
+  --read-receipt: #0891b2;
 }
 
 @theme inline {
@@ -98,6 +110,7 @@
   --accent: #f43f5e;
   --accent-foreground: #ffffff;
   --ring: #38bdf8;
+  --read-receipt: #0c4a6e;
 }
 
 body {

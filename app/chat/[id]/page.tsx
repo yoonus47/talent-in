@@ -3,11 +3,11 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import {
   getConversation,
+  getConversationReadReceipts,
   getCurrentProfile,
   getGroupInfo,
   getMessages,
   getMessageSenderProfiles,
-  getOtherLastReadAt,
   getOtherParticipant,
 } from "@/lib/data";
 import { markConversationRead } from "@/lib/actions/chat";
@@ -32,7 +32,10 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
     if (!groupInfo) notFound();
 
     const messages = await getMessages(conversation.id);
-    const senderProfiles = await getMessageSenderProfiles(messages);
+    const [senderProfiles, readReceipts] = await Promise.all([
+      getMessageSenderProfiles(messages),
+      getConversationReadReceipts(conversation.id),
+    ]);
 
     // Clears the unread badge the instant the thread is opened.
     await markConversationRead(conversation.id);
@@ -68,6 +71,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
           memberProfiles={Object.fromEntries(senderProfiles)}
           groupMembers={groupInfo.members}
           initialMessages={messages}
+          initialReadReceipts={readReceipts}
         />
       </div>
     );
@@ -76,9 +80,9 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
   const otherUser = await getOtherParticipant(conversation, viewer.id);
   if (!otherUser) notFound();
 
-  const [messages, otherLastReadAt] = await Promise.all([
+  const [messages, readReceipts] = await Promise.all([
     getMessages(conversation.id),
-    getOtherLastReadAt(conversation.id, otherUser.id),
+    getConversationReadReceipts(conversation.id),
   ]);
 
   // Clears the unread badge the instant the thread is opened.
@@ -103,7 +107,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
         otherUserId={otherUser.id}
         otherUserName={otherUser.full_name}
         initialMessages={messages}
-        initialOtherLastReadAt={otherLastReadAt}
+        initialReadReceipts={readReceipts}
       />
     </div>
   );

@@ -1,13 +1,35 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Reply, Trash2 } from "lucide-react";
+import { Check, CheckCheck, Copy, Reply, Trash2 } from "lucide-react";
 import { deleteMessage } from "@/lib/actions/chat";
 import { AudioPlayer } from "@/components/audio-player";
 import { MessageText } from "@/components/message-text";
 import { MessageActionMenu, type MessageMenuItem } from "@/components/message-action-menu";
 import { cn, timeAgo } from "@/lib/utils";
 import type { Message } from "@/lib/types/database";
+
+export type MessageStatus = "pending" | "sent" | "read";
+
+/** WhatsApp-style status icon for one of MY OWN messages — a single check
+ * while still sending, a double check once confirmed, and a double check
+ * in --read-receipt (app/globals.css — its own theme-aware accent, tuned
+ * to actually contrast against an own-message bubble in *either* theme,
+ * not a literal copy of WhatsApp's blue) once every other participant's
+ * read-marker has caught up (dm: the one other person; group: everyone
+ * else currently in it — see ChatThread's messageStatus). Only ever
+ * rendered on an own/bg-primary bubble, so the dim states use
+ * primary-foreground, not a generic muted token, to stay visible against
+ * that background. */
+function MessageStatusIcon({ status }: { status: MessageStatus }) {
+  if (status === "pending") {
+    return <Check className="h-3.5 w-3.5 shrink-0 text-primary-foreground/50" />;
+  }
+  if (status === "read") {
+    return <CheckCheck className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--read-receipt)" }} />;
+  }
+  return <CheckCheck className="h-3.5 w-3.5 shrink-0 text-primary-foreground/60" />;
+}
 
 /** The small quoted block shown above a message's own content when it's a
  * reply — rendered straight from the reply_to_* snapshot columns (server-
@@ -52,6 +74,7 @@ export function MessageBubble({
   pending = false,
   isLastInRun = true,
   senderName,
+  status,
   onReply,
 }: {
   message: Message;
@@ -67,6 +90,9 @@ export function MessageBubble({
    * bubble of a consecutive run from someone else. Undefined in dm
    * threads (redundant there) and on every bubble but the first in a run. */
   senderName?: string;
+  /** Own messages only — undefined for anyone else's (see ChatThread's
+   * messageStatus). Renders the WhatsApp-style check/checkmark. */
+  status?: MessageStatus;
   /** Opens the reply-preview strip in the composer for this message. */
   onReply?: (message: Message) => void;
 }) {
@@ -146,6 +172,11 @@ export function MessageBubble({
             </div>
           ) : (
             <MessageText content={message.content ?? ""} tone={tone} />
+          )}
+          {isOwn && status && (
+            <div className="mt-0.5 flex justify-end">
+              <MessageStatusIcon status={status} />
+            </div>
           )}
         </div>
         {!isOwn && <MessageActionMenu items={items} align="start" />}

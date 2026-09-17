@@ -125,12 +125,12 @@ export function ChatThread({
   memberProfiles = {},
   groupMembers,
   initialMessages,
-  initialOtherLastReadAt = null,
+  initialReadReceipts = {},
 }: {
   conversationId: string;
   myId: string;
   conversationType: "dm" | "group";
-  /** dm only — used for the "Seen" indicator. */
+  /** dm only — the other participant, for the read-receipt check. */
   otherUserId?: string;
   /** dm only — used to resolve the reply-quote/reply-strip's sender label;
    * no extra query, already fetched by app/chat/[id]/page.tsx. */
@@ -141,16 +141,31 @@ export function ChatThread({
    * name. */
   memberProfiles?: Record<string, SenderProfile>;
   /** group only — the FULL current member list (unlike memberProfiles
-   * above), for the @mention autocomplete in ChatComposer. From
+   * above), for the @mention autocomplete in ChatComposer AND (unfiltered)
+   * for computing each own message's read status below. From
    * getGroupInfo, already fetched for the thread header. */
   groupMembers?: GroupMember[];
   initialMessages: Message[];
-  initialOtherLastReadAt?: string | null;
+  /** Every member's read-marker (user_id -> last_read_at), dm and group
+   * alike — see lib/data.ts's getConversationReadReceipts. Powers the
+   * WhatsApp-style per-message check/checkmark in message-bubble.tsx. */
+  initialReadReceipts?: Record<string, string>;
 }) {
   const [messages, setMessages] = useState<LocalMessage[]>(initialMessages);
-  const [otherLastReadAt, setOtherLastReadAt] = useState(initialOtherLastReadAt);
+  const [readReceipts, setReadReceipts] = useState(initialReadReceipts);
   const [replyingTo, setReplyingTo] = useState<ReplyingTo | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Whoever ELSE needs to have read a message for it to count as "read" —
+  // a dm's one other participant, or every other current group member.
+  // Computed once per render, not per-message: message status just
+  // compares each own message's created_at against this same fixed list.
+  const otherMemberIds =
+    conversationType === "group"
+      ? (groupMembers ?? []).filter((m) => m.id !== myId).map((m) => m.id)
+      : otherUserId
+        ? [otherUserId]
+        : [];
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
@@ -249,7 +264,27 @@ export function ChatThread({
           },
           (payload) => {
             const row = payload.new as { user_id: string; last_read_at: string };
-            if (row.user_id === otherUserId) setOtherLastReadAt(row.last_read_at);
+            setReadReceipts((prev) => ({ ...prev, [row.user_id]: row.last_read_at }));
+          },
+        )
+        // markConversationRead upserts: the *first* time a given member
+        // ever reads this conversation, that's a plain INSERT (no
+        // existing row for them yet), not an UPDATE — the same gap
+        // components/chat-fab-button.tsx's own comment documents for the
+        // unread badge. Missing this meant a group/dm partner's checkmark
+        // never went blue live on their very first read, only after a
+        // reload (which re-fetches getConversationReadReceipts fresh).
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "conversation_reads",
+            filter: `conversation_id=eq.${conversationId}`,
+          },
+          (payload) => {
+            const row = payload.new as { user_id: string; last_read_at: string };
+            setReadReceipts((prev) => ({ ...prev, [row.user_id]: row.last_read_at }));
           },
         )
         .subscribe();
@@ -261,7 +296,7 @@ export function ChatThread({
       cancelled = true;
       if (channel) supabase.removeChannel(channel);
     };
-  }, [conversationId, myId, otherUserId]);
+  }, [conversationId, myId]);
 
   /** "You" for the current viewer, the group sender's attributed name, or
    * the dm partner's name — shared by both the pre-send reply strip and
@@ -440,15 +475,23 @@ export function ChatThread({
     URL.revokeObjectURL(localUrl);
   }
 
-  const lastMessage = messages[messages.length - 1];
-  const showSeen = Boolean(
-    conversationType === "dm" &&
-      lastMessage &&
-      !lastMessage.pending &&
-      lastMessage.sender_id === myId &&
-      otherLastReadAt &&
-      otherLastReadAt >= lastMessage.created_at,
-  );
+  /** WhatsApp-style per-message status for one of MY OWN messages —
+   * "pending" while still an optimistic local echo, then "read" once
+   * *every* other relevant participant's last_read_at (dm: the one other
+   * person; group: all current other members) covers this message's
+   * created_at, "sent" in between. A read watermark, not a per-message
+   * receipt — exactly how WhatsApp's own checkmarks work too (an old
+   * message you sent silently "becomes" read the moment the recipient's
+   * marker passes it, no separate event needed per message). */
+  function messageStatus(message: LocalMessage): "pending" | "sent" | "read" {
+    if (message.pending) return "pending";
+    if (otherMemberIds.length === 0) return "sent";
+    const allRead = otherMemberIds.every((id) => {
+      const lastRead = readReceipts[id];
+      return Boolean(lastRead) && lastRead >= message.created_at;
+    });
+    return allRead ? "read" : "sent";
+  }
 
   const renderItems = buildRenderItems(messages, myId, conversationType, memberProfiles);
 
@@ -473,7 +516,7 @@ export function ChatThread({
             <p className="text-sm">No messages yet — say hi 👋</p>
           </div>
         ) : (
-          renderItems.map((item, i) =>
+          renderItems.map((item) =>
             item.kind === "separator" ? (
               <div key={item.key} className="flex justify-center py-2">
                 <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
@@ -489,6 +532,7 @@ export function ChatThread({
                   pending={item.message.pending}
                   isLastInRun={item.isLastInRun}
                   senderName={item.senderName}
+                  status={item.message.sender_id === myId ? messageStatus(item.message) : undefined}
                   onReply={(message) =>
                     setReplyingTo({
                       id: message.id,
@@ -499,9 +543,6 @@ export function ChatThread({
                     })
                   }
                 />
-                {i === renderItems.length - 1 && showSeen && (
-                  <p className="pr-1 pt-1 text-right text-xs text-muted-foreground">Seen</p>
-                )}
               </div>
             ),
           )
