@@ -72,7 +72,7 @@ function ReplyQuote({ message, myId, tone }: { message: Message; myId: string; t
  * bubble in a run gets the tail corner, and a group thread shows the
  * sender's name once, above the *first* bubble in a run, and their
  * avatar once, on the *last* one — see ChatThread's run-detection for how
- * `isLastInRun`/`senderName`/`senderAvatarUrl` are computed. */
+ * `isLastInRun`/`senderName`/`senderProfile` are computed. */
 export function MessageBubble({
   message,
   myId,
@@ -80,7 +80,7 @@ export function MessageBubble({
   pending = false,
   isLastInRun = true,
   senderName,
-  senderAvatarUrl,
+  senderProfile,
   status,
   onReply,
   onShowInfo,
@@ -98,12 +98,16 @@ export function MessageBubble({
    * bubble of a consecutive run from someone else. Undefined in dm
    * threads (redundant there) and on every bubble but the first in a run. */
   senderName?: string;
-  /** Group threads only — the sender's avatar, shown once on the last
-   * bubble of a consecutive run (the tail-corner one). `undefined` means
-   * "don't render an avatar column at all" (own message, or not the run's
-   * last bubble); `null` means "render the column, but this sender has no
-   * photo" (Avatar's own initials fallback takes over). */
-  senderAvatarUrl?: string | null;
+  /** Group threads only, on EVERY bubble of a non-own run (not just the
+   * last) — its presence reserves the avatar column's width consistently
+   * across the whole run, so every bubble left-aligns the same regardless
+   * of which one actually shows the circle (that used to only be sent on
+   * the last bubble, which left every other bubble in a multi-message run
+   * with no column at all — a real, confirmed 36px left-edge misalignment
+   * within a single run). The actual `<Avatar>` only renders when
+   * `isLastInRun` (the tail-corner bubble); the other bubbles just get an
+   * equal-width blank spacer. */
+  senderProfile?: { full_name: string; avatar_url: string | null };
   /** Own messages only — undefined for anyone else's (see ChatThread's
    * messageStatus). Renders the WhatsApp-style check/checkmark. */
   status?: MessageStatus;
@@ -169,16 +173,24 @@ export function MessageBubble({
     // (two throwaway accounts, a 2-char group message) before and after
     // that original fix.
     <div className={cn("flex max-w-[75%] items-end gap-2", isOwn && "ml-auto")}>
-      {senderAvatarUrl !== undefined && (
+      {senderProfile && (
         <div className="w-7 shrink-0 self-end">
-          {isLastInRun && <Avatar name={senderName ?? "?"} src={senderAvatarUrl} size={28} />}
+          {isLastInRun && (
+            <Avatar name={senderProfile.full_name} src={senderProfile.avatar_url} size={28} />
+          )}
         </div>
       )}
       <div className={cn("flex min-w-0 flex-col", isOwn ? "items-end" : "items-start")}>
         {senderName && (
           <span className="mb-0.5 px-1 text-xs font-medium text-muted-foreground">{senderName}</span>
         )}
-        <div className={cn("group flex items-center gap-1.5", isOwn ? "justify-end" : "justify-start")}>
+        {/* items-end, not items-center — a tall multi-line bubble used to
+            leave the "⋯" trigger floating in the vertical middle of a lot
+            of empty space, disconnected from anything. Anchoring to the
+            bottom instead lines it up with the status icon/avatar, both
+            already bottom-aligned, so hover/tap controls consistently
+            cluster along the same edge regardless of bubble height. */}
+        <div className={cn("group flex items-end gap-1.5", isOwn ? "justify-end" : "justify-start")}>
           {isOwn && <MessageActionMenu items={items} align="end" />}
           <div
             onClick={() => setShowTime((v) => !v)}

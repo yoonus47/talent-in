@@ -66,17 +66,27 @@ type RenderItem =
       kind: "message";
       message: LocalMessage;
       isLastInRun: boolean;
+      /** Group, non-own messages only — the label shown above the
+       * *first* bubble of a run. */
       senderName?: string;
-      /** Group, non-own messages only, and only on the *last* bubble of a
-       * run (the one with the tail corner) — the name label above uses
-       * the *first* bubble instead, matching Telegram/iMessage's own
-       * convention for a consecutive run: name at the top, avatar at the
-       * bottom, both naturally coinciding for the (most common)
-       * single-bubble case. `null` (not just absent) means "group,
-       * non-own, right run position, but this sender has no avatar" —
-       * MessageBubble still needs to render the initials fallback then,
-       * which `undefined` (no avatar column at all) would suppress. */
-      senderAvatarUrl?: string | null;
+      /** Group, non-own messages only — present on EVERY bubble of the
+       * run, not just the last one. MessageBubble uses its presence to
+       * reserve the avatar column's width consistently across the whole
+       * run (every bubble left-aligns the same regardless of which one
+       * actually shows the circle — a real, confirmed bug when this was
+       * only sent on the last bubble: the other bubbles in the run had no
+       * column reserved at all and sat 36px further left, an obviously
+       * jagged left edge), and only actually renders the `<Avatar>`
+       * inside it when `isLastInRun` (the tail-corner bubble — matching
+       * Telegram/iMessage's own convention: name at the top of a run,
+       * avatar at the bottom, naturally coinciding for the common
+       * single-bubble case). Also doubles as the Avatar's name/initials
+       * source on that last bubble — `senderName` above is only ever set
+       * on the *first* bubble, which is a different one for any run
+       * longer than one message, so reusing it here (as an earlier
+       * version of this did) left the avatar with no name to fall back
+       * on and showed a bare "?" instead of real initials. */
+      senderProfile?: SenderProfile;
     };
 
 function buildRenderItems(
@@ -111,12 +121,12 @@ function buildRenderItems(
 
     const isFirstInRun = !samePrevRun;
     const isGroupOther = conversationType === "group" && message.sender_id !== myId;
-    const senderName =
-      isGroupOther && isFirstInRun ? memberProfiles[message.sender_id]?.full_name : undefined;
-    const senderAvatarUrl =
-      isGroupOther && isLastInRun ? (memberProfiles[message.sender_id]?.avatar_url ?? null) : undefined;
+    const senderName = isGroupOther && isFirstInRun ? memberProfiles[message.sender_id]?.full_name : undefined;
+    // Every bubble in the run gets this (not just the last one) — see the
+    // RenderItem type's own comment for why that matters for alignment.
+    const senderProfile = isGroupOther ? memberProfiles[message.sender_id] : undefined;
 
-    items.push({ kind: "message", message, isLastInRun, senderName, senderAvatarUrl });
+    items.push({ kind: "message", message, isLastInRun, senderName, senderProfile });
   });
 
   return items;
@@ -622,7 +632,7 @@ export function ChatThread({
                   pending={item.message.pending}
                   isLastInRun={item.isLastInRun}
                   senderName={item.senderName}
-                  senderAvatarUrl={item.senderAvatarUrl}
+                  senderProfile={item.senderProfile}
                   status={item.message.sender_id === myId ? messageStatus(item.message) : undefined}
                   onReply={(message) =>
                     setReplyingTo({
