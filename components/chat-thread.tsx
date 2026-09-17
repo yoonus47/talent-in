@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MessageCircle } from "lucide-react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { markConversationRead } from "@/lib/actions/chat";
 import { MessageBubble } from "@/components/message-bubble";
@@ -59,6 +60,27 @@ function dayLabel(iso: string) {
  * on the same calendar day, render as one visually grouped run (tail
  * corner + sender name only on/above the boundary bubbles). */
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
+
+// Typing indicator: a Realtime *Broadcast* on the same per-conversation
+// channel already used for postgres_changes above — deliberately NOT a
+// database table/watermark like conversation_reads/conversation_deliveries.
+// Every other piece of realtime state in this file is something worth
+// persisting (a receipt, a message); "is currently typing" isn't — it's
+// pure ephemeral signal, gone the instant it's stale, and writing it to
+// Postgres on every keystroke would be both wasteful and laggy for
+// something that needs to feel instant. Broadcast sends peer-to-peer
+// through the realtime socket with no table involved at all.
+//
+// No explicit "stopped typing" event exists — instead this is a heartbeat:
+// the sender re-broadcasts at most once per THROTTLE_MS while they keep
+// typing, and a receiver just lets an entry expire TIMEOUT_MS after the
+// last heartbeat it saw. That's simpler than plumbing a reliable "stopped"
+// signal (which would also need to fire on tab-close/network-drop, which a
+// timeout handles for free) and matches how most chat apps actually behave
+// — the indicator can linger a couple seconds after someone stops, not
+// vanish instantly.
+const TYPING_THROTTLE_MS = 2000;
+const TYPING_TIMEOUT_MS = 4000;
 
 type RenderItem =
   | { kind: "separator"; key: string; label: string }
@@ -187,7 +209,19 @@ export function ChatThread({
   const [deliveryReceipts, setDeliveryReceipts] = useState(initialDeliveryReceipts);
   const [replyingTo, setReplyingTo] = useState<ReplyingTo | null>(null);
   const [infoMessage, setInfoMessage] = useState<LocalMessage | null>(null);
+  // userId -> Date.now() of the last "typing" heartbeat seen from them.
+  // Never includes myId (the broadcast listener below skips my own
+  // echoes) and is pruned on an interval (see the effect near the bottom)
+  // rather than on every render, since nothing else changes it.
+  const [typingUsers, setTypingUsers] = useState<Record<string, number>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
+  // Set inside the subscribe effect below, read from broadcastTyping —
+  // a ref because broadcastTyping is called from ChatComposer's onChange,
+  // well outside that effect's own closure, and needs whichever channel
+  // instance is *currently* subscribed, not whatever was live when this
+  // component first mounted.
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const lastTypingBroadcastRef = useRef(0);
 
   // Whoever ELSE needs to have read a message for it to count as "read" —
   // a dm's one other participant, or every other current group member.
@@ -271,6 +305,16 @@ export function ChatThread({
             // accurate without a page reload.
             if (newRow.sender_id !== myId) {
               markConversationRead(conversationId);
+              // Their message just arrived — drop any lingering "typing"
+              // heartbeat for them immediately instead of waiting up to
+              // TYPING_TIMEOUT_MS for it to expire on its own, so the
+              // indicator is replaced by the real bubble right away.
+              setTypingUsers((prev) => {
+                if (!(newRow.sender_id in prev)) return prev;
+                const next = { ...prev };
+                delete next[newRow.sender_id];
+                return next;
+              });
             }
           },
         )
@@ -348,16 +392,62 @@ export function ChatThread({
             setDeliveryReceipts((prev) => ({ ...prev, [row.user_id]: row.last_delivered_at }));
           },
         )
+        // Ephemeral "X is typing" heartbeat — see the TYPING_* constants'
+        // comment for why this is a Broadcast, not a table. Self-events
+        // are filtered here (rather than relying on Supabase's own
+        // self-broadcast setting) so the sender's own composer never
+        // shows its own heartbeat back to them.
+        .on("broadcast", { event: "typing" }, (payload) => {
+          const senderId = (payload.payload as { userId: string }).userId;
+          if (senderId === myId) return;
+          setTypingUsers((prev) => ({ ...prev, [senderId]: Date.now() }));
+        })
         .subscribe();
+
+      channelRef.current = channel;
     }
 
     subscribe();
 
     return () => {
       cancelled = true;
+      channelRef.current = null;
       if (channel) supabase.removeChannel(channel);
     };
   }, [conversationId, myId]);
+
+  // Prunes stale typing heartbeats so the indicator disappears on its own
+  // if a sender's last "still typing" broadcast was more than
+  // TYPING_TIMEOUT_MS ago (they stopped, closed the tab, lost the
+  // connection — whatever the reason, no explicit "stopped" event is
+  // needed). Runs on a plain interval rather than one setTimeout per
+  // entry — simpler, and there's realistically at most a handful of
+  // simultaneous typists even in a large group.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTypingUsers((prev) => {
+        const now = Date.now();
+        const next = Object.fromEntries(
+          Object.entries(prev).filter(([, at]) => now - at < TYPING_TIMEOUT_MS),
+        );
+        return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Passed down to ChatComposer as onTyping — throttled here (not there)
+  // so the composer itself can stay a dumb "fire on every keystroke"
+  // caller. Broadcasting is a no-op if the channel hasn't finished
+  // subscribing yet (e.g. the very first keystroke on a freshly opened
+  // thread) — there's nothing to catch up on, the next keystroke within
+  // THROTTLE_MS will just try again.
+  function broadcastTyping() {
+    const now = Date.now();
+    if (now - lastTypingBroadcastRef.current < TYPING_THROTTLE_MS) return;
+    lastTypingBroadcastRef.current = now;
+    channelRef.current?.send({ type: "broadcast", event: "typing", payload: { userId: myId } });
+  }
 
   /** "You" for the current viewer, the group sender's attributed name, or
    * the dm partner's name — shared by both the pre-send reply strip and
@@ -574,6 +664,29 @@ export function ChatThread({
 
   const renderItems = buildRenderItems(messages, myId, conversationType, memberProfiles);
 
+  // "X is typing…" / "X and Y are typing…" / "X, Y, and 2 others are
+  // typing…" — resolved from groupMembers (the FULL current member list),
+  // not memberProfiles (only built from actual message senders), since
+  // whoever's typing may not have sent a message in this thread yet.
+  // Falls back to memberProfiles for the vanishingly unlikely case of a
+  // heartbeat arriving from someone who somehow isn't in groupMembers
+  // anymore (a membership change mid-conversation).
+  const typingIds = Object.keys(typingUsers);
+  const typingNames = typingIds.map(
+    (id) =>
+      (conversationType === "group"
+        ? (groupMembers?.find((m) => m.id === id)?.full_name ?? memberProfiles[id]?.full_name)
+        : otherUserName) ?? "Someone",
+  );
+  const typingText =
+    typingNames.length === 0
+      ? null
+      : typingNames.length === 1
+        ? `${typingNames[0]} is typing`
+        : typingNames.length === 2
+          ? `${typingNames[0]} and ${typingNames[1]} are typing`
+          : `${typingNames[0]}, ${typingNames[1]}, and ${typingNames.length - 2} other${typingNames.length - 2 === 1 ? "" : "s"} are typing`;
+
   // Read-by / delivered-to breakdown for whichever message's "Message
   // info" was tapped (group only, see onShowInfo above) — computed from
   // data already in memory, no extra query. A member appears in exactly
@@ -655,9 +768,36 @@ export function ChatThread({
         <div ref={bottomRef} />
       </div>
 
+      {/* Sits between the scrolling list and the composer, not inside
+          either — appending/removing it from the list itself would need
+          to also drive the auto-scroll-to-bottom effect (which only
+          watches messages.length) to avoid it popping in half-hidden
+          behind the fold, and a fixed spot right above the input is
+          exactly where most chat apps put this anyway. */}
+      {typingText && (
+        <div className="flex items-center gap-2 border-t border-border px-4 py-1.5 text-xs text-muted-foreground">
+          <span className="flex gap-0.5">
+            <span
+              className="h-1.5 w-1.5 animate-typing-bounce rounded-full bg-muted-foreground"
+              style={{ animationDelay: "0ms" }}
+            />
+            <span
+              className="h-1.5 w-1.5 animate-typing-bounce rounded-full bg-muted-foreground"
+              style={{ animationDelay: "150ms" }}
+            />
+            <span
+              className="h-1.5 w-1.5 animate-typing-bounce rounded-full bg-muted-foreground"
+              style={{ animationDelay: "300ms" }}
+            />
+          </span>
+          {typingText}…
+        </div>
+      )}
+
       <ChatComposer
         onSend={handleSend}
         onSendVoice={handleSendVoice}
+        onTyping={broadcastTyping}
         replyingTo={
           replyingTo && {
             senderName: replyingTo.senderName,

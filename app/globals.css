@@ -295,6 +295,27 @@ body {
   animation: challenge-option-pulse 220ms ease-out;
 }
 
+/* components/chat-thread.tsx's typing indicator — three dots bouncing in
+   sequence, the universal "someone's composing" affordance. Delay is set
+   per-dot inline (style={{animationDelay}}), not as separate classes, so
+   one keyframe covers all three. */
+@keyframes typing-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+.animate-typing-bounce {
+  animation: typing-bounce 1.2s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .animate-blob,
@@ -304,6 +325,7 @@ body {
   .animate-wotd-bump,
   .animate-challenge-step-in,
   .animate-challenge-option-pulse,
+  .animate-typing-bounce,
   .brand-curtain-wipe {
     animation: none;
   }

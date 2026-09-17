@@ -65,12 +65,18 @@ function MobileThemeToggle() {
 export function ChatComposer({
   onSend,
   onSendVoice,
+  onTyping,
   replyingTo,
   onCancelReply,
   groupMembers,
 }: {
   onSend: (content: string, mentionedUserIds: string[]) => Promise<void>;
   onSendVoice: (blob: Blob, mimeType: string, durationMs: number) => Promise<void>;
+  /** Fired on every keystroke that leaves real text behind — ChatThread
+   * owns the actual throttling/broadcasting (it owns the realtime
+   * channel), this is just the raw signal. Not fired for voice notes;
+   * there's no "typing" moment to announce for those. */
+  onTyping?: () => void;
   replyingTo: ReplyPreview | null;
   onCancelReply: () => void;
   /** Group threads only. Already fetched server-side for the thread
@@ -90,6 +96,10 @@ export function ChatComposer({
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const text = e.target.value;
     setValue(text);
+    // Only while there's actually something left to send — backspacing
+    // down to empty isn't "typing" (and submit() already clears `value`
+    // on send, so a just-sent message doesn't linger as a false signal).
+    if (text.trim().length > 0) onTyping?.();
     if (!groupMembers) return;
 
     const cursor = e.target.selectionStart ?? text.length;
