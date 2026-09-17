@@ -150,29 +150,41 @@ export function MessageBubble({
   }
 
   return (
-    // max-w-[75%] lives on THIS row (avatar column + content column
-    // together), not on the content column alone — the avatar sits
-    // outside that budget instead of stealing from the text's own width.
-    // This row is still a plain block child of ChatThread's non-flex
-    // (space-y-1) message list, same as before this became `flex` for the
-    // avatar layout, so the specific bug the paragraph below documents —
-    // max-width on a flex ITEM whose OWN container uses non-stretch
-    // align-items — doesn't apply here; that was about an ANCESTOR being
-    // an indeterminate-width flex item, not about this element itself
-    // using display:flex internally, which is a completely ordinary case.
+    // w-fit is load-bearing, not decorative — without it this row (still
+    // `display:flex`, hence still block-level) defaults to *filling* its
+    // containing block's width the same as any plain block box with
+    // `width: auto` would, and max-w-[75%] only caps that fill, it
+    // doesn't make the box shrink to its own content. The visible result,
+    // confirmed live via getBoundingClientRect on real messages of
+    // different lengths: every own-message row was silently exactly 75%
+    // wide regardless of the bubble's actual text, with the bubble+"⋯"
+    // trigger left-packed (default justify-content: flex-start) inside
+    // that oversized box rather than hugging its true right edge — so
+    // ml-auto below was pushing a consistently oversized invisible box to
+    // the right, while the actually-visible bubble sat wherever that
+    // box's own left edge happened to land, landing at the *identical* x
+    // position for three own bubbles of very different widths instead of
+    // tracking each one's real content. `w-fit` (width: fit-content)
+    // makes the row shrink to its content first, with max-w-[75%] still
+    // acting as a hard ceiling (forcing a wrap) only once real content
+    // would exceed it — the same semantics the row visually had before it
+    // became a `flex` row (for the avatar column) rather than a
+    // `flex-col` one (see the git history for that version, which got
+    // this for free from `items-end`/`items-start` instead needing it
+    // spelled out, since align-items there was doing double duty as the
+    // width-fitting mechanism along what was then the cross axis).
     //
-    // Original note, still accurate for why it's not on the content
-    // column: that div is a flex item inside the "group flex" row below,
-    // and once its own wrapper became `flex flex-col items-start/items-
-    // end` (to stack the sender-name label above the bubble), that made
-    // the row's own width indeterminate (align-items other than the
-    // default `stretch` shrinks a flex item to its content). A `max-
-    // width: 75%` resolving against an indeterminate ancestor is
-    // undefined per spec, and in practice collapsed short, space-less
-    // content (e.g. "Hi") to a single character per line. Confirmed live
-    // (two throwaway accounts, a 2-char group message) before and after
-    // that original fix.
-    <div className={cn("flex max-w-[75%] items-end gap-2", isOwn && "ml-auto")}>
+    // max-w-[75%] itself still lives on this row (avatar column + content
+    // column together), not on the content column alone, so the avatar
+    // sits outside that budget instead of stealing from the text's own
+    // width. This row is still a plain block child of ChatThread's
+    // non-flex (space-y-1) message list, so the *other*, earlier bug this
+    // paragraph used to document — max-width on a flex ITEM whose OWN
+    // container uses non-stretch align-items, which made short content
+    // like "Hi" collapse to one character per line — doesn't apply here;
+    // that was about an ANCESTOR being an indeterminate-width flex item,
+    // not about this element itself using display:flex internally.
+    <div className={cn("flex w-fit max-w-[75%] items-end gap-2", isOwn && "ml-auto")}>
       {senderProfile && (
         <div className="w-7 shrink-0 self-end">
           {isLastInRun && (
