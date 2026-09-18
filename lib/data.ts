@@ -515,6 +515,8 @@ export type FeedNotification = {
   post: { id: string; content: string } | null;
   comment: { id: string; content: string } | null;
   conversation: { id: string; name: string | null } | null;
+  communityThread: { id: string; title: string } | null;
+  communityReply: { id: string; content: string } | null;
 };
 
 /** Most recent notifications for `userId`, newest first. */
@@ -527,7 +529,9 @@ export async function getNotifications(userId: string): Promise<FeedNotification
        profiles!notifications_actor_id_fkey(id, username, full_name, avatar_url),
        posts!notifications_post_id_fkey(id, content),
        comments!notifications_comment_id_fkey(id, content),
-       conversations!notifications_conversation_id_fkey(id, name)`,
+       conversations!notifications_conversation_id_fkey(id, name),
+       community_threads!notifications_community_thread_id_fkey(id, title),
+       community_replies!notifications_community_reply_id_fkey(id, content)`,
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
@@ -551,6 +555,8 @@ export async function getNotifications(userId: string): Promise<FeedNotification
     post: (n.posts as unknown as { id: string; content: string } | null) ?? null,
     comment: (n.comments as unknown as { id: string; content: string } | null) ?? null,
     conversation: (n.conversations as unknown as { id: string; name: string | null } | null) ?? null,
+    communityThread: (n.community_threads as unknown as { id: string; title: string } | null) ?? null,
+    communityReply: (n.community_replies as unknown as { id: string; content: string } | null) ?? null,
   }));
 }
 
@@ -1024,15 +1030,27 @@ export async function getConversationDeliveryReceipts(
 }
 
 // ── Community ────────────────────────────────────────────────────────────
-// v1 — see supabase/migrations/0028_community.sql for the data model and
-// its explicit v1 cuts. Mirrors this file's existing embedded-select join
+// v1 (supabase/migrations/0028_community.sql) + round 2 (0030_community_
+// reactions_and_activity.sql: reactions, reply mentions, per-thread
+// unread tracking). Mirrors this file's existing embedded-select join
 // style (getConversations' user_a:profiles!fkey(...) pattern) — no
-// disambiguating !fkey needed here since community_threads/
+// disambiguating !fkey needed for author/topic since community_threads/
 // community_replies each have only one FK to profiles.
 
 export type CommunityThreadListItem = CommunityThread & {
   author: FeedAuthor & { id: string };
   topic: Pick<CommunityTopic, "id" | "slug" | "name">;
+  reactionCounts: Record<ReactionType, number>;
+  myReaction: ReactionType | null;
+  /** True when this thread has had activity (a new reply, most likely)
+   * since `currentUserId` last opened it — or was never opened at all.
+   * Computed against community_thread_reads (0030), the same "watermark,
+   * not a per-item receipt" shape conversation_reads already uses for
+   * chat. Always false for a thread the viewer has never *had a chance*
+   * to see stale — i.e. this is "unseen since last visit," not "unread"
+   * in a stricter sense; there's no separate concept of dismissing it
+   * without opening the thread. */
+  isNew: boolean;
 };
 
 /** The curated topic list, in display order. */
@@ -1049,52 +1067,135 @@ export async function getCommunityTopics(): Promise<CommunityTopic[]> {
   return data ?? [];
 }
 
-/** Threads newest-activity-first, optionally scoped to one topic — pass
- * the topic's id (the caller already has the topics list loaded for the
- * chip row, so resolving a slug from the URL to an id costs nothing
- * extra). */
-export async function getCommunityThreads(topicId?: string): Promise<CommunityThreadListItem[]> {
+/** Threads newest-activity-first, optionally scoped to one topic and/or a
+ * search query (title/body, same `ilike` `.or(...)` shape searchProfiles
+ * uses over full_name/username) — pass the topic's id (the caller already
+ * has the topics list loaded for the chip row, so resolving a slug from
+ * the URL to an id costs nothing extra). */
+export async function getCommunityThreads(
+  currentUserId: string,
+  topicId?: string,
+  searchQuery?: string,
+): Promise<CommunityThreadListItem[]> {
   const supabase = await createClient();
   let query = supabase
     .from("community_threads")
-    .select("*, author:profiles(id, username, full_name, avatar_url), topic:community_topics(id, slug, name)")
+    .select("*, author:profiles!community_threads_author_id_fkey(id, username, full_name, avatar_url), topic:community_topics(id, slug, name)")
     .order("last_activity_at", { ascending: false });
   if (topicId) query = query.eq("topic_id", topicId);
+  if (searchQuery) {
+    const escaped = searchQuery.replace(/[%,]/g, "");
+    query = query.or(`title.ilike.%${escaped}%,body.ilike.%${escaped}%`);
+  }
 
   const { data, error } = await query;
   if (error) {
     console.error("getCommunityThreads failed:", error.message);
     return [];
   }
-  return (data ?? []) as unknown as CommunityThreadListItem[];
+  const threads = (data ?? []) as unknown as (CommunityThread & {
+    author: FeedAuthor & { id: string };
+    topic: Pick<CommunityTopic, "id" | "slug" | "name">;
+  })[];
+  if (threads.length === 0) return [];
+
+  return attachCommunityThreadExtras(supabase, threads, currentUserId);
 }
 
 /** A single thread + its author/topic — RLS (open select) means a null
  * result here only ever means "doesn't exist," not "not allowed to see." */
-export async function getCommunityThread(id: string): Promise<CommunityThreadListItem | null> {
+export async function getCommunityThread(
+  id: string,
+  currentUserId: string,
+): Promise<CommunityThreadListItem | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("community_threads")
-    .select("*, author:profiles(id, username, full_name, avatar_url), topic:community_topics(id, slug, name)")
+    .select("*, author:profiles!community_threads_author_id_fkey(id, username, full_name, avatar_url), topic:community_topics(id, slug, name)")
     .eq("id", id)
     .maybeSingle();
-  return data as unknown as CommunityThreadListItem | null;
+  if (!data) return null;
+  const [withExtras] = await attachCommunityThreadExtras(
+    supabase,
+    [data as unknown as CommunityThread & { author: FeedAuthor & { id: string }; topic: Pick<CommunityTopic, "id" | "slug" | "name"> }],
+    currentUserId,
+  );
+  return withExtras;
 }
 
-export type CommunityReplyItem = CommunityReply & { author: FeedAuthor & { id: string } };
+/** Batches thread reactions + this user's read-watermarks for a set of
+ * threads and folds them in — same two-pass "fetch the base rows, then
+ * batch-fetch related rows by id list" shape getFeedPosts already uses
+ * for post reactions, just shared here since getCommunityThreads and
+ * getCommunityThread both need it (a list of many, or a list of one). */
+async function attachCommunityThreadExtras(
+  supabase: SupabaseClient<Database>,
+  threads: (CommunityThread & {
+    author: FeedAuthor & { id: string };
+    topic: Pick<CommunityTopic, "id" | "slug" | "name">;
+  })[],
+  currentUserId: string,
+): Promise<CommunityThreadListItem[]> {
+  const threadIds = threads.map((t) => t.id);
+  const [{ data: reactions }, { data: reads }] = await Promise.all([
+    supabase.from("community_thread_reactions").select("thread_id, user_id, reaction_type").in("thread_id", threadIds),
+    supabase
+      .from("community_thread_reads")
+      .select("thread_id, last_viewed_at")
+      .eq("user_id", currentUserId)
+      .in("thread_id", threadIds),
+  ]);
+
+  const readByThreadId = new Map((reads ?? []).map((r) => [r.thread_id, r.last_viewed_at]));
+
+  return threads.map((thread) => {
+    const threadReactions = reactions?.filter((r) => r.thread_id === thread.id) ?? [];
+    const reactionCounts = { ...EMPTY_REACTION_COUNTS };
+    for (const r of threadReactions) reactionCounts[r.reaction_type] += 1;
+    const myReaction = threadReactions.find((r) => r.user_id === currentUserId)?.reaction_type ?? null;
+    const lastViewedAt = readByThreadId.get(thread.id);
+    const isNew = !lastViewedAt || thread.last_activity_at > lastViewedAt;
+
+    return { ...thread, reactionCounts, myReaction, isNew };
+  });
+}
+
+export type CommunityReplyItem = CommunityReply & {
+  author: FeedAuthor & { id: string };
+  reactionCounts: Record<ReactionType, number>;
+  myReaction: ReactionType | null;
+};
 
 /** A thread's replies, oldest first (chronological discussion order, same
  * as getMessages for chat). */
-export async function getCommunityReplies(threadId: string): Promise<CommunityReplyItem[]> {
+export async function getCommunityReplies(
+  threadId: string,
+  currentUserId: string,
+): Promise<CommunityReplyItem[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("community_replies")
-    .select("*, author:profiles(id, username, full_name, avatar_url)")
+    .select("*, author:profiles!community_replies_author_id_fkey(id, username, full_name, avatar_url)")
     .eq("thread_id", threadId)
     .order("created_at", { ascending: true });
   if (error) {
     console.error("getCommunityReplies failed:", error.message);
     return [];
   }
-  return (data ?? []) as unknown as CommunityReplyItem[];
+  const replies = (data ?? []) as unknown as (CommunityReply & { author: FeedAuthor & { id: string } })[];
+  if (replies.length === 0) return [];
+
+  const replyIds = replies.map((r) => r.id);
+  const { data: reactions } = await supabase
+    .from("community_reply_reactions")
+    .select("reply_id, user_id, reaction_type")
+    .in("reply_id", replyIds);
+
+  return replies.map((reply) => {
+    const replyReactions = reactions?.filter((r) => r.reply_id === reply.id) ?? [];
+    const reactionCounts = { ...EMPTY_REACTION_COUNTS };
+    for (const r of replyReactions) reactionCounts[r.reaction_type] += 1;
+    const myReaction = replyReactions.find((r) => r.user_id === currentUserId)?.reaction_type ?? null;
+    return { ...reply, reactionCounts, myReaction };
+  });
 }

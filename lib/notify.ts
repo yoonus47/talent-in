@@ -19,6 +19,8 @@ export async function notify(
     postId?: string;
     commentId?: string;
     reactionType?: ReactionType;
+    communityThreadId?: string;
+    communityReplyId?: string;
   },
 ) {
   if (params.recipientId === params.actorId) return;
@@ -30,5 +32,7 @@ export async function notify(
     post_id: params.postId ?? null,
     comment_id: params.commentId ?? null,
     reaction_type: params.reactionType ?? null,
+    community_thread_id: params.communityThreadId ?? null,
+    community_reply_id: params.communityReplyId ?? null,
   });
 }

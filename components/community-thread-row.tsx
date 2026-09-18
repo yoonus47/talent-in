@@ -2,18 +2,24 @@ import { MessageCircle } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { ReactionSummary } from "@/components/reaction-summary";
 import { TransitionLink } from "@/components/transition-link";
 import { timeAgo } from "@/lib/utils";
 import type { CommunityThreadListItem } from "@/lib/data";
 
-/** One row in the /community thread list — links into the thread. */
+/** One row in the /community thread list — links into the thread. The
+ * small dot next to the timestamp mirrors app/notifications/page.tsx's
+ * own unread treatment (same h-2 w-2 rounded-full bg-primary), shown when
+ * `thread.isNew` — activity since this viewer last opened it (or never
+ * opened at all), see lib/data.ts's getCommunityThreads. */
 export function CommunityThreadRow({ thread }: { thread: CommunityThreadListItem }) {
   return (
     <TransitionLink href={`/community/${thread.id}`} direction="forward" className="block">
       <Card className="p-4 transition-shadow hover:shadow-md">
         <div className="flex items-center justify-between gap-2">
           <Badge variant="outline">{thread.topic.name}</Badge>
-          <span className="shrink-0 text-xs text-muted-foreground">
+          <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+            {thread.isNew && <span className="h-2 w-2 rounded-full bg-primary" aria-label="New activity" />}
             {timeAgo(thread.last_activity_at)}
           </span>
         </div>
@@ -27,6 +33,7 @@ export function CommunityThreadRow({ thread }: { thread: CommunityThreadListItem
             <MessageCircle className="h-3 w-3" />
             {thread.reply_count}
           </span>
+          <ReactionSummary counts={thread.reactionCounts} size="sm" />
         </div>
       </Card>
     </TransitionLink>

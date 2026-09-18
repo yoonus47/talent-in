@@ -27,10 +27,7 @@ export default async function NewCommunityThreadPage({
 
       {topics.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No topics yet. Run <code className="rounded bg-muted px-1.5 py-0.5">
-            supabase/migrations/0028_community.sql
-          </code>{" "}
-          against your project.
+          Topics aren&apos;t set up yet — check back soon.
         </p>
       ) : (
         <NewThreadForm topics={topics} defaultTopicId={defaultTopic?.id} />

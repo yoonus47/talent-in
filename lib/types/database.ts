@@ -47,7 +47,10 @@ export type NotificationType =
   | "reply"
   | "mention"
   | "comment_reaction"
-  | "group_added";
+  | "group_added"
+  | "community_reply"
+  | "community_reaction"
+  | "community_mention";
 
 export interface Database {
   public: {
@@ -433,6 +436,8 @@ export interface Database {
           comment_id: string | null;
           reaction_type: ReactionType | null;
           conversation_id: string | null;
+          community_thread_id: string | null;
+          community_reply_id: string | null;
           read_at: string | null;
           created_at: string;
         };
@@ -445,6 +450,8 @@ export interface Database {
           comment_id?: string | null;
           reaction_type?: ReactionType | null;
           conversation_id?: string | null;
+          community_thread_id?: string | null;
+          community_reply_id?: string | null;
           read_at?: string | null;
           created_at?: string;
         };
@@ -483,6 +490,20 @@ export interface Database {
             columns: ["conversation_id"];
             isOneToOne: false;
             referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_community_thread_id_fkey";
+            columns: ["community_thread_id"];
+            isOneToOne: false;
+            referencedRelation: "community_threads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_community_reply_id_fkey";
+            columns: ["community_reply_id"];
+            isOneToOne: false;
+            referencedRelation: "community_replies";
             referencedColumns: ["id"];
           },
         ];
@@ -816,6 +837,7 @@ export interface Database {
           thread_id: string;
           author_id: string;
           content: string;
+          mentioned_user_ids: string[];
           created_at: string;
         };
         Insert: {
@@ -823,6 +845,7 @@ export interface Database {
           thread_id: string;
           author_id: string;
           content: string;
+          mentioned_user_ids?: string[];
           created_at?: string;
         };
         Update: never;
@@ -837,6 +860,101 @@ export interface Database {
           {
             foreignKeyName: "community_replies_author_id_fkey";
             columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      community_thread_reactions: {
+        Row: {
+          id: string;
+          thread_id: string;
+          user_id: string;
+          reaction_type: ReactionType;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          thread_id: string;
+          user_id: string;
+          reaction_type: ReactionType;
+          created_at?: string;
+        };
+        Update: { reaction_type?: ReactionType };
+        Relationships: [
+          {
+            foreignKeyName: "community_thread_reactions_thread_id_fkey";
+            columns: ["thread_id"];
+            isOneToOne: false;
+            referencedRelation: "community_threads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "community_thread_reactions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      community_reply_reactions: {
+        Row: {
+          id: string;
+          reply_id: string;
+          user_id: string;
+          reaction_type: ReactionType;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          reply_id: string;
+          user_id: string;
+          reaction_type: ReactionType;
+          created_at?: string;
+        };
+        Update: { reaction_type?: ReactionType };
+        Relationships: [
+          {
+            foreignKeyName: "community_reply_reactions_reply_id_fkey";
+            columns: ["reply_id"];
+            isOneToOne: false;
+            referencedRelation: "community_replies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "community_reply_reactions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      community_thread_reads: {
+        Row: {
+          thread_id: string;
+          user_id: string;
+          last_viewed_at: string;
+        };
+        Insert: {
+          thread_id: string;
+          user_id: string;
+          last_viewed_at?: string;
+        };
+        Update: { last_viewed_at?: string };
+        Relationships: [
+          {
+            foreignKeyName: "community_thread_reads_thread_id_fkey";
+            columns: ["thread_id"];
+            isOneToOne: false;
+            referencedRelation: "community_threads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "community_thread_reads_user_id_fkey";
+            columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];

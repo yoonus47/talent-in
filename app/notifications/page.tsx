@@ -30,6 +30,14 @@ function describe(n: FeedNotification): string {
     }
     case "group_added":
       return `added you to "${n.conversation?.name ?? "a group"}"`;
+    case "community_reply":
+      return "replied to your thread";
+    case "community_mention":
+      return "mentioned you in a community reply";
+    case "community_reaction": {
+      const reaction = REACTIONS.find((r) => r.type === n.reactionType);
+      return `reacted ${reaction?.emoji ?? ""} to your community ${n.communityReply ? "reply" : "thread"}`;
+    }
   }
 }
 
@@ -47,9 +55,14 @@ function iconFor(type: FeedNotification["type"]) {
     case "reply":
       return Reply;
     case "mention":
+    case "community_mention":
       return AtSign;
     case "group_added":
       return Users;
+    case "community_reply":
+      return Reply;
+    case "community_reaction":
+      return Heart;
     default:
       return Heart;
   }
@@ -82,14 +95,20 @@ export default async function NotificationsPage() {
         <Card className="mt-4 divide-y divide-border px-4">
           {notifications.map((n) => {
             const Icon = iconFor(n.type);
+            const isCommunity =
+              n.type === "community_reply" || n.type === "community_mention" || n.type === "community_reaction";
             const href =
               n.type === "follow"
                 ? `/profile/${n.actor.username}`
                 : (n.type === "group_added" || n.type === "mention") && n.conversation
                   ? `/chat/${n.conversation.id}`
-                  : n.post
-                    ? "/feed"
-                    : "/feed";
+                  : isCommunity && n.communityThread
+                    ? `/community/${n.communityThread.id}`
+                    : n.post
+                      ? "/feed"
+                      : "/feed";
+            const previewText =
+              n.comment?.content ?? n.post?.content ?? n.communityReply?.content ?? n.communityThread?.title ?? null;
             return (
               <Link
                 key={n.id}
@@ -107,10 +126,8 @@ export default async function NotificationsPage() {
                     <span className="font-semibold">{n.actor.full_name}</span>{" "}
                     {describe(n)}
                   </p>
-                  {(n.comment ?? n.post) && (
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {(n.comment ?? n.post)?.content}
-                    </p>
+                  {previewText && (
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{previewText}</p>
                   )}
                   <p className="mt-0.5 text-xs text-muted-foreground">{timeAgo(n.createdAt)}</p>
                 </div>

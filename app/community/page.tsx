@@ -1,25 +1,32 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { getCommunityThreads, getCommunityTopics, getCurrentProfile } from "@/lib/data";
 import { CommunityThreadRow } from "@/components/community-thread-row";
 import { TransitionLink } from "@/components/transition-link";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 export default async function CommunityPage({
   searchParams,
 }: {
-  searchParams: Promise<{ topic?: string }>;
+  searchParams: Promise<{ topic?: string; q?: string }>;
 }) {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/onboarding");
 
-  const { topic: topicSlug } = await searchParams;
+  const { topic: topicSlug, q } = await searchParams;
+  const query = q?.trim() || undefined;
   const topics = await getCommunityTopics();
   const activeTopic = topicSlug ? topics.find((t) => t.slug === topicSlug) : undefined;
-  const threads = await getCommunityThreads(activeTopic?.id);
+  const threads = await getCommunityThreads(profile.id, activeTopic?.id, query);
+
+  // Preserves whichever of topic/search the viewer already has active when
+  // they change the other one — a chip tap shouldn't silently drop a
+  // search, and searching shouldn't silently drop a topic filter.
+  const withQuery = (href: string) => (query ? `${href}${href.includes("?") ? "&" : "?"}q=${encodeURIComponent(query)}` : href);
 
   const chipClass =
     "shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors";
@@ -43,9 +50,34 @@ export default async function CommunityPage({
         </TransitionLink>
       </div>
 
-      <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
+      <form method="get" className="mt-5">
+        {activeTopic && <input type="hidden" name="topic" value={activeTopic.slug} />}
+        <div className="relative">
+          {/* A real submit button, not just a decorative icon — unlike
+              Discover's own search field (app/discover/page.tsx), which
+              always sits next to an explicit "Apply" button for its other
+              filters, this field has nothing else nearby to submit it, so
+              it can't rely on implicit Enter-to-submit alone. */}
+          <button
+            type="submit"
+            aria-label="Search"
+            className="absolute left-0 top-0 flex h-full w-9 items-center justify-center text-muted-foreground hover:text-foreground"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+          <Input
+            type="search"
+            name="q"
+            defaultValue={query}
+            placeholder="Search threads…"
+            className="pl-9"
+          />
+        </div>
+      </form>
+
+      <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
         <Link
-          href="/community"
+          href={withQuery("/community")}
           className={cn(
             chipClass,
             !activeTopic
@@ -58,7 +90,7 @@ export default async function CommunityPage({
         {topics.map((t) => (
           <Link
             key={t.id}
-            href={`/community?topic=${t.slug}`}
+            href={withQuery(`/community?topic=${t.slug}`)}
             className={cn(
               chipClass,
               activeTopic?.id === t.id
@@ -78,7 +110,9 @@ export default async function CommunityPage({
       <div className="mt-6 space-y-3">
         {threads.length === 0 ? (
           <Card className="p-8 text-center text-sm text-muted-foreground">
-            No threads here yet — be the first to start one.
+            {query
+              ? `No threads matching "${query}" here.`
+              : "No threads here yet — be the first to start one."}
           </Card>
         ) : (
           threads.map((thread) => <CommunityThreadRow key={thread.id} thread={thread} />)
