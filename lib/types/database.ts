@@ -50,7 +50,8 @@ export type NotificationType =
   | "group_added"
   | "community_reply"
   | "community_reaction"
-  | "community_mention";
+  | "community_mention"
+  | "community_best_answer";
 
 export interface Database {
   public: {
@@ -80,6 +81,13 @@ export interface Database {
           platform_os: string | null;
           platform_browser: string | null;
           platform_updated_at: string | null;
+          // Community participation total — threads/replies/best-answers
+          // in/decrement this via triggers only (0031_community_round3.sql
+          // revokes client UPDATE on this column specifically), never
+          // written directly by application code. Folded into the
+          // dashboard's "total points" stat alongside getChallengeStats'
+          // challenge-only total — see app/dashboard/page.tsx.
+          community_points: number;
           created_at: string;
         };
         Insert: {
@@ -100,6 +108,7 @@ export interface Database {
           platform_os?: string | null;
           platform_browser?: string | null;
           platform_updated_at?: string | null;
+          community_points?: number;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
@@ -802,6 +811,17 @@ export interface Database {
           // trigger, 0028_community.sql) — never part of a client insert.
           reply_count: number;
           last_activity_at: string;
+          // UI-only anonymity — author_id above is still the real author,
+          // still visible in the raw payload. See 0031_community_round3.sql.
+          is_anonymous: boolean;
+          // Both below are only ever changed via RPC (set_community_
+          // thread_pinned / set_community_best_reply, 0031), never a
+          // direct client .update() — Update stays `never` below.
+          is_pinned: boolean;
+          best_reply_id: string | null;
+          image_url: string | null;
+          image_width: number | null;
+          image_height: number | null;
           created_at: string;
         };
         Insert: {
@@ -810,10 +830,19 @@ export interface Database {
           author_id: string;
           title: string;
           body: string;
+          is_anonymous?: boolean;
+          image_url?: string | null;
+          image_width?: number | null;
+          image_height?: number | null;
           created_at?: string;
         };
-        // Immutable once posted — same convention as comments.
-        Update: never;
+        // The ONLY columns a client update() can touch — a column-level
+        // grant (0031_community_round3.sql) restricts it beneath RLS,
+        // regardless of what shape this type allows. is_pinned/
+        // best_reply_id are exclusively written by the two SECURITY
+        // DEFINER RPCs above, which bypass this grant entirely (they run
+        // as the function owner, not as the authenticated client).
+        Update: { image_url?: string | null; image_width?: number | null; image_height?: number | null };
         Relationships: [
           {
             foreignKeyName: "community_threads_topic_id_fkey";
@@ -961,12 +990,86 @@ export interface Database {
           },
         ];
       };
+      community_thread_follows: {
+        Row: { thread_id: string; user_id: string; created_at: string };
+        Insert: { thread_id: string; user_id: string; created_at?: string };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "community_thread_follows_thread_id_fkey";
+            columns: ["thread_id"];
+            isOneToOne: false;
+            referencedRelation: "community_threads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "community_thread_follows_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      community_poll_options: {
+        Row: { id: string; thread_id: string; label: string; position: number };
+        // Insert is RLS-scoped to "thread_id points at a thread I
+        // authored" (0031_community_round3.sql) — only ever called from
+        // createCommunityThread right after the thread insert itself.
+        Insert: { id?: string; thread_id: string; label: string; position: number };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "community_poll_options_thread_id_fkey";
+            columns: ["thread_id"];
+            isOneToOne: false;
+            referencedRelation: "community_threads";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      community_poll_votes: {
+        Row: { thread_id: string; user_id: string; option_id: string; created_at: string };
+        Insert: { thread_id: string; user_id: string; option_id: string; created_at?: string };
+        Update: { option_id?: string };
+        Relationships: [
+          {
+            foreignKeyName: "community_poll_votes_thread_id_fkey";
+            columns: ["thread_id"];
+            isOneToOne: false;
+            referencedRelation: "community_threads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "community_poll_votes_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "community_poll_votes_option_id_fkey";
+            columns: ["option_id"];
+            isOneToOne: false;
+            referencedRelation: "community_poll_options";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
       get_daily_challenge: {
         Args: Record<PropertyKey, never>;
         Returns: DailyChallengeQuestion[];
+      };
+      set_community_best_reply: {
+        Args: { p_thread_id: string; p_reply_id: string | null };
+        Returns: undefined;
+      };
+      set_community_thread_pinned: {
+        Args: { p_thread_id: string; p_pinned: boolean };
+        Returns: undefined;
       };
       submit_daily_challenge: {
         Args: { p_answers: DailyChallengeAnswer[] };

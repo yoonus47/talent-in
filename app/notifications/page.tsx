@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AtSign, Heart, MessageCircle, Reply, Repeat2, UserPlus, Users } from "lucide-react";
+import { AtSign, Award, Heart, MessageCircle, Reply, Repeat2, UserPlus, Users } from "lucide-react";
 import { getCurrentProfile, getNotifications, type FeedNotification } from "@/lib/data";
 import { markAllNotificationsRead } from "@/lib/actions/notifications";
 import { REACTIONS } from "@/lib/reactions";
@@ -30,14 +30,23 @@ function describe(n: FeedNotification): string {
     }
     case "group_added":
       return `added you to "${n.conversation?.name ?? "a group"}"`;
+    // Relationship-agnostic on purpose — the recipient might be the
+    // thread's author, or just someone who replied earlier and is now
+    // following it (community_thread_follows, 0031_community_round3.sql
+    // — createCommunityReply notifies every follower, not just the
+    // author). The preview line below already names the thread/reply, so
+    // "your thread" would be actively wrong for a follower who isn't the
+    // author.
     case "community_reply":
-      return "replied to your thread";
+      return "posted a new reply";
     case "community_mention":
       return "mentioned you in a community reply";
     case "community_reaction": {
       const reaction = REACTIONS.find((r) => r.type === n.reactionType);
       return `reacted ${reaction?.emoji ?? ""} to your community ${n.communityReply ? "reply" : "thread"}`;
     }
+    case "community_best_answer":
+      return "marked your reply as the best answer";
   }
 }
 
@@ -63,6 +72,8 @@ function iconFor(type: FeedNotification["type"]) {
       return Reply;
     case "community_reaction":
       return Heart;
+    case "community_best_answer":
+      return Award;
     default:
       return Heart;
   }
@@ -96,7 +107,10 @@ export default async function NotificationsPage() {
           {notifications.map((n) => {
             const Icon = iconFor(n.type);
             const isCommunity =
-              n.type === "community_reply" || n.type === "community_mention" || n.type === "community_reaction";
+              n.type === "community_reply" ||
+              n.type === "community_mention" ||
+              n.type === "community_reaction" ||
+              n.type === "community_best_answer";
             const href =
               n.type === "follow"
                 ? `/profile/${n.actor.username}`

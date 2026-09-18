@@ -65,8 +65,20 @@ export default async function DashboardPage() {
         <Card className="flex items-center gap-3 p-4">
           <Trophy className="h-8 w-8 text-accent" />
           <div>
-            <p className="text-xl font-bold leading-none">{stats.totalPoints}</p>
+            {/* getChallengeStats' own total (daily-challenge scores only)
+                plus profile.community_points (threads/replies/best-answers
+                — see supabase/migrations/0031_community_round3.sql's
+                point triggers) as one combined "total points" stat. The
+                two stay independently tracked/auditable server-side (this
+                is purely a display-time sum, not a merged column) — the
+                breakdown line underneath is what keeps that legible. */}
+            <p className="text-xl font-bold leading-none">
+              {stats.totalPoints + profile.community_points}
+            </p>
             <p className="text-xs text-muted-foreground">total points</p>
+            <p className="text-[11px] text-muted-foreground/70">
+              {stats.totalPoints} challenges · {profile.community_points} community
+            </p>
           </div>
         </Card>
       </div>

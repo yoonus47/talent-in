@@ -1051,7 +1051,35 @@ export type CommunityThreadListItem = CommunityThread & {
    * in a stricter sense; there's no separate concept of dismissing it
    * without opening the thread. */
   isNew: boolean;
+  /** Whether `currentUserId` is in community_thread_follows for this
+   * thread — auto-true for its own author and anyone who's replied (see
+   * lib/actions/community.ts), explicitly toggleable otherwise. Drives
+   * both the Follow/Following button and (via getFollowedCommunityThreadIds)
+   * the /community "Following" filter. */
+  isFollowing: boolean;
 };
+
+/** What to actually show for a thread's author — the real profile,
+ * unless it was posted anonymously (is_anonymous, 0031_community_round3.
+ * sql) and the viewer isn't the poster themselves (the author always
+ * sees their own name on their own anonymous thread, matching Reddit's
+ * "u/you" treatment on your own throwaway-flagged post). This is UI-only
+ * masking, not real anonymity — see that migration's own comment — so
+ * `thread.author.id` stays the real id underneath regardless; keep using
+ * *that* for ownership checks (delete/pin/best-answer), never this. */
+export function communityAuthorDisplay(
+  thread: Pick<CommunityThreadListItem, "author" | "is_anonymous">,
+  viewerId: string,
+): { name: string; avatarUrl: string | null; username: string | null } {
+  if (thread.is_anonymous && thread.author.id !== viewerId) {
+    return { name: "Anonymous", avatarUrl: null, username: null };
+  }
+  return {
+    name: thread.author.full_name,
+    avatarUrl: thread.author.avatar_url,
+    username: thread.author.username,
+  };
+}
 
 /** The curated topic list, in display order. */
 export async function getCommunityTopics(): Promise<CommunityTopic[]> {
@@ -1067,17 +1095,37 @@ export async function getCommunityTopics(): Promise<CommunityTopic[]> {
   return data ?? [];
 }
 
-/** Threads newest-activity-first, optionally scoped to one topic and/or a
- * search query (title/body, same `ilike` `.or(...)` shape searchProfiles
- * uses over full_name/username) — pass the topic's id (the caller already
- * has the topics list loaded for the chip row, so resolving a slug from
- * the URL to an id costs nothing extra). */
+const HOT_WINDOW_DAYS = 14;
+
+export type CommunityThreadsOptions = {
+  topicId?: string;
+  searchQuery?: string;
+  /** "new" (default) is last_activity_at desc, same as always. "hot"
+   * restricts to threads active in the last HOT_WINDOW_DAYS and ranks by
+   * reply_count + total reactions — a plain count, not a time-decayed
+   * score; simple on purpose; good enough to surface "people are piling
+   * onto this" over "whatever was bumped most recently," without the
+   * complexity a real decay function would add for a first pass. */
+  sort?: "new" | "hot";
+  /** Restricts to threads in community_thread_follows for currentUserId
+   * — "My activity," in practice: you're auto-followed on anything you
+   * start or reply to (lib/actions/community.ts), so this needs no
+   * separate "authored OR replied" query of its own. */
+  onlyFollowing?: boolean;
+};
+
+/** Threads, optionally scoped to a topic, a search query (title/body,
+ * same `ilike` `.or(...)` shape searchProfiles uses over full_name/
+ * username), a sort, and/or "only threads I'm following." Pass the
+ * topic's id (the caller already has the topics list loaded for the chip
+ * row, so resolving a slug from the URL to an id costs nothing extra). */
 export async function getCommunityThreads(
   currentUserId: string,
-  topicId?: string,
-  searchQuery?: string,
+  options: CommunityThreadsOptions = {},
 ): Promise<CommunityThreadListItem[]> {
+  const { topicId, searchQuery, sort = "new", onlyFollowing = false } = options;
   const supabase = await createClient();
+
   let query = supabase
     .from("community_threads")
     .select("*, author:profiles!community_threads_author_id_fkey(id, username, full_name, avatar_url), topic:community_topics(id, slug, name)")
@@ -1086,6 +1134,19 @@ export async function getCommunityThreads(
   if (searchQuery) {
     const escaped = searchQuery.replace(/[%,]/g, "");
     query = query.or(`title.ilike.%${escaped}%,body.ilike.%${escaped}%`);
+  }
+  if (sort === "hot") {
+    const since = new Date(Date.now() - HOT_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    query = query.gte("last_activity_at", since);
+  }
+  if (onlyFollowing) {
+    const { data: follows } = await supabase
+      .from("community_thread_follows")
+      .select("thread_id")
+      .eq("user_id", currentUserId);
+    const followedIds = (follows ?? []).map((f) => f.thread_id);
+    if (followedIds.length === 0) return [];
+    query = query.in("id", followedIds);
   }
 
   const { data, error } = await query;
@@ -1099,7 +1160,17 @@ export async function getCommunityThreads(
   })[];
   if (threads.length === 0) return [];
 
-  return attachCommunityThreadExtras(supabase, threads, currentUserId);
+  const withExtras = await attachCommunityThreadExtras(supabase, threads, currentUserId);
+
+  if (sort === "hot") {
+    withExtras.sort((a, b) => {
+      const scoreA = a.reply_count + Object.values(a.reactionCounts).reduce((x, y) => x + y, 0);
+      const scoreB = b.reply_count + Object.values(b.reactionCounts).reduce((x, y) => x + y, 0);
+      return scoreB - scoreA;
+    });
+  }
+
+  return withExtras;
 }
 
 /** A single thread + its author/topic — RLS (open select) means a null
@@ -1137,16 +1208,22 @@ async function attachCommunityThreadExtras(
   currentUserId: string,
 ): Promise<CommunityThreadListItem[]> {
   const threadIds = threads.map((t) => t.id);
-  const [{ data: reactions }, { data: reads }] = await Promise.all([
+  const [{ data: reactions }, { data: reads }, { data: follows }] = await Promise.all([
     supabase.from("community_thread_reactions").select("thread_id, user_id, reaction_type").in("thread_id", threadIds),
     supabase
       .from("community_thread_reads")
       .select("thread_id, last_viewed_at")
       .eq("user_id", currentUserId)
       .in("thread_id", threadIds),
+    supabase
+      .from("community_thread_follows")
+      .select("thread_id")
+      .eq("user_id", currentUserId)
+      .in("thread_id", threadIds),
   ]);
 
   const readByThreadId = new Map((reads ?? []).map((r) => [r.thread_id, r.last_viewed_at]));
+  const followedThreadIds = new Set((follows ?? []).map((f) => f.thread_id));
 
   return threads.map((thread) => {
     const threadReactions = reactions?.filter((r) => r.thread_id === thread.id) ?? [];
@@ -1155,8 +1232,9 @@ async function attachCommunityThreadExtras(
     const myReaction = threadReactions.find((r) => r.user_id === currentUserId)?.reaction_type ?? null;
     const lastViewedAt = readByThreadId.get(thread.id);
     const isNew = !lastViewedAt || thread.last_activity_at > lastViewedAt;
+    const isFollowing = followedThreadIds.has(thread.id);
 
-    return { ...thread, reactionCounts, myReaction, isNew };
+    return { ...thread, reactionCounts, myReaction, isNew, isFollowing };
   });
 }
 
@@ -1198,4 +1276,49 @@ export async function getCommunityReplies(
     const myReaction = replyReactions.find((r) => r.user_id === currentUserId)?.reaction_type ?? null;
     return { ...reply, reactionCounts, myReaction };
   });
+}
+
+export type CommunityPoll = {
+  options: { id: string; label: string; votes: number }[];
+  totalVotes: number;
+  /** null if this user hasn't voted (or isn't logged in) — the poll UI
+   * uses this to decide "show results" vs "show pick-an-option," same as
+   * every poll feature does. */
+  myOptionId: string | null;
+};
+
+/** A thread's poll (if it has one — null otherwise, "has options" is the
+ * only signal, no separate is_poll flag) with live vote counts and this
+ * viewer's own pick. community_poll_options is only ever written once,
+ * at thread creation (createCommunityThread) — no separate "poll changed"
+ * case to handle here. */
+export async function getCommunityPoll(
+  threadId: string,
+  currentUserId: string,
+): Promise<CommunityPoll | null> {
+  const supabase = await createClient();
+  const { data: options } = await supabase
+    .from("community_poll_options")
+    .select("id, label")
+    .eq("thread_id", threadId)
+    .order("position", { ascending: true });
+  if (!options || options.length === 0) return null;
+
+  const { data: votes } = await supabase
+    .from("community_poll_votes")
+    .select("option_id, user_id")
+    .eq("thread_id", threadId);
+
+  const votesByOption = new Map<string, number>();
+  let myOptionId: string | null = null;
+  for (const v of votes ?? []) {
+    votesByOption.set(v.option_id, (votesByOption.get(v.option_id) ?? 0) + 1);
+    if (v.user_id === currentUserId) myOptionId = v.option_id;
+  }
+
+  return {
+    options: options.map((o) => ({ id: o.id, label: o.label, votes: votesByOption.get(o.id) ?? 0 })),
+    totalVotes: votes?.length ?? 0,
+    myOptionId,
+  };
 }

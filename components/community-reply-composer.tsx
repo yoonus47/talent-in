@@ -23,15 +23,7 @@ const MENTION_QUERY_RE = /(?:^|\s)@([a-zA-Z0-9_]{0,24})$/;
  * already generic — "anyone on the platform" — so it's reused as-is, no
  * community-specific version needed.
  */
-export function CommunityReplyComposer({
-  threadId,
-  recipientId,
-}: {
-  threadId: string;
-  /** The thread author — who gets the "replied to your thread"
-   * notification (createCommunityReply, lib/actions/community.ts). */
-  recipientId: string;
-}) {
+export function CommunityReplyComposer({ threadId }: { threadId: string }) {
   const [value, setValue] = useState("");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   // username -> id, for whoever was actually picked from the dropdown —
@@ -92,7 +84,7 @@ export function CommunityReplyComposer({
       .map(([, id]) => id);
 
     startTransition(async () => {
-      await createCommunityReply(threadId, recipientId, finalIds, formData);
+      await createCommunityReply(threadId, finalIds, formData);
       setValue("");
       setMentioned(new Map());
       setCandidates([]);
