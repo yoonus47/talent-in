@@ -40,7 +40,7 @@ function CommentRow({
               DOUBLE_TAP_REACTION,
               comment.myReaction,
             )}
-            className="rounded-2xl bg-muted px-3 py-1.5"
+            className="rounded-2xl bg-muted px-3 py-1.5 transition-colors hover:bg-muted/80"
           >
             <Link
               href={`/profile/${comment.author.username}`}
@@ -94,7 +94,13 @@ function CommentRow({
       </div>
 
       {comment.replies.length > 0 && (
-        <div className="mt-2 space-y-2 pl-9">
+        // The left border is a thread line connecting a reply run back up
+        // to its parent's avatar — left-[13px] centers it under that
+        // avatar (28px wide, so its middle sits at 14px), the same trick
+        // components/message-bubble.tsx's avatar column uses to keep
+        // multi-message runs left-aligned.
+        <div className="relative mt-2 space-y-2 pl-9">
+          <div className="absolute bottom-2 left-[13px] top-0 w-px bg-border" aria-hidden />
           {comment.replies.map((reply) => (
             <CommentRow key={reply.id} comment={reply} postId={postId} canReply={false} />
           ))}

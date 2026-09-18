@@ -1,5 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { MessageCircle, Repeat2 } from "lucide-react";
+import { ChevronDown, MessageCircle, Repeat2 } from "lucide-react";
 import type { FeedAuthor, FeedPost } from "@/lib/data";
 import { setReaction, toggleShare } from "@/lib/actions/posts";
 import { Avatar } from "@/components/ui/avatar";
@@ -14,18 +17,37 @@ import { LinkPreviewCard } from "@/components/link-preview-card";
 import { PostComments } from "@/components/post-comments";
 import { MentionInput } from "@/components/mention-input";
 import { extractFirstUrl } from "@/lib/links";
-import { timeAgo } from "@/lib/utils";
+import { cn, timeAgo } from "@/lib/utils";
 
 function countAllComments(post: FeedPost): number {
   return post.comments.reduce((total, c) => total + 1 + c.replies.length, 0);
 }
 
+/**
+ * A single feed post — header, content/media, reactions, and a comment
+ * section that's collapsed by default (see `open` below) with a compose
+ * box always available underneath it, expanded or not.
+ *
+ * Client component (not just for the comment toggle's own state, but
+ * because that state has to be shared between two siblings — the count
+ * badge in the action row and the list itself, rendered many lines apart
+ * in this same tree — so it has to live here, not in either child).
+ */
 export function PostCard({ post, viewer }: { post: FeedPost; viewer: FeedAuthor }) {
+  // Comments are opt-in, not opt-out: a post with 40 comments used to
+  // dump its most recent two into every single feed load whether anyone
+  // asked for them or not. Now nothing renders until the count badge
+  // itself is tapped — posting your own top-level comment (below) also
+  // opens it, since typing one is a pretty clear signal you want to see
+  // where it landed.
+  const [open, setOpen] = useState(false);
+
   // A post never stacks two "media-like" blocks — a link preview only
   // shows up when there's no uploaded photo. Matches lib/data.ts's
   // getFeedItems, which only ever populates post.linkPreview under the
   // same condition.
   const previewUrl = post.image_url ? null : extractFirstUrl(post.content);
+  const commentCount = countAllComments(post);
 
   return (
     <Card className="p-4 transition-shadow hover:shadow-md">
@@ -83,10 +105,30 @@ export function PostCard({ post, viewer }: { post: FeedPost; viewer: FeedAuthor 
           }
         />
 
-        <span className="ml-auto flex items-center gap-1.5 text-sm text-muted-foreground">
+        {/* The one and only way comments become visible — a plain count
+            used to just sit here as inert text while PostComments quietly
+            rendered its own preview underneath regardless of whether
+            anyone had asked to see it. Disabled (no hover, no chevron)
+            once there's nothing to expand, rather than toggling `open`
+            for an empty list. */}
+        <button
+          type="button"
+          onClick={() => commentCount > 0 && setOpen((v) => !v)}
+          disabled={commentCount === 0}
+          aria-expanded={open}
+          className={cn(
+            "ml-auto flex items-center gap-1.5 rounded-full px-2 py-1 text-sm text-muted-foreground transition-colors",
+            commentCount > 0 && "hover:bg-muted hover:text-foreground",
+          )}
+        >
           <MessageCircle className="h-4 w-4" />
-          {countAllComments(post)}
-        </span>
+          {commentCount}
+          {commentCount > 0 && (
+            <ChevronDown
+              className={cn("h-3.5 w-3.5 transition-transform duration-200", open && "rotate-180")}
+            />
+          )}
+        </button>
         <form action={toggleShare.bind(null, post.id, post.author.id, post.sharedByMe)}>
           <button
             type="submit"
@@ -101,9 +143,16 @@ export function PostCard({ post, viewer }: { post: FeedPost; viewer: FeedAuthor 
         </form>
       </div>
 
-      {post.comments.length > 0 && (
-        <div className="mt-3 border-t border-border pt-3">
+      {open && commentCount > 0 && (
+        <div className="animate-comments-reveal mt-3 border-t border-border pt-3">
           <PostComments comments={post.comments} postId={post.id} />
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="mt-3 text-xs font-medium text-muted-foreground hover:text-foreground"
+          >
+            Hide comments
+          </button>
         </div>
       )}
 
@@ -115,6 +164,11 @@ export function PostCard({ post, viewer }: { post: FeedPost; viewer: FeedAuthor 
             recipientId={post.author.id}
             parentCommentId={null}
             placeholder="Add a comment…"
+            // Posting your own comment while the section is collapsed
+            // would otherwise leave it swallowed with no feedback that it
+            // actually went anywhere — opening on submit is the one
+            // exception to "only the user's own tap expands this."
+            onSubmitted={() => setOpen(true)}
           />
         </div>
       </div>

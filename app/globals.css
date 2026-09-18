@@ -295,6 +295,26 @@ body {
   animation: challenge-option-pulse 220ms ease-out;
 }
 
+/* components/post-card.tsx's comment section — collapsed by default,
+   reveals on tap. Small and quick (unlike animate-fade-up, sized for a
+   whole-page entrance) since this is just one card's content settling
+   into place, not a page arriving; a slight downward settle reads as
+   "unfolding" from the toggle button just above it. */
+@keyframes comments-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-comments-reveal {
+  animation: comments-reveal 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 /* components/chat-thread.tsx's typing indicator — three dots bouncing in
    sequence, the universal "someone's composing" affordance. Delay is set
    per-dot inline (style={{animationDelay}}), not as separate classes, so
@@ -326,6 +346,7 @@ body {
   .animate-challenge-step-in,
   .animate-challenge-option-pulse,
   .animate-typing-bounce,
+  .animate-comments-reveal,
   .brand-curtain-wipe {
     animation: none;
   }
