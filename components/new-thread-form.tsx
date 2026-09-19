@@ -5,6 +5,7 @@ import { ListPlus, X } from "lucide-react";
 import { createCommunityThread } from "@/lib/actions/community";
 import { PostImagePicker } from "@/components/post-image-picker";
 import { Button } from "@/components/ui/button";
+import { FLAIR_LABELS, FLAIR_OPTIONS } from "@/lib/community-flair";
 import type { CommunityTopic } from "@/lib/types/database";
 
 const fieldClass =
@@ -67,6 +68,20 @@ export function NewThreadForm({
           {topics.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label htmlFor="flair" className="text-sm font-medium text-foreground">
+          Flair <span className="font-normal text-muted-foreground">(optional)</span>
+        </label>
+        <select id="flair" name="flair" defaultValue="" className={`mt-1 ${fieldClass}`}>
+          <option value="">No flair</option>
+          {FLAIR_OPTIONS.map((f) => (
+            <option key={f} value={f}>
+              {FLAIR_LABELS[f]}
             </option>
           ))}
         </select>

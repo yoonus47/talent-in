@@ -1,7 +1,17 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Award, Bell, BellOff, Pin, PinOff } from "lucide-react";
+import {
+  ArrowLeft,
+  Bell,
+  BellOff,
+  Bookmark,
+  BookmarkCheck,
+  Pin,
+  PinOff,
+  Share2,
+  Trophy,
+} from "lucide-react";
 import {
   communityAuthorDisplay,
   getCommunityPoll,
@@ -11,39 +21,45 @@ import {
 } from "@/lib/data";
 import {
   markCommunityThreadRead,
-  setCommunityBestReply,
-  setCommunityReplyReaction,
   setCommunityThreadPinned,
   setCommunityThreadReaction,
   toggleCommunityThreadFollow,
+  toggleCommunityThreadSave,
   voteCommunityPoll,
 } from "@/lib/actions/community";
 import { BackLink } from "@/components/back-link";
 import { CommunityReplyComposer } from "@/components/community-reply-composer";
-import { DeleteCommunityReplyButton } from "@/components/delete-community-reply-button";
+import { CommunityReplyRow } from "@/components/community-reply-row";
 import { DeleteCommunityThreadButton } from "@/components/delete-community-thread-button";
 import { DoubleTapReact, DOUBLE_TAP_REACTION } from "@/components/double-tap-react";
 import { ReactionRow } from "@/components/reaction-row";
 import { ReactionSummary } from "@/components/reaction-summary";
+import { ReportButton } from "@/components/report-button";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { FLAIR_LABELS } from "@/lib/community-flair";
 import { cn, postImageCssAspectRatio, timeAgo } from "@/lib/utils";
 
 export default async function CommunityThreadPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ replySort?: string }>;
 }) {
   const viewer = await getCurrentProfile();
   if (!viewer) redirect("/onboarding");
 
   const { id } = await params;
+  const { replySort } = await searchParams;
+  const sort = replySort === "top" ? "top" : "new";
+
   const thread = await getCommunityThread(id, viewer.id);
   if (!thread) notFound();
 
   const [replies, poll] = await Promise.all([
-    getCommunityReplies(id, viewer.id),
+    getCommunityReplies(id, viewer.id, sort),
     getCommunityPoll(id, viewer.id),
   ]);
 
@@ -59,25 +75,37 @@ export default async function CommunityThreadPage({
 
   const author = communityAuthorDisplay(thread, viewer.id);
   const isOwnThread = thread.author.id === viewer.id;
+  const totalReplyCount = replies.reduce((sum, r) => sum + 1 + r.replies.length, 0);
 
-  // The best-marked reply (if any) floats to the top; everyone else keeps
-  // their normal chronological order — a stable partial sort, not a full
-  // re-sort, so the discussion still reads top-to-bottom underneath it.
-  const sortedReplies = thread.best_reply_id
-    ? [...replies].sort((a, b) => {
-        if (a.id === thread.best_reply_id) return -1;
-        if (b.id === thread.best_reply_id) return 1;
-        return 0;
-      })
+  // The best-marked reply's *top-level* thread floats to the very top,
+  // regardless of New/Top sort — unchanged from round 3, just re-targeted
+  // at a top-level reply's id now that replies can nest one level. If the
+  // best reply is itself nested, its parent (whole sub-thread, not just
+  // the one bubble) floats up instead — pulling only the nested reply out
+  // of its own context would read more confusingly than moving the pair
+  // together. A stable partial reorder, not a full re-sort: everyone else
+  // keeps whatever order New/Top already gave them.
+  const bestTopLevelId = thread.best_reply_id
+    ? replies.find(
+        (r) => r.id === thread.best_reply_id || r.replies.some((child) => child.id === thread.best_reply_id),
+      )?.id
+    : undefined;
+  const orderedReplies = bestTopLevelId
+    ? [...replies.filter((r) => r.id === bestTopLevelId), ...replies.filter((r) => r.id !== bestTopLevelId)]
     : replies;
+
+  const shareText = `"${thread.title}"\n\n${thread.body.slice(0, 200)}${thread.body.length > 200 ? "…" : ""}\n\n${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/community/${thread.id}`;
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <BackLink fallbackHref="/community" aria-label="Back to community">
           <ArrowLeft className="h-5 w-5 text-muted-foreground hover:text-foreground" />
         </BackLink>
         <Badge variant="outline">{thread.topic.name}</Badge>
+        {thread.flair && <Badge variant="outline">{FLAIR_LABELS[thread.flair]}</Badge>}
+        {poll && <Badge variant="outline">📊 Poll</Badge>}
+        {thread.best_reply_id && <Badge variant="outline">✓ Solved</Badge>}
         {thread.is_pinned && (
           <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
             <Pin className="h-3 w-3" />
@@ -97,6 +125,17 @@ export default async function CommunityThreadPage({
           ) : (
             <span className="font-medium text-foreground">{author.name}</span>
           )}
+          {/* No karma badge for an anonymous-to-this-viewer author — there's
+              no real profile being shown to attach a number to. */}
+          {author.username && thread.author.community_points > 0 && (
+            <span
+              title={`${thread.author.community_points} community points`}
+              className="flex items-center gap-0.5 text-xs font-medium"
+            >
+              <Trophy className="h-3 w-3" />
+              {thread.author.community_points}
+            </span>
+          )}
           <span>·</span>
           <span>{timeAgo(thread.created_at)}</span>
 
@@ -115,6 +154,21 @@ export default async function CommunityThreadPage({
                 </button>
               </form>
             )}
+            {/* Save is a purely personal bookmark — no notifications
+                implied, unlike Follow just below. */}
+            <form action={toggleCommunityThreadSave.bind(null, thread.id, thread.isSaved)}>
+              <button
+                type="submit"
+                title={thread.isSaved ? "Unsave" : "Save for later"}
+                className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                {thread.isSaved ? (
+                  <BookmarkCheck className="h-4 w-4 text-primary" />
+                ) : (
+                  <Bookmark className="h-4 w-4" />
+                )}
+              </button>
+            </form>
             {/* Replying already auto-follows (createCommunityReply) — this
                 is for watching without posting, or opting back out. */}
             <form action={toggleCommunityThreadFollow.bind(null, thread.id, thread.isFollowing)}>
@@ -131,6 +185,19 @@ export default async function CommunityThreadPage({
                 {thread.isFollowing ? "Following" : "Follow"}
               </button>
             </form>
+            {/* Crosspost-to-feed, deliberately lightweight: this opens the
+                feed's own composer with an editable draft pre-filled, not
+                an auto-posted rich embed card — see app/feed/page.tsx's
+                own comment on why a true nested "shared thread" preview
+                inside FeedPost was out of scope for this round. */}
+            <Link
+              href={`/feed?prefill=${encodeURIComponent(shareText)}`}
+              title="Share to feed"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Share2 className="h-4 w-4" />
+            </Link>
+            {!isOwnThread && <ReportButton targetType="thread" targetId={thread.id} />}
             {isOwnThread && <DeleteCommunityThreadButton threadId={thread.id} />}
           </div>
         </div>
@@ -210,99 +277,39 @@ export default async function CommunityThreadPage({
       </Card>
 
       <div className="mt-6 space-y-4">
-        <h2 className="text-sm font-semibold text-muted-foreground">
-          {replies.length} {replies.length === 1 ? "reply" : "replies"}
-        </h2>
-
-        {sortedReplies.map((reply) => {
-          const isBest = reply.id === thread.best_reply_id;
-          return (
-            <div key={reply.id} className="flex items-start gap-2 text-sm">
-              <Link href={`/profile/${reply.author.username}`} className="shrink-0">
-                <Avatar name={reply.author.full_name} src={reply.author.avatar_url} size={28} />
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            {totalReplyCount} {totalReplyCount === 1 ? "reply" : "replies"}
+          </h2>
+          {replies.length > 1 && (
+            <div className="flex items-center gap-2 text-xs">
+              <Link
+                href={`/community/${id}`}
+                className={cn("font-medium", sort === "new" ? "text-primary" : "text-muted-foreground hover:text-foreground")}
+              >
+                New
               </Link>
-              <div className="min-w-0 flex-1">
-                {isBest && (
-                  <p className="mb-1 flex items-center gap-1 pl-3 text-xs font-medium text-primary">
-                    <Award className="h-3.5 w-3.5" />
-                    Best answer
-                  </p>
-                )}
-                <DoubleTapReact
-                  myReaction={reply.myReaction}
-                  reactAction={setCommunityReplyReaction.bind(
-                    null,
-                    reply.id,
-                    thread.id,
-                    reply.author.id,
-                    DOUBLE_TAP_REACTION,
-                    reply.myReaction,
-                  )}
-                  className={cn(
-                    "rounded-2xl px-3 py-2 transition-colors",
-                    isBest ? "border border-primary/40 bg-primary/5 hover:bg-primary/10" : "bg-muted hover:bg-muted/80",
-                  )}
-                >
-                  {/* No onClick stopPropagation here (unlike components/
-                      comment-thread.tsx's own CommentRow, which can afford
-                      one — it's a Client Component itself) — this whole
-                      page is a Server Component, and an event handler
-                      can't cross into DoubleTapReact's children from here.
-                      Harmless to omit: a single click just starts
-                      DoubleTapReact's own tap timer alongside the Link's
-                      normal navigation, it doesn't block it. */}
-                  <Link
-                    href={`/profile/${reply.author.username}`}
-                    className="text-xs font-semibold text-foreground hover:underline"
-                  >
-                    {reply.author.full_name}
-                  </Link>
-                  <p className="mt-0.5 whitespace-pre-wrap text-foreground">{reply.content}</p>
-                </DoubleTapReact>
-                <div className="mt-0.5 flex items-center gap-3 pl-3 text-xs text-muted-foreground">
-                  <span>{timeAgo(reply.created_at)}</span>
-                  <ReactionSummary counts={reply.reactionCounts} size="sm" />
-                  <ReactionRow
-                    size="sm"
-                    counts={reply.reactionCounts}
-                    myReaction={reply.myReaction}
-                    buildAction={(type) =>
-                      setCommunityReplyReaction.bind(null, reply.id, thread.id, reply.author.id, type, reply.myReaction)
-                    }
-                  />
-                  {/* Only the thread's own author can mark a best answer —
-                      matches pinning's "curate your own thread" scope,
-                      enforced server-side too (set_community_best_reply
-                      RPC, 0031_community_round3.sql). */}
-                  {isOwnThread && (
-                    <form
-                      action={setCommunityBestReply.bind(null, thread.id, isBest ? null : reply.id)}
-                      className="ml-auto"
-                    >
-                      <button
-                        type="submit"
-                        title={isBest ? "Unmark as best answer" : "Mark as best answer"}
-                        className={cn(
-                          "flex items-center gap-1 font-medium hover:text-primary",
-                          isBest && "text-primary",
-                        )}
-                      >
-                        <Award className="h-3.5 w-3.5" />
-                      </button>
-                    </form>
-                  )}
-                  {reply.author.id === viewer.id && (
-                    <DeleteCommunityReplyButton
-                      replyId={reply.id}
-                      threadId={thread.id}
-                      className={isOwnThread ? "" : "ml-auto"}
-                    />
-                  )}
-                </div>
-              </div>
+              <Link
+                href={`/community/${id}?replySort=top`}
+                className={cn("font-medium", sort === "top" ? "text-primary" : "text-muted-foreground hover:text-foreground")}
+              >
+                Top
+              </Link>
             </div>
-          );
-        })}
+          )}
+        </div>
+
+        {orderedReplies.map((reply) => (
+          <CommunityReplyRow
+            key={reply.id}
+            reply={reply}
+            threadId={thread.id}
+            viewerId={viewer.id}
+            isOwnThread={isOwnThread}
+            bestReplyId={thread.best_reply_id}
+            depth={0}
+          />
+        ))}
       </div>
 
       <div className="mt-6">

@@ -1037,8 +1037,14 @@ export async function getConversationDeliveryReceipts(
 // disambiguating !fkey needed for author/topic since community_threads/
 // community_replies each have only one FK to profiles.
 
+/** An author as embedded in a thread/reply — FeedAuthor plus id (as
+ * elsewhere in this file) plus community_points, so a karma badge can
+ * render next to a name with no extra query. Selected directly in the
+ * embedded `author:profiles!...fkey(...)` queries below. */
+export type CommunityAuthor = FeedAuthor & { id: string; community_points: number };
+
 export type CommunityThreadListItem = CommunityThread & {
-  author: FeedAuthor & { id: string };
+  author: CommunityAuthor;
   topic: Pick<CommunityTopic, "id" | "slug" | "name">;
   reactionCounts: Record<ReactionType, number>;
   myReaction: ReactionType | null;
@@ -1057,6 +1063,17 @@ export type CommunityThreadListItem = CommunityThread & {
    * both the Follow/Following button and (via getFollowedCommunityThreadIds)
    * the /community "Following" filter. */
   isFollowing: boolean;
+  /** Whether `currentUserId` has bookmarked this thread
+   * (community_thread_saves, 0033_community_round4.sql) — a purely
+   * personal marker, unlike isFollowing this implies no notifications and
+   * nobody else ever reads it. Drives the Save button and the "Saved"
+   * list filter. */
+  isSaved: boolean;
+  /** Whether this thread has a poll — "📊 Poll" auto-badge, both here and
+   * on the thread page. Not stored on the row itself (no is_poll flag —
+   * "has options" already answers it), so this is batched alongside the
+   * other extras rather than requiring a second round-trip per row. */
+  hasPoll: boolean;
 };
 
 /** What to actually show for a thread's author — the real profile,
@@ -1112,6 +1129,9 @@ export type CommunityThreadsOptions = {
    * start or reply to (lib/actions/community.ts), so this needs no
    * separate "authored OR replied" query of its own. */
   onlyFollowing?: boolean;
+  /** Restricts to threads in community_thread_saves for currentUserId —
+   * a purely personal bookmark list, independent of onlyFollowing. */
+  onlySaved?: boolean;
 };
 
 /** Threads, optionally scoped to a topic, a search query (title/body,
@@ -1123,12 +1143,12 @@ export async function getCommunityThreads(
   currentUserId: string,
   options: CommunityThreadsOptions = {},
 ): Promise<CommunityThreadListItem[]> {
-  const { topicId, searchQuery, sort = "new", onlyFollowing = false } = options;
+  const { topicId, searchQuery, sort = "new", onlyFollowing = false, onlySaved = false } = options;
   const supabase = await createClient();
 
   let query = supabase
     .from("community_threads")
-    .select("*, author:profiles!community_threads_author_id_fkey(id, username, full_name, avatar_url), topic:community_topics(id, slug, name)")
+    .select("*, author:profiles!community_threads_author_id_fkey(id, username, full_name, avatar_url, community_points), topic:community_topics(id, slug, name)")
     .order("last_activity_at", { ascending: false });
   if (topicId) query = query.eq("topic_id", topicId);
   if (searchQuery) {
@@ -1148,6 +1168,15 @@ export async function getCommunityThreads(
     if (followedIds.length === 0) return [];
     query = query.in("id", followedIds);
   }
+  if (onlySaved) {
+    const { data: saves } = await supabase
+      .from("community_thread_saves")
+      .select("thread_id")
+      .eq("user_id", currentUserId);
+    const savedIds = (saves ?? []).map((s) => s.thread_id);
+    if (savedIds.length === 0) return [];
+    query = query.in("id", savedIds);
+  }
 
   const { data, error } = await query;
   if (error) {
@@ -1155,7 +1184,7 @@ export async function getCommunityThreads(
     return [];
   }
   const threads = (data ?? []) as unknown as (CommunityThread & {
-    author: FeedAuthor & { id: string };
+    author: CommunityAuthor;
     topic: Pick<CommunityTopic, "id" | "slug" | "name">;
   })[];
   if (threads.length === 0) return [];
@@ -1182,13 +1211,13 @@ export async function getCommunityThread(
   const supabase = await createClient();
   const { data } = await supabase
     .from("community_threads")
-    .select("*, author:profiles!community_threads_author_id_fkey(id, username, full_name, avatar_url), topic:community_topics(id, slug, name)")
+    .select("*, author:profiles!community_threads_author_id_fkey(id, username, full_name, avatar_url, community_points), topic:community_topics(id, slug, name)")
     .eq("id", id)
     .maybeSingle();
   if (!data) return null;
   const [withExtras] = await attachCommunityThreadExtras(
     supabase,
-    [data as unknown as CommunityThread & { author: FeedAuthor & { id: string }; topic: Pick<CommunityTopic, "id" | "slug" | "name"> }],
+    [data as unknown as CommunityThread & { author: CommunityAuthor; topic: Pick<CommunityTopic, "id" | "slug" | "name"> }],
     currentUserId,
   );
   return withExtras;
@@ -1202,28 +1231,37 @@ export async function getCommunityThread(
 async function attachCommunityThreadExtras(
   supabase: SupabaseClient<Database>,
   threads: (CommunityThread & {
-    author: FeedAuthor & { id: string };
+    author: CommunityAuthor;
     topic: Pick<CommunityTopic, "id" | "slug" | "name">;
   })[],
   currentUserId: string,
 ): Promise<CommunityThreadListItem[]> {
   const threadIds = threads.map((t) => t.id);
-  const [{ data: reactions }, { data: reads }, { data: follows }] = await Promise.all([
-    supabase.from("community_thread_reactions").select("thread_id, user_id, reaction_type").in("thread_id", threadIds),
-    supabase
-      .from("community_thread_reads")
-      .select("thread_id, last_viewed_at")
-      .eq("user_id", currentUserId)
-      .in("thread_id", threadIds),
-    supabase
-      .from("community_thread_follows")
-      .select("thread_id")
-      .eq("user_id", currentUserId)
-      .in("thread_id", threadIds),
-  ]);
+  const [{ data: reactions }, { data: reads }, { data: follows }, { data: saves }, { data: polls }] =
+    await Promise.all([
+      supabase.from("community_thread_reactions").select("thread_id, user_id, reaction_type").in("thread_id", threadIds),
+      supabase
+        .from("community_thread_reads")
+        .select("thread_id, last_viewed_at")
+        .eq("user_id", currentUserId)
+        .in("thread_id", threadIds),
+      supabase
+        .from("community_thread_follows")
+        .select("thread_id")
+        .eq("user_id", currentUserId)
+        .in("thread_id", threadIds),
+      supabase
+        .from("community_thread_saves")
+        .select("thread_id")
+        .eq("user_id", currentUserId)
+        .in("thread_id", threadIds),
+      supabase.from("community_poll_options").select("thread_id").in("thread_id", threadIds),
+    ]);
 
   const readByThreadId = new Map((reads ?? []).map((r) => [r.thread_id, r.last_viewed_at]));
   const followedThreadIds = new Set((follows ?? []).map((f) => f.thread_id));
+  const savedThreadIds = new Set((saves ?? []).map((s) => s.thread_id));
+  const pollThreadIds = new Set((polls ?? []).map((p) => p.thread_id));
 
   return threads.map((thread) => {
     const threadReactions = reactions?.filter((r) => r.thread_id === thread.id) ?? [];
@@ -1233,34 +1271,48 @@ async function attachCommunityThreadExtras(
     const lastViewedAt = readByThreadId.get(thread.id);
     const isNew = !lastViewedAt || thread.last_activity_at > lastViewedAt;
     const isFollowing = followedThreadIds.has(thread.id);
+    const hasPoll = pollThreadIds.has(thread.id);
+    const isSaved = savedThreadIds.has(thread.id);
 
-    return { ...thread, reactionCounts, myReaction, isNew, isFollowing };
+    return { ...thread, reactionCounts, myReaction, isNew, isFollowing, isSaved, hasPoll };
   });
 }
 
 export type CommunityReplyItem = CommunityReply & {
-  author: FeedAuthor & { id: string };
+  author: CommunityAuthor;
   reactionCounts: Record<ReactionType, number>;
   myReaction: ReactionType | null;
+  /** One level of nesting only (parent_reply_id, 0033_community_round4.
+   * sql) — always empty on a reply that's itself nested, exactly matching
+   * FeedComment's own shape/reasoning above for feed comments. */
+  replies: CommunityReplyItem[];
 };
 
-/** A thread's replies, oldest first (chronological discussion order, same
- * as getMessages for chat). */
+/** A thread's replies, grouped one level deep (top-level + their direct
+ * replies) — same shape/reasoning as this file's own buildFeedComment for
+ * feed comments, just applied to community_replies. `sort` only reorders
+ * the *top-level* list ("new" = chronological, current default; "top" =
+ * total reactions desc) — each top-level reply's own nested replies stay
+ * chronological regardless, sorting a 1-2 item list has no real value.
+ * The thread's best_reply_id (if set, at either level) floats above all
+ * of this at render time — unchanged from round 3, handled by the page,
+ * not here. */
 export async function getCommunityReplies(
   threadId: string,
   currentUserId: string,
+  sort: "new" | "top" = "new",
 ): Promise<CommunityReplyItem[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("community_replies")
-    .select("*, author:profiles!community_replies_author_id_fkey(id, username, full_name, avatar_url)")
+    .select("*, author:profiles!community_replies_author_id_fkey(id, username, full_name, avatar_url, community_points)")
     .eq("thread_id", threadId)
     .order("created_at", { ascending: true });
   if (error) {
     console.error("getCommunityReplies failed:", error.message);
     return [];
   }
-  const replies = (data ?? []) as unknown as (CommunityReply & { author: FeedAuthor & { id: string } })[];
+  const replies = (data ?? []) as unknown as (CommunityReply & { author: CommunityAuthor })[];
   if (replies.length === 0) return [];
 
   const replyIds = replies.map((r) => r.id);
@@ -1269,13 +1321,28 @@ export async function getCommunityReplies(
     .select("reply_id, user_id, reaction_type")
     .in("reply_id", replyIds);
 
-  return replies.map((reply) => {
+  function buildReplyItem(reply: (typeof replies)[number]): CommunityReplyItem {
     const replyReactions = reactions?.filter((r) => r.reply_id === reply.id) ?? [];
     const reactionCounts = { ...EMPTY_REACTION_COUNTS };
     for (const r of replyReactions) reactionCounts[r.reaction_type] += 1;
     const myReaction = replyReactions.find((r) => r.user_id === currentUserId)?.reaction_type ?? null;
-    return { ...reply, reactionCounts, myReaction };
-  });
+    return { ...reply, reactionCounts, myReaction, replies: [] };
+  }
+
+  const topLevel = replies.filter((r) => !r.parent_reply_id).map(buildReplyItem);
+  for (const top of topLevel) {
+    top.replies = replies.filter((r) => r.parent_reply_id === top.id).map(buildReplyItem);
+  }
+
+  if (sort === "top") {
+    topLevel.sort((a, b) => {
+      const scoreA = Object.values(a.reactionCounts).reduce((x, y) => x + y, 0);
+      const scoreB = Object.values(b.reactionCounts).reduce((x, y) => x + y, 0);
+      return scoreB - scoreA;
+    });
+  }
+
+  return topLevel;
 }
 
 export type CommunityPoll = {

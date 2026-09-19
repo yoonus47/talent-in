@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Flame, Pin, Plus, Search, Sparkles } from "lucide-react";
+import { Bookmark, Flame, Pin, Plus, Search, Sparkles } from "lucide-react";
 import { getCommunityThreads, getCommunityTopics, getCurrentProfile } from "@/lib/data";
 import { CommunityThreadRow } from "@/components/community-thread-row";
 import { TransitionLink } from "@/components/transition-link";
@@ -12,15 +12,16 @@ import { cn } from "@/lib/utils";
 export default async function CommunityPage({
   searchParams,
 }: {
-  searchParams: Promise<{ topic?: string; q?: string; sort?: string; mine?: string }>;
+  searchParams: Promise<{ topic?: string; q?: string; sort?: string; mine?: string; saved?: string }>;
 }) {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/onboarding");
 
-  const { topic: topicSlug, q, sort: sortParam, mine } = await searchParams;
+  const { topic: topicSlug, q, sort: sortParam, mine, saved } = await searchParams;
   const query = q?.trim() || undefined;
   const sort = sortParam === "hot" ? "hot" : "new";
   const onlyFollowing = mine === "1";
+  const onlySaved = saved === "1";
   const topics = await getCommunityTopics();
   const activeTopic = topicSlug ? topics.find((t) => t.slug === topicSlug) : undefined;
   const threads = await getCommunityThreads(profile.id, {
@@ -28,23 +29,30 @@ export default async function CommunityPage({
     searchQuery: query,
     sort,
     onlyFollowing,
+    onlySaved,
   });
 
   // Pinned threads (author-curated, no site-wide admin concept here — see
   // lib/actions/community.ts's setCommunityThreadPinned) get their own
   // section above the regular list, but only on the plain "newest" view —
-  // mixing them into a Hot ranking or a personal Following filter would
-  // fight both of those views' own point.
-  const showPinnedSection = sort === "new" && !onlyFollowing;
+  // mixing them into a Hot ranking or a personal Following/Saved filter
+  // would fight both of those views' own point.
+  const showPinnedSection = sort === "new" && !onlyFollowing && !onlySaved;
   const pinnedThreads = showPinnedSection ? threads.filter((t) => t.is_pinned) : [];
   const regularThreads = showPinnedSection ? threads.filter((t) => !t.is_pinned) : threads;
 
-  // Preserves whichever of search/sort/following the viewer already has
-  // active when they change something else — a chip tap shouldn't
+  // Preserves whichever of search/sort/following/saved the viewer already
+  // has active when they change something else — a chip tap shouldn't
   // silently drop a search, switching to Hot shouldn't drop "mine," etc.
   function withParams(href: string, overrides: Record<string, string | undefined> = {}) {
     const params = new URLSearchParams();
-    const merged = { q: query, sort: sort === "hot" ? "hot" : undefined, mine: onlyFollowing ? "1" : undefined, ...overrides };
+    const merged = {
+      q: query,
+      sort: sort === "hot" ? "hot" : undefined,
+      mine: onlyFollowing ? "1" : undefined,
+      saved: onlySaved ? "1" : undefined,
+      ...overrides,
+    };
     for (const [key, value] of Object.entries(merged)) {
       if (value) params.set(key, value);
     }
@@ -80,6 +88,7 @@ export default async function CommunityPage({
         {activeTopic && <input type="hidden" name="topic" value={activeTopic.slug} />}
         {sort === "hot" && <input type="hidden" name="sort" value="hot" />}
         {onlyFollowing && <input type="hidden" name="mine" value="1" />}
+        {onlySaved && <input type="hidden" name="saved" value="1" />}
         <div className="relative">
           {/* A real submit button, not just a decorative icon — unlike
               Discover's own search field (app/discover/page.tsx), which
@@ -145,6 +154,16 @@ export default async function CommunityPage({
         >
           Following
         </Link>
+        <Link
+          href={withParams("/community", {
+            topic: activeTopic?.slug,
+            saved: onlySaved ? undefined : "1",
+          })}
+          className={cn(chipClass, "gap-1", onlySaved ? activeChip : inactiveChip)}
+        >
+          <Bookmark className="h-3.5 w-3.5" />
+          Saved
+        </Link>
       </div>
 
       {activeTopic && (
@@ -168,9 +187,11 @@ export default async function CommunityPage({
           <Card className="p-8 text-center text-sm text-muted-foreground">
             {query
               ? `No threads matching "${query}" here.`
-              : onlyFollowing
-                ? "You're not following any threads yet — reply to or follow one to see it here."
-                : "No threads here yet — be the first to start one."}
+              : onlySaved
+                ? "You haven't saved any threads yet."
+                : onlyFollowing
+                  ? "You're not following any threads yet — reply to or follow one to see it here."
+                  : "No threads here yet — be the first to start one."}
           </Card>
         ) : (
           regularThreads.map((thread) => (

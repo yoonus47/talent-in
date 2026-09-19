@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { ReactionSummary } from "@/components/reaction-summary";
 import { TransitionLink } from "@/components/transition-link";
 import { communityAuthorDisplay } from "@/lib/data";
+import { FLAIR_LABELS } from "@/lib/community-flair";
 import { timeAgo } from "@/lib/utils";
 import type { CommunityThreadListItem } from "@/lib/data";
 
@@ -28,7 +29,12 @@ export function CommunityThreadRow({
     <TransitionLink href={`/community/${thread.id}`} direction="forward" className="block">
       <Card className="p-4 transition-shadow hover:shadow-md">
         <div className="flex items-center justify-between gap-2">
-          <Badge variant="outline">{thread.topic.name}</Badge>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge variant="outline">{thread.topic.name}</Badge>
+            {thread.flair && <Badge variant="outline">{FLAIR_LABELS[thread.flair]}</Badge>}
+            {thread.hasPoll && <Badge variant="outline">📊 Poll</Badge>}
+            {thread.best_reply_id && <Badge variant="outline">✓ Solved</Badge>}
+          </div>
           <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
             {thread.isNew && <span className="h-2 w-2 rounded-full bg-primary" aria-label="New activity" />}
             {timeAgo(thread.last_activity_at)}

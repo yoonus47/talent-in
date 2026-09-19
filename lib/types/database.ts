@@ -20,6 +20,11 @@ export type ContentType = "article" | "video" | "quiz_link";
 
 export type ChallengeSubject = "math" | "science" | "vocabulary";
 
+/** A thread's author-chosen tag — a small fixed set, not a per-topic
+ * custom-flair system like Reddit's (no moderator role exists here to
+ * manage one). See 0033_community_round4.sql. */
+export type CommunityFlair = "question" | "discussion" | "advice" | "resource";
+
 export type DailyChallengeQuestion = {
   id: string;
   subject: ChallengeSubject;
@@ -822,6 +827,10 @@ export interface Database {
           image_url: string | null;
           image_width: number | null;
           image_height: number | null;
+          // Author-chosen, from a small fixed set (0033_community_
+          // round4.sql) — "Poll"/"Solved" are computed at render time
+          // instead (has poll options / best_reply_id set), not stored.
+          flair: CommunityFlair | null;
           created_at: string;
         };
         Insert: {
@@ -834,6 +843,7 @@ export interface Database {
           image_url?: string | null;
           image_width?: number | null;
           image_height?: number | null;
+          flair?: CommunityFlair | null;
           created_at?: string;
         };
         // The ONLY columns a client update() can touch — a column-level
@@ -867,6 +877,13 @@ export interface Database {
           author_id: string;
           content: string;
           mentioned_user_ids: string[];
+          // One level only, enforced in createCommunityReply (lib/actions/
+          // community.ts), not here — same posture as comments.
+          // parent_comment_id. Null on a top-level reply.
+          parent_reply_id: string | null;
+          image_url: string | null;
+          image_width: number | null;
+          image_height: number | null;
           created_at: string;
         };
         Insert: {
@@ -875,9 +892,15 @@ export interface Database {
           author_id: string;
           content: string;
           mentioned_user_ids?: string[];
+          parent_reply_id?: string | null;
           created_at?: string;
         };
-        Update: never;
+        // The ONLY columns a client update() can touch — same column-
+        // level-grant story as community_threads' own image columns
+        // (0031/0033_community_round4.sql): a normal RLS policy pairs
+        // with a narrower grant, so title/content/parent_reply_id/etc.
+        // stay locked down regardless of this type.
+        Update: { image_url?: string | null; image_width?: number | null; image_height?: number | null };
         Relationships: [
           {
             foreignKeyName: "community_replies_thread_id_fkey";
@@ -891,6 +914,13 @@ export interface Database {
             columns: ["author_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "community_replies_parent_reply_id_fkey";
+            columns: ["parent_reply_id"];
+            isOneToOne: false;
+            referencedRelation: "community_replies";
             referencedColumns: ["id"];
           },
         ];
@@ -1052,6 +1082,73 @@ export interface Database {
             columns: ["option_id"];
             isOneToOne: false;
             referencedRelation: "community_poll_options";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      community_reports: {
+        Row: {
+          id: string;
+          reporter_id: string;
+          thread_id: string | null;
+          reply_id: string | null;
+          reason: "spam" | "harassment" | "inappropriate" | "other";
+          details: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          reporter_id: string;
+          thread_id?: string | null;
+          reply_id?: string | null;
+          reason: "spam" | "harassment" | "inappropriate" | "other";
+          details?: string | null;
+          created_at?: string;
+        };
+        // Insert-only from the client — no select policy exists at all
+        // (0033_community_round4.sql), so nothing ever reads this back.
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "community_reports_reporter_id_fkey";
+            columns: ["reporter_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "community_reports_thread_id_fkey";
+            columns: ["thread_id"];
+            isOneToOne: false;
+            referencedRelation: "community_threads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "community_reports_reply_id_fkey";
+            columns: ["reply_id"];
+            isOneToOne: false;
+            referencedRelation: "community_replies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      community_thread_saves: {
+        Row: { thread_id: string; user_id: string; created_at: string };
+        Insert: { thread_id: string; user_id: string; created_at?: string };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "community_thread_saves_thread_id_fkey";
+            columns: ["thread_id"];
+            isOneToOne: false;
+            referencedRelation: "community_threads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "community_thread_saves_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];

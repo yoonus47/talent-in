@@ -7,10 +7,62 @@ import { communityReplySchema, communityThreadSchema } from "@/lib/validation";
 import type { ReactionType } from "@/lib/reactions";
 import { notify } from "@/lib/notify";
 import { validateImageFile, extensionFor, storagePathFromPublicUrl } from "@/lib/uploads";
+import type { CommunityFlair } from "@/lib/types/database";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/types/database";
+import { FLAIR_OPTIONS } from "@/lib/community-flair";
 
 const MAX_THREAD_IMAGE_BYTES = 5 * 1024 * 1024; // matches MAX_POST_IMAGE_BYTES (posts.ts)
 const MIN_POLL_OPTIONS = 2;
 const MAX_POLL_OPTIONS = 6;
+const REPORT_REASONS = ["spam", "harassment", "inappropriate", "other"] as const;
+
+/**
+ * Uploads a thread/reply image to the shared post-images bucket and
+ * returns its public URL + dimensions — shared by createCommunityThread
+ * and createCommunityReply below (both attach an image to an already-
+ * inserted row, after the fact, same as createPost's own "text must
+ * never be lost to a photo problem" ordering; see either call site for
+ * why). Returns null on any failure — every caller treats that as
+ * "no image," never as a reason to fail the whole post, matching how
+ * createPost's own image half already behaves.
+ */
+async function uploadCommunityImage(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  file: File,
+  formData: FormData,
+): Promise<{ url: string; width: number | null; height: number | null } | null> {
+  const validationError = validateImageFile(file, MAX_THREAD_IMAGE_BYTES);
+  if (validationError) {
+    console.error("community image rejected:", validationError);
+    return null;
+  }
+  // Nested under the user's own id first (not "community/<id>/...") —
+  // the post-images bucket's insert policy (0008_post_images_storage.sql)
+  // only checks the *first* path segment is the caller's own uid, so
+  // this still satisfies it while keeping community uploads visibly
+  // separate from feed post images.
+  const path = `${userId}/community/${crypto.randomUUID()}.${extensionFor(file.type)}`;
+  const { error: uploadError } = await supabase.storage
+    .from("post-images")
+    .upload(path, file, { contentType: file.type });
+  if (uploadError) {
+    console.error("community image upload failed:", uploadError.message);
+    return null;
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("post-images").getPublicUrl(path);
+  const width = Number(formData.get("imageWidth"));
+  const height = Number(formData.get("imageHeight"));
+  return {
+    url: publicUrl,
+    width: Number.isFinite(width) && width > 0 ? width : null,
+    height: Number.isFinite(height) && height > 0 ? height : null,
+  };
+}
 
 /**
  * Starts a new thread under `topicId` and redirects into it — mirrors
@@ -45,6 +97,8 @@ export async function createCommunityThread(topicId: string, formData: FormData)
   }
 
   const isAnonymous = formData.get("isAnonymous") === "on";
+  const flairRaw = formData.get("flair");
+  const flair = FLAIR_OPTIONS.includes(flairRaw as CommunityFlair) ? (flairRaw as CommunityFlair) : null;
 
   const { data: thread, error } = await supabase
     .from("community_threads")
@@ -54,6 +108,7 @@ export async function createCommunityThread(topicId: string, formData: FormData)
       title: parsed.data.title,
       body: parsed.data.body,
       is_anonymous: isAnonymous,
+      flair,
     })
     .select("id")
     .single();
@@ -66,45 +121,20 @@ export async function createCommunityThread(topicId: string, formData: FormData)
   // the user the thread they just wrote.
   const file = formData.get("image");
   if (file instanceof File && file.size > 0) {
-    const validationError = validateImageFile(file, MAX_THREAD_IMAGE_BYTES);
-    if (validationError) {
-      console.error("thread image rejected:", validationError);
-    } else {
-      // Nested under the user's own id first (not "community/<id>/...")
-      // — the post-images bucket's insert policy (0008_post_images_
-      // storage.sql) only checks the *first* path segment is the
-      // caller's own uid, so this still satisfies it while keeping
-      // community uploads visibly separate from feed post images.
-      const path = `${user.id}/community/${crypto.randomUUID()}.${extensionFor(file.type)}`;
-      const { error: uploadError } = await supabase.storage
-        .from("post-images")
-        .upload(path, file, { contentType: file.type });
-
-      if (uploadError) {
-        console.error("thread image upload failed:", uploadError.message);
-      } else {
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("post-images").getPublicUrl(path);
-        const width = Number(formData.get("imageWidth"));
-        const height = Number(formData.get("imageHeight"));
-        const { error: updateError } = await supabase
-          .from("community_threads")
-          .update({
-            image_url: publicUrl,
-            image_width: Number.isFinite(width) && width > 0 ? width : null,
-            image_height: Number.isFinite(height) && height > 0 ? height : null,
-          })
-          .eq("id", thread.id);
-        // community_threads has no general update policy (0028) — this
-        // relies on the same narrow "author_id = auth.uid()" carve-out
-        // 0031 adds specifically for image_url/image_width/image_height
-        // (see that migration's own comment on why this one column set
-        // gets a real policy instead of an RPC: unlike best_reply_id/
-        // is_pinned, there's no *other* client-writable column on this
-        // row it could be abused to also touch).
-        if (updateError) console.error("thread image link failed:", updateError.message);
-      }
+    const uploaded = await uploadCommunityImage(supabase, user.id, file, formData);
+    if (uploaded) {
+      // community_threads has no general update policy (0028) — this
+      // relies on the same narrow "author_id = auth.uid()" carve-out
+      // 0031 adds specifically for image_url/image_width/image_height
+      // (see that migration's own comment on why this one column set
+      // gets a real policy instead of an RPC: unlike best_reply_id/
+      // is_pinned, there's no *other* client-writable column on this
+      // row it could be abused to also touch).
+      const { error: updateError } = await supabase
+        .from("community_threads")
+        .update({ image_url: uploaded.url, image_width: uploaded.width, image_height: uploaded.height })
+        .eq("id", thread.id);
+      if (updateError) console.error("thread image link failed:", updateError.message);
     }
   }
 
@@ -143,10 +173,19 @@ export async function createCommunityThread(topicId: string, formData: FormData)
  * Also upserts a follow row for the replier themselves — replying
  * implies wanting to know what happens next, same as GitHub auto-
  * subscribing you to an issue the moment you comment on it.
+ *
+ * `parentReplyId`, when set, nests this one level under an existing
+ * top-level reply — mirrors comments.parent_comment_id's own "one level,
+ * enforced by the app not the DB" posture (0010_comment_threads_and_
+ * reactions.sql). If the given parent already has a parent of its own,
+ * this silently reparents to null instead of failing the whole submit —
+ * same "don't lose the user's text over a malformed aside" philosophy
+ * the image-upload half already uses, just applied to a different field.
  */
 export async function createCommunityReply(
   threadId: string,
   mentionedUserIds: string[],
+  parentReplyId: string | null,
   formData: FormData,
 ) {
   const supabase = await createClient();
@@ -158,6 +197,17 @@ export async function createCommunityReply(
   const parsed = communityReplySchema.safeParse({ content: formData.get("content") });
   if (!parsed.success) return;
 
+  let resolvedParentId: string | null = null;
+  if (parentReplyId) {
+    const { data: parent } = await supabase
+      .from("community_replies")
+      .select("id, parent_reply_id")
+      .eq("id", parentReplyId)
+      .eq("thread_id", threadId)
+      .maybeSingle();
+    if (parent && !parent.parent_reply_id) resolvedParentId = parent.id;
+  }
+
   const { data: newReply, error } = await supabase
     .from("community_replies")
     .insert({
@@ -165,6 +215,7 @@ export async function createCommunityReply(
       author_id: user.id,
       content: parsed.data.content,
       mentioned_user_ids: mentionedUserIds,
+      parent_reply_id: resolvedParentId,
     })
     .select("id")
     .single();
@@ -172,6 +223,20 @@ export async function createCommunityReply(
   // (the trigger, 0028_community.sql) — nothing to do here for that.
 
   if (error || !newReply) return;
+
+  // Image — best-effort, same ordering as the thread's own (see
+  // uploadCommunityImage's own comment).
+  const file = formData.get("image");
+  if (file instanceof File && file.size > 0) {
+    const uploaded = await uploadCommunityImage(supabase, user.id, file, formData);
+    if (uploaded) {
+      const { error: updateError } = await supabase
+        .from("community_replies")
+        .update({ image_url: uploaded.url, image_width: uploaded.width, image_height: uploaded.height })
+        .eq("id", newReply.id);
+      if (updateError) console.error("reply image link failed:", updateError.message);
+    }
+  }
 
   const { data: followers } = await supabase
     .from("community_thread_follows")
@@ -230,6 +295,32 @@ export async function toggleCommunityThreadFollow(threadId: string, isFollowing:
   }
 
   revalidatePath(`/community/${threadId}`);
+}
+
+/** Explicit save/unsave — a purely personal "revisit later" marker,
+ * distinct from Follow above (no notifications implied, nobody else ever
+ * reads it — community_thread_saves' RLS is self-only, unlike follows'
+ * open-select, since nothing here needs a notify-style loop over other
+ * users' rows). Same insert/delete-by-presence shape as follow/toggleShare. */
+export async function toggleCommunityThreadSave(threadId: string, isSaved: boolean) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  if (isSaved) {
+    await supabase
+      .from("community_thread_saves")
+      .delete()
+      .eq("thread_id", threadId)
+      .eq("user_id", user.id);
+  } else {
+    await supabase.from("community_thread_saves").insert({ thread_id: threadId, user_id: user.id });
+  }
+
+  revalidatePath(`/community/${threadId}`);
+  revalidatePath("/community");
 }
 
 /** Sets (or clears) the current user's reaction on a thread — mirrors
@@ -444,7 +535,11 @@ export async function deleteCommunityThread(threadId: string) {
   redirect("/community");
 }
 
-/** Ownership-checked delete — mirrors deleteComment. */
+/** Ownership-checked delete — mirrors deleteComment, plus the same
+ * storage cleanup deleteCommunityThread does for its own image. Cascades
+ * to any nested replies underneath this one (parent_reply_id references
+ * ... on delete cascade) — same "hard delete, no placeholder" convention
+ * deleteComment already uses one level up. */
 export async function deleteCommunityReply(replyId: string, threadId: string) {
   const supabase = await createClient();
   const {
@@ -452,6 +547,57 @@ export async function deleteCommunityReply(replyId: string, threadId: string) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const { data: reply } = await supabase
+    .from("community_replies")
+    .select("image_url")
+    .eq("id", replyId)
+    .eq("author_id", user.id)
+    .maybeSingle();
+
   await supabase.from("community_replies").delete().eq("id", replyId).eq("author_id", user.id);
+
+  if (reply?.image_url) {
+    const path = storagePathFromPublicUrl(reply.image_url, "post-images");
+    if (path) await supabase.storage.from("post-images").remove([path]);
+  }
+
   revalidatePath(`/community/${threadId}`);
+}
+
+/**
+ * Reports a thread or reply — inserts into community_reports
+ * (0033_community_round4.sql), which has no select policy at all: this
+ * is a deliberate v1 scope cut, captured now and reviewable via the
+ * Supabase SQL editor, with no in-app moderation queue yet (no moderator
+ * role exists in this app — see setCommunityThreadPinned's own comment
+ * on that same decision). `targetType` picks which of thread_id/reply_id
+ * gets set; the table's own check constraint requires exactly one.
+ */
+export async function reportCommunity(
+  targetType: "thread" | "reply",
+  targetId: string,
+  reason: (typeof REPORT_REASONS)[number],
+  details?: string,
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  if (!REPORT_REASONS.includes(reason)) return { error: "Invalid reason" };
+
+  const { error } = await supabase.from("community_reports").insert({
+    reporter_id: user.id,
+    thread_id: targetType === "thread" ? targetId : null,
+    reply_id: targetType === "reply" ? targetId : null,
+    reason,
+    details: details?.trim() || null,
+  });
+
+  if (error) {
+    console.error("reportCommunity failed:", error.message);
+    return { error: "Could not submit the report." };
+  }
+  return { success: true };
 }
