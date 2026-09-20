@@ -1,9 +1,10 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Users } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentProfile, getFollowersList, getProfileByUsername } from "@/lib/data";
 import { ProfileRow } from "@/components/profile-row";
 import { BackLink } from "@/components/back-link";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state";
 
 export default async function FollowersPage({
   params,
@@ -31,9 +32,7 @@ export default async function FollowersPage({
       <h1 className="mt-3 text-xl font-bold">{profile.full_name}&apos;s followers</h1>
 
       {followers.length === 0 ? (
-        <Card className="mt-4 p-8 text-center text-sm text-muted-foreground">
-          No followers yet.
-        </Card>
+        <EmptyState className="mt-4" icon={Users} title="No followers yet" />
       ) : (
         <Card className="mt-4 divide-y divide-border px-4">
           {followers.map((p) => (

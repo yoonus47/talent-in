@@ -39,21 +39,31 @@ export default async function ProfilePage({
   return (
     <div className="mx-auto max-w-xl space-y-4 px-4 py-6">
       <Card className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4">
+        {/* min-w-0 (+ break-words on the name below): a long full_name used
+            to force this row past the card's edge — a flex item's default
+            min-width is content-based, so a long unbroken word/hyphenated
+            name refused to shrink and pushed the action button(s) off the
+            visible edge instead of the name simply wrapping onto more
+            lines the way it should. min-w-0 lets this block actually
+            shrink to make room, same as the button side keeps its size. */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-4">
             <Avatar name={profile.full_name} src={profile.avatar_url} size={64} />
-            <div>
-              <h1 className="text-lg font-bold">{profile.full_name}</h1>
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold break-words">{profile.full_name}</h1>
               <p className="text-sm text-muted-foreground">@{profile.username}</p>
             </div>
           </div>
 
           {isOwnProfile ? (
-            <a href="/settings" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+            <a
+              href="/settings"
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0")}
+            >
               Edit profile
             </a>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               {isMutual && (
                 <form action={startConversation.bind(null, profile.id)}>
                   <Button type="submit" variant="outline" size="sm" aria-label="Message">
