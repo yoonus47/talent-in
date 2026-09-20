@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MessageCircle } from "lucide-react";
 import { getConversations, getCurrentProfile, getMutualFollowProfiles } from "@/lib/data";
 import { markConversationDelivered } from "@/lib/actions/chat";
 import { ConversationRow } from "@/components/conversation-row";
 import { NewChatPicker } from "@/components/new-chat-picker";
 import { BackLink } from "@/components/back-link";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state";
 
 export default async function ChatListPage() {
   const profile = await getCurrentProfile();
@@ -39,10 +40,11 @@ export default async function ChatListPage() {
       </div>
 
       {conversations.length === 0 ? (
-        <Card className="p-8 text-center text-sm text-muted-foreground">
-          No conversations yet. Message someone you follow (and who follows you back) to start
-          chatting.
-        </Card>
+        <EmptyState
+          icon={MessageCircle}
+          title="No conversations yet"
+          description="Message someone you follow (and who follows you back) to start chatting."
+        />
       ) : (
         <Card className="divide-y divide-border p-0">
           {conversations.map((conversation) => (

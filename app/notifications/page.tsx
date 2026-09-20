@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AtSign, Award, Heart, MessageCircle, Reply, Repeat2, UserPlus, Users } from "lucide-react";
+import { AtSign, Award, Bell, Heart, MessageCircle, Reply, Repeat2, UserPlus, Users } from "lucide-react";
 import { getCurrentProfile, getNotifications, type FeedNotification } from "@/lib/data";
 import { markAllNotificationsRead } from "@/lib/actions/notifications";
 import { REACTIONS } from "@/lib/reactions";
 import { Avatar } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state";
 import { timeAgo } from "@/lib/utils";
 
 function describe(n: FeedNotification): string {
@@ -98,10 +99,12 @@ export default async function NotificationsPage() {
       <h1 className="text-2xl font-bold">Notifications</h1>
 
       {notifications.length === 0 ? (
-        <Card className="mt-4 p-8 text-center text-sm text-muted-foreground">
-          Nothing yet. When someone follows you, reacts, comments, or shares your posts,
-          you&apos;ll see it here.
-        </Card>
+        <EmptyState
+          className="mt-4"
+          icon={Bell}
+          title="You're all caught up"
+          description="When someone follows you, reacts, comments, or shares your posts, you'll see it here."
+        />
       ) : (
         <Card className="mt-4 divide-y divide-border px-4">
           {notifications.map((n) => {

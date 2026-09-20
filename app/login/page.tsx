@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { signIn, signInWithGoogle } from "@/app/auth/actions";
+import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +12,15 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
+  // Same guard as app/page.tsx — an already-authenticated session has no
+  // business seeing a login form (it was rendering the logged-in Navbar
+  // stacked above this page's own centered card, which looked broken).
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) redirect("/feed");
+
   const { error } = await searchParams;
 
   return (

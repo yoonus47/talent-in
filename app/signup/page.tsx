@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { signUp, signInWithGoogle } from "@/app/auth/actions";
+import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +12,16 @@ export default async function SignupPage({
 }: {
   searchParams: Promise<{ error?: string; checkEmail?: string }>;
 }) {
+  // Same guard as app/page.tsx — signUp only ever redirects here with
+  // ?checkEmail=1 while there's still no session (see app/auth/actions.ts),
+  // so this can't clobber that flow; it only stops an already-logged-in
+  // user from landing on a signup form under the logged-in Navbar.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) redirect("/feed");
+
   const { error, checkEmail } = await searchParams;
 
   return (

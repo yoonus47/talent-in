@@ -1,9 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { usePathname } from "next/navigation";
 import { Moon, Sun } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "talentzify-theme";
 const THEME_EVENT = "talentzify-theme-change";
@@ -37,8 +35,8 @@ function setDark(dark: boolean) {
 /**
  * Shared toggle state: the DOM attribute + localStorage + a custom event
  * ARE the store, not any single component's own state — so any number of
- * rendered toggle buttons (the floating one, plus the inline one in
- * components/chat-thread.tsx) always agree and flip together.
+ * rendered toggle buttons (the header one below, plus the inline one in
+ * components/chat-composer.tsx) always agree and flip together.
  */
 export function useThemeToggle() {
   const isDark = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
@@ -46,19 +44,19 @@ export function useThemeToggle() {
 }
 
 /**
- * The floating dark-mode button. Hidden on mobile specifically while
- * inside an open chat thread (not the conversation list — that one's
- * fine): a `fixed` element can't reliably track where "the bottom" is
- * while iOS Safari's on-screen keyboard is animating the visual viewport,
- * which is what kept leaving it visibly misaligned with the composer's
- * Send button there. components/chat-thread.tsx renders its own static,
- * in-flow copy next to Send instead — same shared toggle state, just laid
- * out in the normal flex row so it can't ever drift out of alignment.
+ * The header's dark-mode icon button — lives in components/navbar.tsx's
+ * icon cluster, next to NotificationBell, on both the desktop and mobile
+ * layouts (Navbar renders one header for both). Used to be a `fixed`
+ * floating circle instead; moved in-flow so it stops competing with
+ * ChatFabButton and the mobile bottom tab bar for the same screen-bottom
+ * real estate. components/chat-composer.tsx's own MobileThemeToggle stays
+ * separate (a `fixed` button can't reliably track "the bottom" while iOS
+ * Safari's on-screen keyboard animates the visual viewport, which is what
+ * motivated an in-flow copy there in the first place) — both read the
+ * same shared `useThemeToggle()` state, so they always agree.
  */
-export function ThemeToggle() {
+export function ThemeToggleButton() {
   const { isDark, toggle } = useThemeToggle();
-  const pathname = usePathname();
-  const hideOnMobile = pathname.startsWith("/chat/");
 
   return (
     <button
@@ -66,10 +64,7 @@ export function ThemeToggle() {
       onClick={toggle}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className={cn(
-        "fixed bottom-4 right-4 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-lg hover:bg-muted",
-        hideOnMobile && "hidden sm:flex",
-      )}
+      className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
     >
       {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
     </button>

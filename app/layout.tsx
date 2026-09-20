@@ -4,7 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { Navbar } from "@/components/navbar";
 import { ChatFab } from "@/components/chat-fab";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { MobileTabBar } from "@/components/mobile-tab-bar";
 import { SwipeNavigator } from "@/components/swipe-navigator";
 import { BrandSplash } from "@/components/brand-splash";
 import { getCurrentProfile } from "@/lib/data";
@@ -55,11 +55,17 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           {NO_FLASH_THEME_SCRIPT}
         </Script>
         <Navbar />
-        <main className="flex-1">
+        {/* pb-32 clears the mobile bottom tab bar plus the floating
+            ChatFabButton stacked above it (see components/mobile-tab-
+            bar.tsx and components/chat-fab-button.tsx) — neither reserves
+            its own space, so page content needs a floor here or its last
+            bit ends up hidden/unclickable underneath them. Desktop has no
+            tab bar and a lower-riding FAB, so it needs much less. */}
+        <main className="flex-1 pb-32 sm:pb-10">
           <SwipeNavigator links={navRoutes}>{children}</SwipeNavigator>
         </main>
         <ChatFab />
-        <ThemeToggle />
+        <MobileTabBar />
         {/* useSearchParams requires a Suspense boundary; see
             components/brand-splash.tsx for what this actually shows and
             when. */}

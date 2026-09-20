@@ -105,14 +105,16 @@ export function ChatFabButton({ userId, unreadCount: initialUnreadCount }: { use
       direction="forward"
       aria-label="Messages"
       title="Messages"
-      // Stacked above ThemeToggle (fixed bottom-4 right-4, h-11) so the two
-      // floating buttons don't overlap. --messaging (app/globals.css) is a
-      // solid cyan, deliberately distinct from --primary — its own
-      // identity instead of blending in with every other plain bg-primary
-      // button in the app. Was a two-tone gradient; dropped once --primary
-      // became sky blue and the gradient's two stops sat too close in hue
-      // to read as one at this 48px size.
-      className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-105"
+      // bottom-20 clears components/mobile-tab-bar.tsx's fixed bar on
+      // mobile with room to spare; sm:bottom-4 tucks it back into the
+      // corner on desktop, which has no bottom tab bar to clear.
+      // --messaging (app/globals.css) is a solid cyan, deliberately
+      // distinct from --primary — its own identity instead of blending in
+      // with every other plain bg-primary button in the app. Was a
+      // two-tone gradient; dropped once --primary became sky blue and the
+      // gradient's two stops sat too close in hue to read as one at this
+      // 48px size.
+      className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-105 sm:bottom-4"
       style={{ background: "var(--messaging)" }}
     >
       <MessageCircle className="h-5 w-5" />

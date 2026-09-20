@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, PenLine } from "lucide-react";
 import {
   getCurrentProfile,
   getFollowStats,
@@ -13,6 +13,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state";
 import { FeedList } from "@/components/feed-list";
 import { cn } from "@/lib/utils";
 
@@ -104,9 +105,10 @@ export default async function ProfilePage({
       </Card>
 
       {items.length === 0 ? (
-        <Card className="p-8 text-center text-sm text-muted-foreground">
-          {isOwnProfile ? "You haven't posted yet." : `${profile.full_name} hasn't posted yet.`}
-        </Card>
+        <EmptyState
+          icon={PenLine}
+          title={isOwnProfile ? "You haven't posted yet" : `${profile.full_name} hasn't posted yet`}
+        />
       ) : (
         <FeedList items={items} viewer={viewer} />
       )}

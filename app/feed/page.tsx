@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Users } from "lucide-react";
 import { getCurrentProfile, getFeedPosts } from "@/lib/data";
 import { Composer } from "@/components/composer";
 import { FeedList } from "@/components/feed-list";
 import { EndOfFeed } from "@/components/end-of-feed";
-import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state";
 
 export default async function FeedPage({
   searchParams,
@@ -27,13 +28,20 @@ export default async function FeedPage({
       <Composer profile={profile} defaultContent={prefill} />
 
       {items.length === 0 ? (
-        <Card className="animate-fade-up p-8 text-center text-sm text-muted-foreground">
-          Your feed is quiet. Follow a few people from{" "}
-          <Link href="/discover" className="font-medium text-primary hover:underline">
-            Discover
-          </Link>{" "}
-          or post something yourself to get started.
-        </Card>
+        <EmptyState
+          className="animate-fade-up"
+          icon={Users}
+          title="Your feed is quiet"
+          description={
+            <>
+              Follow a few people from{" "}
+              <Link href="/discover" className="font-medium text-primary hover:underline">
+                Discover
+              </Link>{" "}
+              or post something yourself to get started.
+            </>
+          }
+        />
       ) : (
         <>
           <FeedList items={items} viewer={profile} />

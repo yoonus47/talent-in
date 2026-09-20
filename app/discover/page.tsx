@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FileText, Video, ExternalLink, Search } from "lucide-react";
+import { FileText, Sparkles, Video, ExternalLink, Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile, getSuggestedProfiles, searchProfiles } from "@/lib/data";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/empty-state";
 import { Input } from "@/components/ui/input";
 import { ProfileRow } from "@/components/profile-row";
 import { categoryLabel, cn } from "@/lib/utils";
@@ -47,7 +48,7 @@ export default async function DiscoverPage({
         Fellow students and career resources, in one place.
       </p>
 
-      <div className="mt-5 rounded-lg border border-border bg-muted p-1">
+      <div className="mt-4 rounded-lg border border-border bg-muted p-1">
         <div className="relative flex">
           <div
             aria-hidden
@@ -102,13 +103,13 @@ async function ContentTab({ category }: { category?: string }) {
 
   return (
     <div>
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-wrap gap-2">
         {CATEGORIES.map((c) => (
           <Link
             key={c.value}
             href={c.value === "all" ? "/discover" : `/discover?category=${c.value}`}
             className={cn(
-              "rounded-full border border-border px-3 py-1.5 text-sm font-medium",
+              "rounded-full border border-border px-3 py-1 text-sm font-medium",
               (category ?? "all") === c.value
                 ? "border-primary bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-muted",
@@ -120,11 +121,14 @@ async function ContentTab({ category }: { category?: string }) {
       </div>
 
       {!items || items.length === 0 ? (
-        <Card className="mt-6 p-8 text-center text-sm text-muted-foreground">
-          Nothing here yet, check back soon.
-        </Card>
+        <EmptyState
+          className="mt-5"
+          icon={Sparkles}
+          title="Nothing here yet"
+          description="Check back soon."
+        />
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
           {items.map((item) => (
             <a
               key={item.id}
@@ -181,7 +185,7 @@ async function PeopleTab({
 
   return (
     <div>
-      <Card className="mt-5 p-4">
+      <Card className="mt-4 p-4">
         <form method="get" className="space-y-2">
           <input type="hidden" name="tab" value="people" />
           <div className="relative">
@@ -226,7 +230,7 @@ async function PeopleTab({
       </Card>
 
       {!hasFilters && suggested.length > 0 && (
-        <div className="mt-6">
+        <div className="mt-5">
           <h2 className="text-sm font-semibold text-muted-foreground">Suggested for you</h2>
           <Card className="mt-2 divide-y divide-border px-4">
             {suggested.map((p) => (
@@ -240,14 +244,17 @@ async function PeopleTab({
         </div>
       )}
 
-      <div className="mt-6">
+      <div className="mt-5">
         <h2 className="text-sm font-semibold text-muted-foreground">
           {hasFilters ? "Results" : "All students"}
         </h2>
         {results.length === 0 ? (
-          <Card className="mt-2 p-8 text-center text-sm text-muted-foreground">
-            No students found. Try a different search or filter.
-          </Card>
+          <EmptyState
+            className="mt-2"
+            icon={Search}
+            title="No students found"
+            description="Try a different search or filter."
+          />
         ) : (
           <Card className="mt-2 divide-y divide-border px-4">
             {results.map((p) => (

@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Bookmark, Flame, Pin, Plus, Search, Sparkles } from "lucide-react";
+import { Bookmark, Flame, MessagesSquare, Pin, Plus, Search, Sparkles } from "lucide-react";
 import { getCommunityThreads, getCommunityTopics, getCurrentProfile } from "@/lib/data";
 import { CommunityThreadRow } from "@/components/community-thread-row";
 import { TransitionLink } from "@/components/transition-link";
 import { buttonVariants } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -61,7 +61,7 @@ export default async function CommunityPage({
   }
 
   const chipClass =
-    "shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors";
+    "shrink-0 rounded-full border px-3 py-1 text-sm font-medium transition-colors";
   const activeChip = "border-primary bg-primary text-primary-foreground";
   const inactiveChip = "border-border text-muted-foreground hover:bg-muted";
 
@@ -84,7 +84,7 @@ export default async function CommunityPage({
         </TransitionLink>
       </div>
 
-      <form method="get" className="mt-5">
+      <form method="get" className="mt-4">
         {activeTopic && <input type="hidden" name="topic" value={activeTopic.slug} />}
         {sort === "hot" && <input type="hidden" name="sort" value="hot" />}
         {onlyFollowing && <input type="hidden" name="mine" value="1" />}
@@ -167,11 +167,11 @@ export default async function CommunityPage({
       </div>
 
       {activeTopic && (
-        <p className="mt-3 text-sm text-muted-foreground">{activeTopic.description}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{activeTopic.description}</p>
       )}
 
       {pinnedThreads.length > 0 && (
-        <div className="mt-6 space-y-3">
+        <div className="mt-5 space-y-3">
           <h2 className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
             <Pin className="h-3.5 w-3.5" />
             Pinned
@@ -182,17 +182,29 @@ export default async function CommunityPage({
         </div>
       )}
 
-      <div className="mt-6 space-y-3">
+      <div className="mt-5 space-y-3">
         {regularThreads.length === 0 ? (
-          <Card className="p-8 text-center text-sm text-muted-foreground">
-            {query
-              ? `No threads matching "${query}" here.`
-              : onlySaved
-                ? "You haven't saved any threads yet."
-                : onlyFollowing
-                  ? "You're not following any threads yet — reply to or follow one to see it here."
-                  : "No threads here yet — be the first to start one."}
-          </Card>
+          <EmptyState
+            icon={query ? Search : MessagesSquare}
+            title={
+              query
+                ? `No threads matching "${query}"`
+                : onlySaved
+                  ? "You haven't saved any threads yet"
+                  : onlyFollowing
+                    ? "You're not following any threads yet"
+                    : "No threads here yet"
+            }
+            description={
+              query
+                ? undefined
+                : onlySaved
+                  ? "Save a thread to find it here later."
+                  : onlyFollowing
+                    ? "Reply to or follow a thread to see it here."
+                    : "Be the first to start one."
+            }
+          />
         ) : (
           regularThreads.map((thread) => (
             <CommunityThreadRow key={thread.id} thread={thread} viewerId={profile.id} />

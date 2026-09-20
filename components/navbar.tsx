@@ -5,6 +5,7 @@ import { getNavRoutes } from "@/lib/nav-links";
 import { Avatar } from "@/components/ui/avatar";
 import { NotificationBell } from "@/components/notification-bell";
 import { NavLinks } from "@/components/nav-links";
+import { ThemeToggleButton } from "@/components/theme-toggle";
 
 export async function Navbar() {
   const profile = await getCurrentProfile();
@@ -27,6 +28,7 @@ export async function Navbar() {
         <NavLinks links={links} variant="desktop" />
 
         <div className="flex items-center gap-3">
+          <ThemeToggleButton />
           <NotificationBell userId={profile.id} initialUnreadCount={unreadCount} />
           <Link href="/settings" title="Settings">
             <Avatar name={profile.full_name} src={profile.avatar_url} size={32} />
@@ -41,7 +43,6 @@ export async function Navbar() {
           </form>
         </div>
       </nav>
-      <NavLinks links={links} variant="mobile" />
     </header>
   );
 }
