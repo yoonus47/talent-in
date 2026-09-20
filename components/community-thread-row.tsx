@@ -42,15 +42,21 @@ export function CommunityThreadRow({
         </div>
         <h2 className="mt-2 font-semibold text-foreground">{thread.title}</h2>
         <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{thread.body}</p>
+        {/* min-w-0 on the name — the same missing piece that let a long
+            full_name overflow past the card on the profile header page —
+            without it a flex item's default content-based min-width
+            refuses to shrink for `truncate` to have any effect. */}
         <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
           <Avatar name={author.name} src={author.avatarUrl} size={20} />
-          <span className="truncate">{author.name}</span>
-          <span>·</span>
+          <span className="min-w-0 flex-1 truncate">{author.name}</span>
+          <span className="shrink-0">·</span>
           <span className="flex shrink-0 items-center gap-1">
             <MessageCircle className="h-3 w-3" />
             {thread.reply_count}
           </span>
-          <ReactionSummary counts={thread.reactionCounts} size="sm" />
+          <div className="shrink-0">
+            <ReactionSummary counts={thread.reactionCounts} size="sm" />
+          </div>
         </div>
       </Card>
     </TransitionLink>

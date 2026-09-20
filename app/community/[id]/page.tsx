@@ -116,7 +116,14 @@ export default async function CommunityThreadPage({
 
       <Card className="p-6">
         <h1 className="text-xl font-bold text-foreground">{thread.title}</h1>
-        <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+        {/* flex-wrap: avatar + name + karma + timestamp on the left, then
+            up to 5 action icons (pin/save/follow/share/report-or-delete)
+            crammed into the ml-auto cluster on the right — confirmed this
+            row's scrollWidth genuinely exceeded its clientWidth on a real
+            phone width with a longer name, silently pushing the last
+            icon(s) off past the card's edge instead of wrapping them down
+            to their own line. */}
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-2 text-sm text-muted-foreground">
           <Avatar name={author.name} src={author.avatarUrl} size={24} />
           {author.username ? (
             <Link href={`/profile/${author.username}`} className="font-medium text-foreground hover:underline">

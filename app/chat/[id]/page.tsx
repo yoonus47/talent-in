@@ -102,9 +102,16 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
         <BackLink fallbackHref="/chat" aria-label="Back to messages">
           <ArrowLeft className="h-5 w-5 text-muted-foreground hover:text-foreground" />
         </BackLink>
-        <Link href={`/profile/${otherUser.username}`} className="flex items-center gap-2">
+        {/* min-w-0/truncate — matches the group header above exactly; a
+            long full_name here had nothing to shrink or truncate against
+            and would overflow past the row instead of wrapping. */}
+        <Link href={`/profile/${otherUser.username}`} className="flex min-w-0 flex-1 items-center gap-2">
           <Avatar name={otherUser.full_name} src={otherUser.avatar_url} size={36} />
-          <span className="text-sm font-semibold text-foreground">{otherUser.full_name}</span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold text-foreground">
+              {otherUser.full_name}
+            </span>
+          </span>
         </Link>
       </div>
 
