@@ -97,7 +97,15 @@ export function PostCard({ post, viewer }: { post: FeedPost; viewer: FeedAuthor 
       </div>
 
       <div className="mt-1 flex flex-wrap items-center gap-1 border-t border-border pt-3">
+        {/* size="sm" — this row also has to fit the comment count and
+            share button on the same line (ml-auto below); the default
+            size's bigger touch targets are the right call in
+            post-lightbox.tsx and community-reply-row.tsx, which don't
+            share their row with anything else, but here they were wide
+            enough on a real phone width to wrap comment/share onto their
+            own second line. */}
         <ReactionRow
+          size="sm"
           counts={post.reactionCounts}
           myReaction={post.myReaction}
           buildAction={(type) =>
