@@ -93,6 +93,17 @@ export interface Database {
           // dashboard's "total points" stat alongside getChallengeStats'
           // challenge-only total — see app/dashboard/page.tsx.
           community_points: number;
+          // Owner-side monitoring only (0034_activity_and_safety_
+          // monitoring.sql) — touched on every page load via
+          // lib/actions/profile.ts's touchLastActive, throttled server-
+          // side. Nothing in the UI reads this; it's readable by other
+          // authenticated users only in the same sense city/school/grade
+          // already are (profiles' own select policy is `using (true)`) —
+          // deliberately not locked down further, since that would mean
+          // revoking and re-granting SELECT on profiles' entire column
+          // list rather than just this one. See that migration's comment
+          // for the actual privacy boundary (the user_safety_summary view).
+          last_active_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -114,6 +125,7 @@ export interface Database {
           platform_browser?: string | null;
           platform_updated_at?: string | null;
           community_points?: number;
+          last_active_at?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;

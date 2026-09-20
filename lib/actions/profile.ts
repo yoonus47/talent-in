@@ -19,6 +19,32 @@ function revalidateSocialSurfaces() {
   revalidatePath("/profile/[username]/following", "page");
 }
 
+// Throttle window for touchLastActive — matches the WHERE clause below.
+const ACTIVITY_TOUCH_INTERVAL_MS = 2 * 60 * 1000;
+
+/**
+ * Owner-side monitoring signal, not user-facing — see profiles.
+ * last_active_at's own migration comment (0034_activity_and_safety_
+ * monitoring.sql) for why this exists separately from platform_
+ * updated_at (login-only, stale for long-lived sessions). Called from
+ * app/layout.tsx on every page load; the WHERE clause makes it a 0-row
+ * no-op most of the time (skips the write unless >2 minutes stale, or
+ * never set), so calling it that often stays cheap regardless of
+ * traffic — no separate "activity ping" endpoint or client-side timer
+ * needed. `.or()` explicitly covers the NULL case too: a plain `.lt()`
+ * would never match a user's very first touch, since SQL's null
+ * comparisons are neither true nor false.
+ */
+export async function touchLastActive(userId: string) {
+  const supabase = await createClient();
+  const staleBefore = new Date(Date.now() - ACTIVITY_TOUCH_INTERVAL_MS).toISOString();
+  await supabase
+    .from("profiles")
+    .update({ last_active_at: new Date().toISOString() })
+    .eq("id", userId)
+    .or(`last_active_at.is.null,last_active_at.lt.${staleBefore}`);
+}
+
 /** Splits `user.user_metadata.full_name` (from Google) into first/last, as
  * a convenience default onboarding pre-fills — the user still sees and can
  * correct it before submitting, unlike the old silent-trust behavior. */

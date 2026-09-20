@@ -9,6 +9,7 @@ import { SwipeNavigator } from "@/components/swipe-navigator";
 import { BrandSplash } from "@/components/brand-splash";
 import { getCurrentProfile } from "@/lib/data";
 import { getNavRoutes } from "@/lib/nav-links";
+import { touchLastActive } from "@/lib/actions/profile";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -43,6 +44,17 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // on top of Navbar's own call.
   const profile = await getCurrentProfile();
   const navRoutes = profile ? getNavRoutes(profile.username) : [];
+
+  // Owner-side monitoring only — see touchLastActive's own comment. A
+  // failure here should never take a page down with it, same reasoning
+  // as e.g. app/community/[id]/page.tsx's markCommunityThreadRead.
+  if (profile) {
+    try {
+      await touchLastActive(profile.id);
+    } catch (err) {
+      console.error("touchLastActive failed:", err);
+    }
+  }
 
   return (
     <html
