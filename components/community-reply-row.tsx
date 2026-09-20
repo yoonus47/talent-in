@@ -114,7 +114,7 @@ export function CommunityReplyRow({
               </div>
             )}
           </DoubleTapReact>
-          <div className="mt-0.5 flex flex-wrap items-center gap-3 pl-3 text-xs text-muted-foreground">
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 pl-3 text-xs text-muted-foreground">
             <span>{timeAgo(reply.created_at)}</span>
             <ReactionSummary counts={reply.reactionCounts} size="sm" />
             <ReactionRow

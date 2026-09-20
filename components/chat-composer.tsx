@@ -2,9 +2,8 @@
 
 import { useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { Moon, Send, Sun, Users, X } from "lucide-react";
+import { Send, Users, X } from "lucide-react";
 import { VoiceRecorderButton } from "@/components/voice-recorder";
-import { useThemeToggle } from "@/components/theme-toggle";
 import { Avatar } from "@/components/ui/avatar";
 import type { GroupMember } from "@/lib/data";
 
@@ -30,24 +29,6 @@ const EVERYONE_CANDIDATE: MentionCandidate = {
 // post-comment mention precedent) — matches "@partial" only when it's
 // right behind the cursor, preceded by start-of-string or whitespace.
 const MENTION_QUERY_RE = /(?:^|\s)@([a-zA-Z0-9_]{0,24})$/;
-
-/** Static, in-flow dark-mode toggle for the mobile composer row — see
- * ThemeToggle's comment in components/theme-toggle.tsx for why the
- * floating one is hidden here instead of trying to keep it aligned. */
-function MobileThemeToggle() {
-  const { isDark, toggle } = useThemeToggle();
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-muted sm:hidden"
-    >
-      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-    </button>
-  );
-}
 
 /**
  * The chat thread's bottom bar — text input, @mention autocomplete (group
@@ -207,11 +188,6 @@ export function ChatComposer({
         </div>
       )}
 
-      {/* No more pr-16/pb-[27px] collision-avoidance here: ThemeToggle
-          hides itself on mobile for this exact route (see its comment),
-          so there's no floating button in this corner to clear or align
-          with anymore — MobileThemeToggle below is a plain in-flow member
-          of this same row instead. */}
       <div className="relative flex items-end gap-2 p-3">
         {candidates.length > 0 && (
           <div className="absolute bottom-full left-0 z-10 mb-1 w-64 overflow-hidden rounded-lg border border-border bg-card shadow-md">
@@ -268,7 +244,6 @@ export function ChatComposer({
             <Send className="h-4 w-4" />
           </button>
         )}
-        {!recorderActive && <MobileThemeToggle />}
       </div>
     </div>
   );

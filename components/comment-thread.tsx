@@ -53,7 +53,13 @@ function CommentRow({
               <CommentContent content={comment.content} />
             </div>
           </DoubleTapReact>
-          <div className="mt-0.5 flex items-center gap-3 pl-3 text-xs text-muted-foreground">
+          {/* flex-wrap: on a narrow phone this row (timestamp + summary +
+              the reaction pill + Reply/Delete) can be too tight to fit on
+              one line — wrapping the whole row lets Reply/Delete drop to
+              their own second line cleanly, instead of ReactionRow's own
+              pill (which never wraps internally, see its own comment)
+              getting squeezed and overflowing. */}
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 pl-3 text-xs text-muted-foreground">
             <span>{timeAgo(comment.created_at)}</span>
             <ReactionSummary counts={comment.reactionCounts} size="sm" />
             <ReactionRow

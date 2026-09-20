@@ -35,8 +35,7 @@ function setDark(dark: boolean) {
 /**
  * Shared toggle state: the DOM attribute + localStorage + a custom event
  * ARE the store, not any single component's own state — so any number of
- * rendered toggle buttons (the header one below, plus the inline one in
- * components/chat-composer.tsx) always agree and flip together.
+ * rendered toggle buttons always agree and flip together.
  */
 export function useThemeToggle() {
   const isDark = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
@@ -46,14 +45,15 @@ export function useThemeToggle() {
 /**
  * The header's dark-mode icon button — lives in components/navbar.tsx's
  * icon cluster, next to NotificationBell, on both the desktop and mobile
- * layouts (Navbar renders one header for both). Used to be a `fixed`
- * floating circle instead; moved in-flow so it stops competing with
- * ChatFabButton and the mobile bottom tab bar for the same screen-bottom
- * real estate. components/chat-composer.tsx's own MobileThemeToggle stays
- * separate (a `fixed` button can't reliably track "the bottom" while iOS
- * Safari's on-screen keyboard animates the visual viewport, which is what
- * motivated an in-flow copy there in the first place) — both read the
- * same shared `useThemeToggle()` state, so they always agree.
+ * layouts (Navbar renders one header for both, on every route including
+ * /chat/*, since only the mobile bottom tab bar hides there — see
+ * components/nav-links.tsx). Used to be a `fixed` floating circle
+ * instead; moved in-flow so it stops competing with ChatFabButton and the
+ * mobile bottom tab bar for the same screen-bottom real estate. That move
+ * also made components/chat-composer.tsx's own inline copy (previously
+ * needed because the floating button used to hide itself inside an open
+ * chat thread) redundant, so it was removed — this header button is
+ * always on screen there now too.
  */
 export function ThemeToggleButton() {
   const { isDark, toggle } = useThemeToggle();

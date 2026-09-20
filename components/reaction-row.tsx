@@ -13,6 +13,14 @@ import { cn } from "@/lib/utils";
  * whether a count happens to be showing, and the whole row sits inside a
  * soft grouping pill so it reads as one distinct control next to
  * ReactionSummary's similarly-sized (but purely read-only) chips.
+ *
+ * `flex-nowrap`, deliberately — this pill must never wrap internally: a
+ * shared background that splits across two lines mid-pill looks broken,
+ * not graceful. If a call site's row is tight enough that this whole
+ * group of 5 buttons doesn't fit, that call site's own outer container
+ * should have `flex-wrap` so the *entire* row wraps as one atomic unit
+ * (see components/comment-thread.tsx and components/community-reply-
+ * row.tsx) instead of the pill itself breaking apart.
  */
 export function ReactionRow({
   counts,
@@ -28,7 +36,7 @@ export function ReactionRow({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center rounded-full bg-muted/40",
+        "flex flex-nowrap items-center rounded-full bg-muted/40",
         size === "sm" ? "gap-1 p-0.5" : "gap-1.5 p-1",
       )}
     >
