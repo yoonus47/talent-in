@@ -106,13 +106,13 @@ export default async function DashboardPage() {
         </Card>
       </Link>
 
-      {/* mt-2 on top of the container's own space-y-4: a bit more room
-          than the rest of the page's uniform rhythm gets, specifically
-          between this and the invite card right above it — both are
-          "cards with a headline" and read as too tightly stacked at the
-          same gap everything else uses. */}
+      {/* mt-6 on top of the container's own space-y-4 (1.5rem + 1rem =
+          2.5rem total): the invite card and Word of the Day aren't a
+          related pair the way the streak/points cards are — a clearly
+          bigger gap than the page's tight uniform rhythm says so, rather
+          than a small nudge that still read as "the same group". */}
       {wordOfTheDay && (
-        <div className="mt-2">
+        <div className="mt-6">
           <WordOfTheDay word={wordOfTheDay} />
         </div>
       )}

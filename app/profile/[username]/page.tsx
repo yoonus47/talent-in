@@ -39,12 +39,18 @@ export default async function ProfilePage({
   return (
     <div className="mx-auto max-w-xl space-y-4 px-4 py-6">
       <Card className="overflow-hidden p-0">
-        {/* Twitter/Instagram-style banner + overlapping avatar — the one
-            existing "special moment" gradient this app already uses
-            everywhere else (brand splash, /invite's hero, the dashboard
-            promo card), reused here instead of inventing a second visual
-            language for a page that used to just be a bare Card. */}
-        <div className="h-24" style={{ background: "var(--gradient-brand)" }} />
+        {/* Twitter/Instagram-style banner + overlapping avatar. Originally
+            a solid --gradient-brand fill, same mistake as the dashboard
+            promo card and the scratch card surface — a profile is viewed
+            constantly, not a rare "special moment", so full saturated
+            brand color here read as loud rather than premium. Calm
+            muted/border foil instead (matches the scratch card's own
+            treatment) — the banner+overlap layout itself is what gives
+            this page its identity now, not the color. */}
+        <div
+          className="h-24"
+          style={{ background: "linear-gradient(135deg, var(--muted), var(--border))" }}
+        />
 
         <div className="px-6 pb-6">
           {/* items-end, not items-center: the avatar is much taller than
