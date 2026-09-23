@@ -4,7 +4,7 @@ import { getNavRoutes } from "@/lib/nav-links";
 import { NotificationBell } from "@/components/notification-bell";
 import { NavLinks } from "@/components/nav-links";
 import { UserMenu } from "@/components/user-menu";
-import { VersionBadge } from "@/components/version-badge";
+import { APP_VERSION, VersionBadge } from "@/components/version-badge";
 
 export async function Navbar() {
   const profile = await getCurrentProfile();
@@ -35,7 +35,7 @@ export async function Navbar() {
             — same fix this app's applied repeatedly elsewhere. */}
         <div className="flex min-w-0 flex-1 items-center justify-center">
           <NavLinks links={links} variant="desktop" />
-          <VersionBadge className="lg:hidden" />
+          <VersionBadge className="lg:hidden">Alpha v{APP_VERSION} · developer preview</VersionBadge>
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
