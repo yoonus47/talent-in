@@ -33,3 +33,29 @@ export function VersionBadge({ className }: { className?: string }) {
     </span>
   );
 }
+
+/**
+ * The desktop-only counterpart (app/layout.tsx's fixed bottom-left
+ * watermark) — bigger type (15px, ~50% up from the mobile badge's 10px)
+ * and a second line spelling out what "alpha" actually means, since
+ * there's room for it there and none in the mobile navbar's tight gap.
+ * A card, not a pill, now that it's two differently-sized lines rather
+ * than one short one.
+ */
+export function DesktopVersionBadge({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        "select-none rounded-lg border border-border bg-card/90 px-3 py-2 backdrop-blur-sm",
+        className,
+      )}
+    >
+      <p className="text-[15px] font-normal leading-tight text-muted-foreground/80">
+        Alpha v{APP_VERSION} · developer preview
+      </p>
+      <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground/60">
+        Early build. Features may be incomplete or change without notice.
+      </p>
+    </div>
+  );
+}
