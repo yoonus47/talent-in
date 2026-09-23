@@ -1,4 +1,4 @@
-import { Compass, Home, LayoutDashboard, MessagesSquare, User, type LucideIcon } from "lucide-react";
+import { Compass, Home, MessagesSquare, Sprout, User, type LucideIcon } from "lucide-react";
 
 export type NavRoute = { href: string; label: string };
 
@@ -13,7 +13,7 @@ export type NavRoute = { href: string; label: string };
 export function getNavRoutes(username: string): NavRoute[] {
   return [
     { href: "/feed", label: "Feed" },
-    { href: "/dashboard", label: "Dashboard" },
+    { href: "/dashboard", label: "Learn & Grow" },
     { href: "/discover", label: "Discover" },
     { href: "/community", label: "Community" },
     { href: `/profile/${username}`, label: "Profile" },
@@ -24,7 +24,7 @@ export function getNavRoutes(username: string): NavRoute[] {
  * so adding a tab only ever needs updating in one place. */
 export const NAV_ICONS: Record<string, LucideIcon> = {
   "/feed": Home,
-  "/dashboard": LayoutDashboard,
+  "/dashboard": Sprout,
   "/discover": Compass,
   "/community": MessagesSquare,
 };

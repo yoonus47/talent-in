@@ -1,11 +1,9 @@
 import Link from "next/link";
-import { signOut } from "@/app/auth/actions";
 import { getCurrentProfile, getUnreadNotificationCount } from "@/lib/data";
 import { getNavRoutes } from "@/lib/nav-links";
-import { Avatar } from "@/components/ui/avatar";
 import { NotificationBell } from "@/components/notification-bell";
 import { NavLinks } from "@/components/nav-links";
-import { ThemeToggleButton } from "@/components/theme-toggle";
+import { UserMenu } from "@/components/user-menu";
 
 export async function Navbar() {
   const profile = await getCurrentProfile();
@@ -28,19 +26,8 @@ export async function Navbar() {
         <NavLinks links={links} variant="desktop" />
 
         <div className="flex items-center gap-3">
-          <ThemeToggleButton />
           <NotificationBell userId={profile.id} initialUnreadCount={unreadCount} />
-          <Link href="/settings" title="Settings">
-            <Avatar name={profile.full_name} src={profile.avatar_url} size={32} />
-          </Link>
-          <form action={signOut}>
-            <button
-              type="submit"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground"
-            >
-              Log out
-            </button>
-          </form>
+          <UserMenu fullName={profile.full_name} username={profile.username} avatarUrl={profile.avatar_url} />
         </div>
       </nav>
     </header>

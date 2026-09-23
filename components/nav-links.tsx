@@ -33,7 +33,7 @@ export function NavLinks({ links, variant }: { links: NavLink[]; variant: "deskt
 
   if (variant === "desktop") {
     return (
-      <div className="hidden items-center gap-1 text-sm font-medium sm:flex">
+      <div className="hidden items-center gap-1 text-sm font-medium lg:flex">
         {links.map((link) => {
           const active = isActiveRoute(pathname, link.href);
           const Icon = NAV_ICONS[link.href] ?? DEFAULT_NAV_ICON;
@@ -46,13 +46,13 @@ export function NavLinks({ links, variant }: { links: NavLink[]; variant: "deskt
               // slides the same direction swiping there would have.
               direction={directionBetweenTabs(links, pathname, link.href)}
               className={cn(
-                "flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors",
+                "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 transition-colors",
                 active
                   ? "bg-primary/10 font-semibold text-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="h-4 w-4 shrink-0" />
               {link.label}
             </TransitionLink>
           );
@@ -64,7 +64,7 @@ export function NavLinks({ links, variant }: { links: NavLink[]; variant: "deskt
   return (
     <div
       className={cn(
-        "fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur sm:hidden",
+        "fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur lg:hidden",
         hideOnMobile && "hidden",
       )}
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}

@@ -105,16 +105,17 @@ export function ChatFabButton({ userId, unreadCount: initialUnreadCount }: { use
       direction="forward"
       aria-label="Messages"
       title="Messages"
-      // bottom-20 clears components/mobile-tab-bar.tsx's fixed bar on
-      // mobile with room to spare; sm:bottom-4 tucks it back into the
-      // corner on desktop, which has no bottom tab bar to clear.
+      // bottom-20 clears components/mobile-tab-bar.tsx's fixed bar with
+      // room to spare; lg:bottom-4 tucks it back into the corner at true
+      // desktop widths, matching NavLinks' own lg breakpoint (components/
+      // nav-links.tsx) for where that tab bar actually stops rendering.
       // --messaging (app/globals.css) is a solid cyan, deliberately
       // distinct from --primary — its own identity instead of blending in
       // with every other plain bg-primary button in the app. Was a
       // two-tone gradient; dropped once --primary became sky blue and the
       // gradient's two stops sat too close in hue to read as one at this
       // 48px size.
-      className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-105 sm:bottom-4"
+      className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-105 lg:bottom-4"
       style={{ background: "var(--messaging)" }}
     >
       <MessageCircle className="h-5 w-5" />

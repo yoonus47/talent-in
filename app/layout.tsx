@@ -67,13 +67,15 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           {NO_FLASH_THEME_SCRIPT}
         </Script>
         <Navbar />
-        {/* pb-32 clears the mobile bottom tab bar plus the floating
-            ChatFabButton stacked above it (see components/mobile-tab-
-            bar.tsx and components/chat-fab-button.tsx) — neither reserves
-            its own space, so page content needs a floor here or its last
-            bit ends up hidden/unclickable underneath them. Desktop has no
-            tab bar and a lower-riding FAB, so it needs much less. */}
-        <main className="flex-1 pb-32 sm:pb-10">
+        {/* pb-32 clears the bottom tab bar plus the floating ChatFabButton
+            stacked above it (see components/mobile-tab-bar.tsx and
+            components/chat-fab-button.tsx) — neither reserves its own
+            space, so page content needs a floor here or its last bit ends
+            up hidden/unclickable underneath them. Matches NavLinks' own
+            lg breakpoint (components/nav-links.tsx) for where the tab bar
+            actually stops rendering — true desktop widths have no tab bar
+            and a lower-riding FAB, so they need much less. */}
+        <main className="flex-1 pb-32 lg:pb-10">
           <SwipeNavigator links={navRoutes}>{children}</SwipeNavigator>
         </main>
         <ChatFab />
