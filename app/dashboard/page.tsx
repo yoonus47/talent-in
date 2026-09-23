@@ -87,17 +87,23 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      <Link
-        href="/invite"
-        className="flex items-center gap-3 rounded-xl p-4 text-white shadow-sm transition-opacity hover:opacity-90"
-        style={{ background: "var(--gradient-brand)" }}
-      >
-        <Gift className="h-6 w-6 shrink-0" />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold">Invite friends, earn points</p>
-          <p className="text-xs text-white/80">You both get 50 points when they join</p>
-        </div>
-        <ArrowRight className="h-4 w-4 shrink-0" />
+      {/* A solid --gradient-brand fill here used to compete with (and
+          dilute) WordOfTheDay's own gradient-text treatment right below it
+          — two loud gradient blocks back to back made neither read as
+          special. Toned down to match WordOfTheDay's own restraint
+          instead: plain card, gradient reserved for the headline text
+          only — same technique, not a louder one. */}
+      <Link href="/invite">
+        <Card className="flex items-center gap-3 p-4 transition-colors hover:bg-muted">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/10">
+            <Gift className="h-5 w-5 text-accent" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="brand-gradient-text text-sm font-semibold">Invite friends, earn points</p>
+            <p className="text-xs text-muted-foreground">You both get 50 points when they join</p>
+          </div>
+          <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </Card>
       </Link>
 
       {wordOfTheDay && <WordOfTheDay word={wordOfTheDay} />}
