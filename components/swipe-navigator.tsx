@@ -275,7 +275,18 @@ export function SwipeNavigator({ links, children }: { links: NavRoute[]; childre
   }, [links, pathname, router]);
 
   return (
-    <div ref={containerRef} className="relative overflow-hidden" style={{ touchAction: "pan-y" }}>
+    // isolate: the peek/page z-0/z-10 pair below is only meant to order
+    // those two siblings against each other during a swipe transition — it
+    // used to leak past this box entirely (position:relative with no
+    // z-index doesn't create a stacking context), letting pageRef's z-10
+    // compete directly with components/navbar.tsx's own sticky z-10 header
+    // at the root level. Same numeric value + pageRef being later in the
+    // DOM meant it won that tie and painted straight over the header
+    // (dropdown menus included) wherever they overlapped. isolate forces a
+    // real stacking context here so the internal z-index pair never
+    // fights page chrome again, regardless of what either side's z-index
+    // is set to.
+    <div ref={containerRef} className="relative isolate overflow-hidden" style={{ touchAction: "pan-y" }}>
       {peek && (
         <div
           ref={peekRef}
