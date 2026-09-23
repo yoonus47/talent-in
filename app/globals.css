@@ -256,6 +256,29 @@ body {
   animation: wotd-bump 420ms ease-out;
 }
 
+/* components/scratch-card.tsx — a small radial burst of emoji the instant
+   a scratch card auto-completes. --sparkle-x/--sparkle-y (set per-sparkle
+   inline, see that component) is each one's own drift target, computed
+   from a fixed angle+distance rather than randomized — see that file's
+   own comment on why. */
+@keyframes scratch-sparkle {
+  0% {
+    transform: translate(-50%, -50%) scale(0.4);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--sparkle-x)), calc(-50% + var(--sparkle-y))) scale(1.1);
+    opacity: 0;
+  }
+}
+
+.animate-scratch-sparkle {
+  animation: scratch-sparkle 700ms ease-out both;
+}
+
 /* components/daily-challenge.tsx — each question enters with a quick
    fade+slide (smaller/faster than animate-fade-up, which is sized for a
    whole-page entrance, not one card swapping for the next), and a
@@ -349,6 +372,13 @@ body {
   .animate-comments-reveal,
   .brand-curtain-wipe {
     animation: none;
+  }
+
+  /* Static specks frozen mid-burst read worse than just skipping the
+     effect entirely — unlike the others above, this one is hidden rather
+     than just un-animated. */
+  .animate-scratch-sparkle {
+    display: none;
   }
 
   .brand-curtain-wipe {
