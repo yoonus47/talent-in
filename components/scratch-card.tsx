@@ -2,18 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// Mirrors --gradient-brand (app/globals.css) — canvas fillStyle needs a
-// real CanvasGradient object, it can't consume a CSS gradient string
-// directly, so the stops are duplicated here. Same reasoning as that
-// variable's own comment: this app's one "special moment" gradient, and a
-// scratch reveal is exactly that kind of moment.
-const GRADIENT_STOPS: [number, string][] = [
-  [0, "#881337"],
-  [0.35, "#e11d48"],
-  [0.7, "#7c3aed"],
-  [1, "#070a8f"],
-];
-
 // Erase this fraction of the surface and the rest auto-clears — asking
 // for every last pixel is tedious, not satisfying, and corners are
 // genuinely hard to reach with a fingertip.
@@ -79,17 +67,42 @@ export function ScratchCard({
 
     function paintSurface() {
       const { width, height } = sizeRef.current;
-      const gradient = ctx!.createLinearGradient(0, 0, width, height);
-      for (const [offset, color] of GRADIENT_STOPS) gradient.addColorStop(offset, color);
       ctx!.globalCompositeOperation = "source-over";
-      ctx!.fillStyle = gradient;
+
+      // A calm brushed-foil look, not a loud multi-hue fill — this card is
+      // an every-day dashboard element, not a rare "special moment" (see
+      // --gradient-brand's own comment in app/globals.css and this app's
+      // established restraint elsewhere: gradient reserved for rare
+      // moments, muted/theme tokens for anything seen constantly). Read
+      // live off the current theme so it's correct in light and dark
+      // alike, unlike the old hardcoded rainbow.
+      const rootStyle = getComputedStyle(document.documentElement);
+      const muted = rootStyle.getPropertyValue("--muted").trim() || "#fafafa";
+      const border = rootStyle.getPropertyValue("--border").trim() || "#dbdbdb";
+      const accent = rootStyle.getPropertyValue("--accent").trim() || "#e11d48";
+
+      const base = ctx!.createLinearGradient(0, 0, width, height);
+      base.addColorStop(0, muted);
+      base.addColorStop(1, border);
+      ctx!.fillStyle = base;
       ctx!.fillRect(0, 0, width, height);
 
-      ctx!.fillStyle = "rgba(255,255,255,0.92)";
+      // One soft diagonal sheen band — the only nod to "foil", not a
+      // second wash of color.
+      const sheen = ctx!.createLinearGradient(0, height, width, 0);
+      sheen.addColorStop(0.4, "rgba(255,255,255,0)");
+      sheen.addColorStop(0.55, "rgba(255,255,255,0.22)");
+      sheen.addColorStop(0.7, "rgba(255,255,255,0)");
+      ctx!.fillStyle = sheen;
+      ctx!.fillRect(0, 0, width, height);
+
+      // A single point of color — the label — instead of covering the
+      // whole surface in saturated color.
+      ctx!.fillStyle = accent;
       ctx!.font = "600 13px system-ui, sans-serif";
       ctx!.textAlign = "center";
       ctx!.textBaseline = "middle";
-      ctx!.fillText(`✨ ${label} ✨`, width / 2, height / 2);
+      ctx!.fillText(`✨ ${label}`, width / 2, height / 2);
     }
 
     function resize() {

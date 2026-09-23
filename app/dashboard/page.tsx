@@ -106,7 +106,16 @@ export default async function DashboardPage() {
         </Card>
       </Link>
 
-      {wordOfTheDay && <WordOfTheDay word={wordOfTheDay} />}
+      {/* mt-2 on top of the container's own space-y-4: a bit more room
+          than the rest of the page's uniform rhythm gets, specifically
+          between this and the invite card right above it — both are
+          "cards with a headline" and read as too tightly stacked at the
+          same gap everything else uses. */}
+      {wordOfTheDay && (
+        <div className="mt-2">
+          <WordOfTheDay word={wordOfTheDay} />
+        </div>
+      )}
 
       <div>
         <h2 className="mb-2 text-sm font-semibold text-muted-foreground">Daily Challenge</h2>
