@@ -29,7 +29,7 @@ export function VersionBadge({ className }: { className?: string }) {
         className,
       )}
     >
-      Alpha release {APP_VERSION} — developer preview
+      Alpha v{APP_VERSION} · developer preview
     </span>
   );
 }
