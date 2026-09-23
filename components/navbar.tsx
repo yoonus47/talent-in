@@ -20,24 +20,20 @@ export async function Navbar() {
           room than the old plain-text links did; at max-w-3xl "Log out"
           was overflowing onto two lines. */}
       <nav className="mx-auto flex max-w-4xl items-center gap-3 px-4 py-3">
-        <div className="flex shrink-0 items-center gap-2">
-          <Link href="/feed" className="brand-gradient-text text-lg font-bold">
-            TalentZify
-          </Link>
-          {/* NavLinks' own pills already fill this row's middle at lg+ —
-              the badge only has room beside the wordmark there. Below lg
-              it's the other way around (see the middle slot below). */}
-          <VersionBadge className="hidden lg:inline-flex" />
-        </div>
+        <Link href="/feed" className="shrink-0 brand-gradient-text text-lg font-bold">
+          TalentZify
+        </Link>
 
         {/* NavLinks (desktop variant) renders nothing at all below lg —
             not just visually hidden, no box — so this middle slot is
-            genuinely empty there today. Both children share it and are
-            mutually exclusive by breakpoint, so whichever one is active
-            gets centered in the real remaining space, not the whole nav
-            width (an absolute-centered badge risked colliding with the
-            wordmark/avatar cluster on a narrow phone; this doesn't). */}
-        <div className="flex flex-1 items-center justify-center">
+            genuinely empty there today; the version badge (mobile-only,
+            see components/version-badge.tsx — desktop gets its own fixed
+            bottom-left placement instead, in app/layout.tsx) fills it,
+            centered in the real remaining space rather than the whole nav
+            width. min-w-0 here (and on the badge itself) is what lets it
+            actually shrink and wrap onto two lines instead of overflowing
+            — same fix this app's applied repeatedly elsewhere. */}
+        <div className="flex min-w-0 flex-1 items-center justify-center">
           <NavLinks links={links} variant="desktop" />
           <VersionBadge className="lg:hidden" />
         </div>

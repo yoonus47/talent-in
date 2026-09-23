@@ -10,22 +10,26 @@ const APP_VERSION = "0.3.51";
  * A deliberately quiet "this is early software" marker — muted-foreground,
  * no bold, no brand color (see the gradient-restraint memory: this app's
  * one saturated treatment is reserved for rare moments, not an
- * always-visible navbar element). Rendered twice in components/navbar.tsx
- * at different spots for the same reason NavLinks itself splits by
- * breakpoint: below `lg` the nav's middle is genuinely empty (nav pills
- * only render at lg+), so this fills it there; at lg+ that space is
- * already taken by the pills, so it sits beside the wordmark instead.
+ * always-visible element). The full sentence, always rendered as real
+ * text rather than a hover-only tooltip — on a mobile-first app most
+ * viewers never trigger a `title` attribute at all.
+ *
+ * No `whitespace-nowrap` and `min-w-0` included on purpose: at mobile
+ * widths (components/navbar.tsx's middle slot) there isn't room for this
+ * full sentence on one line, so it's allowed to wrap to two — min-w-0
+ * is what lets it actually shrink and wrap instead of overflowing its
+ * flex container, the same fix this app's had to apply repeatedly
+ * elsewhere for exactly this flex/overflow pattern.
  */
 export function VersionBadge({ className }: { className?: string }) {
   return (
     <span
-      title="Developer preview build — things may change or break"
       className={cn(
-        "select-none whitespace-nowrap rounded-full border border-border px-2 py-0.5 text-[10px] font-normal text-muted-foreground/80",
+        "select-none min-w-0 rounded-full border border-border px-2.5 py-1 text-center text-[10px] leading-snug font-normal text-muted-foreground/80",
         className,
       )}
     >
-      v{APP_VERSION} · alpha
+      Alpha release {APP_VERSION} — developer preview
     </span>
   );
 }

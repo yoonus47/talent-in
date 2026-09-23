@@ -8,6 +8,7 @@ import { MobileTabBar } from "@/components/mobile-tab-bar";
 import { SwipeNavigator } from "@/components/swipe-navigator";
 import { BrandSplash } from "@/components/brand-splash";
 import { ReferralBonusToast } from "@/components/referral-bonus-toast";
+import { VersionBadge } from "@/components/version-badge";
 import { getCurrentProfile } from "@/lib/data";
 import { getNavRoutes } from "@/lib/nav-links";
 import { touchLastActive } from "@/lib/actions/profile";
@@ -81,6 +82,15 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         </main>
         <ChatFab />
         <MobileTabBar />
+        {/* Desktop-only counterpart to the mobile version badge rendered
+            inline in components/navbar.tsx — at lg+ that navbar has no
+            spare room for it (nav pills own the middle, wordmark/bell/
+            avatar own the edges), so it lives here instead as a fixed
+            corner watermark, well clear of ChatFabButton's own
+            bottom-right spot. */}
+        {profile && (
+          <VersionBadge className="fixed bottom-4 left-4 z-30 hidden lg:block" />
+        )}
         {/* useSearchParams requires a Suspense boundary; see
             components/brand-splash.tsx and components/referral-bonus-
             toast.tsx for what these actually show and when. */}
