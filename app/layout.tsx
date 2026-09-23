@@ -7,6 +7,7 @@ import { ChatFab } from "@/components/chat-fab";
 import { MobileTabBar } from "@/components/mobile-tab-bar";
 import { SwipeNavigator } from "@/components/swipe-navigator";
 import { BrandSplash } from "@/components/brand-splash";
+import { ReferralBonusToast } from "@/components/referral-bonus-toast";
 import { getCurrentProfile } from "@/lib/data";
 import { getNavRoutes } from "@/lib/nav-links";
 import { touchLastActive } from "@/lib/actions/profile";
@@ -81,10 +82,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <ChatFab />
         <MobileTabBar />
         {/* useSearchParams requires a Suspense boundary; see
-            components/brand-splash.tsx for what this actually shows and
-            when. */}
+            components/brand-splash.tsx and components/referral-bonus-
+            toast.tsx for what these actually show and when. */}
         <Suspense fallback={null}>
           <BrandSplash />
+          <ReferralBonusToast />
         </Suspense>
       </body>
     </html>

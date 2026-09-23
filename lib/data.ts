@@ -645,6 +645,45 @@ export async function getChallengeStats(userId: string): Promise<ChallengeStats>
   return { totalPoints, currentStreak };
 }
 
+export type ReferralStats = {
+  referredCount: number;
+  recentReferrals: (FeedAuthor & { id: string; createdAt: string })[];
+};
+
+/**
+ * `userId`'s referral history as the *referrer* — profile.referral_points
+ * itself already covers the number (both sides of every redemption, see
+ * redeem_referral in 0040_referral_points.sql), this is just who and when,
+ * for the "recent invites" list on /invite.
+ */
+export async function getReferralStats(userId: string): Promise<ReferralStats> {
+  const supabase = await createClient();
+  // count: "exact" alongside a limited select, so "friends joined" doesn't
+  // silently cap at 20 once someone actually gets good at this.
+  const { data, count, error } = await supabase
+    .from("referrals")
+    .select("created_at, referred:profiles!referrals_referred_id_fkey(id, username, full_name, avatar_url)", {
+      count: "exact",
+    })
+    .eq("referrer_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (error) {
+    console.error("getReferralStats failed:", error.message);
+    return { referredCount: 0, recentReferrals: [] };
+  }
+
+  const recentReferrals = (data ?? [])
+    .map((r) => {
+      const referred = r.referred as unknown as (FeedAuthor & { id: string }) | null;
+      return referred ? { ...referred, createdAt: r.created_at } : null;
+    })
+    .filter((r): r is FeedAuthor & { id: string; createdAt: string } => r !== null);
+
+  return { referredCount: count ?? recentReferrals.length, recentReferrals };
+}
+
 /** The career quiz's questions, in display order — previously fetched
  * directly in app/quiz/page.tsx; that page is gone (the quiz now lives
  * inline on /dashboard, see components/career-quiz-card.tsx) but the

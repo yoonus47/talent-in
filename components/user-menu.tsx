@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { LogOut, Moon, Settings, Sun } from "lucide-react";
+import { Gift, LogOut, Moon, Settings, Sun } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
 import { useThemeToggle } from "@/components/theme-toggle";
 import { Avatar } from "@/components/ui/avatar";
@@ -103,6 +103,10 @@ export function UserMenu({
             <Link href="/settings" onClick={close} className={itemClass}>
               <Settings className="h-4 w-4 text-muted-foreground" />
               Settings
+            </Link>
+            <Link href="/invite" onClick={close} className={itemClass}>
+              <Gift className="h-4 w-4 text-muted-foreground" />
+              Invite friends
             </Link>
             <button type="button" onClick={() => { toggle(); close(); }} className={itemClass}>
               {isDark ? (

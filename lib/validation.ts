@@ -3,6 +3,11 @@ import { ALL_HOBBIES, MAX_HOBBIES } from "@/lib/hobbies";
 
 const HOBBY_SET = new Set(ALL_HOBBIES);
 
+// Referral codes are just usernames (talentzify.com/r/<username>) — same
+// shape as onboardingSchema.username below, exported so proxy.ts can
+// validate a `?ref=` query param before trusting it into a cookie.
+export const REFERRAL_CODE_PATTERN = /^[a-z0-9_]{3,24}$/;
+
 export const signUpSchema = z.object({
   email: z.string().trim().email("Enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),

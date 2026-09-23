@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Flame, Trophy } from "lucide-react";
+import { ArrowRight, Flame, Gift, Trophy } from "lucide-react";
 import {
   getChallengeStats,
   getCurrentProfile,
@@ -68,20 +69,36 @@ export default async function DashboardPage() {
             {/* getChallengeStats' own total (daily-challenge scores only)
                 plus profile.community_points (threads/replies/best-answers
                 — see supabase/migrations/0031_community_round3.sql's
-                point triggers) as one combined "total points" stat. The
-                two stay independently tracked/auditable server-side (this
-                is purely a display-time sum, not a merged column) — the
-                breakdown line underneath is what keeps that legible. */}
+                point triggers) plus profile.referral_points (invite
+                bonuses — 0040_referral_points.sql) as one combined "total
+                points" stat. All three stay independently tracked/
+                auditable server-side (this is purely a display-time sum,
+                not a merged column) — the breakdown line underneath is
+                what keeps that legible. */}
             <p className="text-xl font-bold leading-none">
-              {stats.totalPoints + profile.community_points}
+              {stats.totalPoints + profile.community_points + profile.referral_points}
             </p>
             <p className="text-xs text-muted-foreground">total points</p>
             <p className="text-[11px] text-muted-foreground/70">
-              {stats.totalPoints} challenges · {profile.community_points} community
+              {stats.totalPoints} challenges · {profile.community_points} community ·{" "}
+              {profile.referral_points} invites
             </p>
           </div>
         </Card>
       </div>
+
+      <Link
+        href="/invite"
+        className="flex items-center gap-3 rounded-xl p-4 text-white shadow-sm transition-opacity hover:opacity-90"
+        style={{ background: "var(--gradient-brand)" }}
+      >
+        <Gift className="h-6 w-6 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">Invite friends, earn points</p>
+          <p className="text-xs text-white/80">You both get 50 points when they join</p>
+        </div>
+        <ArrowRight className="h-4 w-4 shrink-0" />
+      </Link>
 
       {wordOfTheDay && <WordOfTheDay word={wordOfTheDay} />}
 

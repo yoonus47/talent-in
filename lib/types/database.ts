@@ -56,7 +56,8 @@ export type NotificationType =
   | "community_reply"
   | "community_reaction"
   | "community_mention"
-  | "community_best_answer";
+  | "community_best_answer"
+  | "referral_joined";
 
 export interface Database {
   public: {
@@ -104,6 +105,12 @@ export interface Database {
           // list rather than just this one. See that migration's comment
           // for the actual privacy boundary (the user_safety_summary view).
           last_active_at: string | null;
+          // Server-only, same posture as community_points above — written
+          // only by redeem_referral() (0040_referral_points.sql), never a
+          // direct client update. Folded into the dashboard's "total
+          // points" stat alongside community_points and the daily-
+          // challenge total — see app/dashboard/page.tsx.
+          referral_points: number;
           created_at: string;
         };
         Insert: {
@@ -126,10 +133,39 @@ export interface Database {
           platform_updated_at?: string | null;
           community_points?: number;
           last_active_at?: string | null;
+          referral_points?: number;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
         Relationships: [];
+      };
+      referrals: {
+        Row: { id: string; referrer_id: string; referred_id: string; created_at: string };
+        Insert: {
+          id?: string;
+          referrer_id: string;
+          referred_id: string;
+          created_at?: string;
+        };
+        // Only ever written by redeem_referral() (security definer) — no
+        // client update path exists.
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "referrals_referrer_id_fkey";
+            columns: ["referrer_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "referrals_referred_id_fkey";
+            columns: ["referred_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       follows: {
         Row: { follower_id: string; following_id: string; created_at: string };
@@ -1199,6 +1235,10 @@ export interface Database {
       add_group_members: {
         Args: { p_conversation_id: string; p_member_ids: string[] };
         Returns: undefined;
+      };
+      redeem_referral: {
+        Args: { p_referrer_username: string };
+        Returns: string | null;
       };
     };
   };

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AtSign, Award, Bell, Heart, MessageCircle, Reply, Repeat2, UserPlus, Users } from "lucide-react";
+import { AtSign, Award, Bell, Gift, Heart, MessageCircle, Reply, Repeat2, UserPlus, Users } from "lucide-react";
 import { getCurrentProfile, getNotifications, type FeedNotification } from "@/lib/data";
 import { markAllNotificationsRead } from "@/lib/actions/notifications";
 import { REACTIONS } from "@/lib/reactions";
@@ -48,6 +48,8 @@ function describe(n: FeedNotification): string {
     }
     case "community_best_answer":
       return "marked your reply as the best answer";
+    case "referral_joined":
+      return "joined TalentZify using your invite — you both earned 50 points!";
   }
 }
 
@@ -75,6 +77,8 @@ function iconFor(type: FeedNotification["type"]) {
       return Heart;
     case "community_best_answer":
       return Award;
+    case "referral_joined":
+      return Gift;
     default:
       return Heart;
   }
@@ -115,7 +119,7 @@ export default async function NotificationsPage() {
               n.type === "community_reaction" ||
               n.type === "community_best_answer";
             const href =
-              n.type === "follow"
+              n.type === "follow" || n.type === "referral_joined"
                 ? `/profile/${n.actor.username}`
                 : (n.type === "group_added" || n.type === "mention") && n.conversation
                   ? `/chat/${n.conversation.id}`

@@ -1,7 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { REFERRAL_CODE_PATTERN } from "@/lib/validation";
+import { REFERRAL_COOKIE } from "@/lib/referrals";
 
-const PUBLIC_PATHS = ["/", "/login", "/signup", "/auth", "/student", "/coming-soon"];
+const PUBLIC_PATHS = ["/", "/login", "/signup", "/auth", "/student", "/coming-soon", "/r"];
+
+const REFERRAL_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some(
@@ -51,6 +55,24 @@ export async function updateSession(request: NextRequest) {
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
+  }
+
+  // Referral capture: app/r/[username]/page.tsx redirects here with
+  // ?ref=<username>. Caught here (on the page visit itself, via a cookie)
+  // rather than as a hidden form field, since it has to survive both the
+  // email-confirmation gap and the "Continue with Google" button — neither
+  // of which is a form submission on this page. Redeemed once, in
+  // lib/actions/profile.ts's completeOnboarding (see 0040_referral_points.sql).
+  if (pathname === "/signup") {
+    const ref = request.nextUrl.searchParams.get("ref")?.toLowerCase();
+    if (ref && REFERRAL_CODE_PATTERN.test(ref)) {
+      supabaseResponse.cookies.set(REFERRAL_COOKIE, ref, {
+        maxAge: REFERRAL_COOKIE_MAX_AGE,
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+      });
+    }
   }
 
   return supabaseResponse;

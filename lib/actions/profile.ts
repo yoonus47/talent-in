@@ -2,10 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { onboardingSchema } from "@/lib/validation";
 import { notify } from "@/lib/notify";
+import { REFERRAL_COOKIE } from "@/lib/referrals";
 import { validateImageFile, extensionFor } from "@/lib/uploads";
 import { parsePlatformOs, parsePlatformBrowser } from "@/lib/user-agent";
 
@@ -116,10 +117,36 @@ export async function completeOnboarding(formData: FormData) {
     redirect(`/onboarding?error=${encodeURIComponent(message)}`);
   }
 
+  // Referral redemption — best-effort, same posture as touchLastActive:
+  // never blocks onboarding completion. Only reachable now that the
+  // profiles row above actually exists (redeem_referral needs it for both
+  // the referrals FK and the auth.uid()-scoped points update). See
+  // supabase/migrations/0040_referral_points.sql and lib/supabase/proxy.ts
+  // (which is what set this cookie, on the /signup visit itself).
+  const cookieStore = await cookies();
+  const refCode = cookieStore.get(REFERRAL_COOKIE)?.value;
+  let referralBonus = false;
+  if (refCode) {
+    try {
+      const { data: referrerId } = await supabase.rpc("redeem_referral", {
+        p_referrer_username: refCode,
+      });
+      if (referrerId) {
+        await notify(supabase, { recipientId: referrerId, actorId: user.id, type: "referral_joined" });
+        referralBonus = true;
+      }
+    } catch (err) {
+      console.error("redeem_referral failed:", err);
+    }
+    cookieStore.delete(REFERRAL_COOKIE);
+  }
+
   revalidatePath("/feed");
   // ?welcome=1 triggers components/brand-splash.tsx's entrance animation
   // — this is the very first time a brand-new account lands on the feed.
-  redirect("/feed?welcome=1");
+  // ?bonus=1 additionally triggers components/referral-bonus-toast.tsx,
+  // only when a referral was actually just credited.
+  redirect(referralBonus ? "/feed?welcome=1&bonus=1" : "/feed?welcome=1");
 }
 
 /** Onboarding pre-fills first/last name from Google when available. */
