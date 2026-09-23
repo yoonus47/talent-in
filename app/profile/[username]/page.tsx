@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { MessageCircle, PenLine } from "lucide-react";
+import { MessageCircle, PenLine, Trophy } from "lucide-react";
 import {
   getCurrentProfile,
   getFollowStats,
@@ -38,79 +38,106 @@ export default async function ProfilePage({
 
   return (
     <div className="mx-auto max-w-xl space-y-4 px-4 py-6">
-      <Card className="p-6">
-        {/* min-w-0 (+ break-words on the name below): a long full_name used
-            to force this row past the card's edge — a flex item's default
-            min-width is content-based, so a long unbroken word/hyphenated
-            name refused to shrink and pushed the action button(s) off the
-            visible edge instead of the name simply wrapping onto more
-            lines the way it should. min-w-0 lets this block actually
-            shrink to make room, same as the button side keeps its size. */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-4">
-            <Avatar name={profile.full_name} src={profile.avatar_url} size={64} />
-            <div className="min-w-0">
-              <h1 className="text-lg font-bold break-words">{profile.full_name}</h1>
-              <p className="text-sm text-muted-foreground">@{profile.username}</p>
-            </div>
-          </div>
+      <Card className="overflow-hidden p-0">
+        {/* Twitter/Instagram-style banner + overlapping avatar — the one
+            existing "special moment" gradient this app already uses
+            everywhere else (brand splash, /invite's hero, the dashboard
+            promo card), reused here instead of inventing a second visual
+            language for a page that used to just be a bare Card. */}
+        <div className="h-24" style={{ background: "var(--gradient-brand)" }} />
 
-          {isOwnProfile ? (
-            <a
-              href="/settings"
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0")}
-            >
-              Edit profile
-            </a>
-          ) : (
-            <div className="flex shrink-0 items-center gap-2">
-              {isMutual && (
-                <form action={startConversation.bind(null, profile.id)}>
-                  <Button type="submit" variant="outline" size="sm" aria-label="Message">
-                    <MessageCircle className="h-4 w-4" />
+        <div className="px-6 pb-6">
+          {/* items-end, not items-center: the avatar is much taller than
+              the action button(s) beside it — end-aligning keeps the
+              button's baseline near the avatar's bottom instead of
+              floating awkwardly near its vertical center. */}
+          <div className="flex items-end justify-between gap-3">
+            <Avatar
+              name={profile.full_name}
+              src={profile.avatar_url}
+              size={88}
+              className="-mt-11 shrink-0 ring-4 ring-card"
+            />
+
+            {isOwnProfile ? (
+              <a
+                href="/settings"
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0")}
+              >
+                Edit profile
+              </a>
+            ) : (
+              <div className="flex shrink-0 items-center gap-2">
+                {isMutual && (
+                  <form action={startConversation.bind(null, profile.id)}>
+                    <Button type="submit" variant="outline" size="sm" aria-label="Message">
+                      <MessageCircle className="h-4 w-4" />
+                    </Button>
+                  </form>
+                )}
+                <form action={toggleFollow.bind(null, profile.id, isFollowing)}>
+                  <Button type="submit" variant={isFollowing ? "outline" : "primary"} size="sm">
+                    {isFollowing ? "Following" : "Follow"}
                   </Button>
                 </form>
-              )}
-              <form action={toggleFollow.bind(null, profile.id, isFollowing)}>
-                <Button type="submit" variant={isFollowing ? "outline" : "primary"} size="sm">
-                  {isFollowing ? "Following" : "Follow"}
-                </Button>
-              </form>
+              </div>
+            )}
+          </div>
+
+          {/* min-w-0 (+ break-words): a long full_name used to force this
+              block past the card's edge — a flex item's default min-width
+              is content-based, so an unbroken long/hyphenated name refused
+              to shrink. min-w-0 here is now belt-and-suspenders (the block
+              isn't sharing a row with anything anymore) but costs nothing
+              to keep. */}
+          <div className="mt-3 min-w-0">
+            <h1 className="text-lg font-bold break-words">{profile.full_name}</h1>
+            <p className="text-sm text-muted-foreground">@{profile.username}</p>
+          </div>
+
+          {profile.bio && <p className="mt-3 text-sm text-foreground">{profile.bio}</p>}
+
+          <div className="mt-3 flex flex-wrap gap-2 text-sm text-muted-foreground">
+            {profile.grade && <Badge variant="outline">Class {profile.grade}</Badge>}
+            {profile.school && <Badge variant="outline">{profile.school}</Badge>}
+            {(profile.city || profile.state) && (
+              <Badge variant="outline">
+                {[profile.city, profile.state].filter(Boolean).join(", ")}
+              </Badge>
+            )}
+          </div>
+
+          {profile.interests.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {profile.interests.map((interest) => (
+                <Badge key={interest} variant="accent">
+                  {interest}
+                </Badge>
+              ))}
             </div>
           )}
-        </div>
 
-        {profile.bio && <p className="mt-4 text-sm text-foreground">{profile.bio}</p>}
-
-        <div className="mt-4 flex flex-wrap gap-2 text-sm text-muted-foreground">
-          {profile.grade && <Badge variant="outline">Class {profile.grade}</Badge>}
-          {profile.school && <Badge variant="outline">{profile.school}</Badge>}
-          {(profile.city || profile.state) && (
-            <Badge variant="outline">
-              {[profile.city, profile.state].filter(Boolean).join(", ")}
-            </Badge>
-          )}
-        </div>
-
-        {profile.interests.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {profile.interests.map((interest) => (
-              <Badge key={interest} variant="accent">
-                {interest}
-              </Badge>
-            ))}
+          <div className="mt-4 flex items-center gap-4 border-t border-border pt-4 text-sm">
+            <Link href={`/profile/${profile.username}/followers`} className="hover:underline">
+              <strong>{followers}</strong>{" "}
+              <span className="text-muted-foreground">followers</span>
+            </Link>
+            <Link href={`/profile/${profile.username}/following`} className="hover:underline">
+              <strong>{following}</strong>{" "}
+              <span className="text-muted-foreground">following</span>
+            </Link>
+            {/* Community karma — profiles.community_points is publicly
+                readable (unlike challenge_attempts, which is locked to
+                auth.uid() via RLS and would silently show 0 for anyone
+                but the viewer's own profile), same Trophy icon
+                app/dashboard/page.tsx uses for its own points stat. Not a
+                link: no per-user community-activity page exists yet. */}
+            <span className="flex items-center gap-1" title="Community karma">
+              <Trophy className="h-3.5 w-3.5 text-accent" />
+              <strong>{profile.community_points}</strong>{" "}
+              <span className="text-muted-foreground">karma</span>
+            </span>
           </div>
-        )}
-
-        <div className="mt-4 flex gap-4 border-t border-border pt-4 text-sm">
-          <Link href={`/profile/${profile.username}/followers`} className="hover:underline">
-            <strong>{followers}</strong>{" "}
-            <span className="text-muted-foreground">followers</span>
-          </Link>
-          <Link href={`/profile/${profile.username}/following`} className="hover:underline">
-            <strong>{following}</strong>{" "}
-            <span className="text-muted-foreground">following</span>
-          </Link>
         </div>
       </Card>
 
