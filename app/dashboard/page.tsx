@@ -102,7 +102,11 @@ export default async function DashboardPage() {
               {stats.totalPoints + profile.community_points + profile.referral_points}
             </p>
             <p className="text-xs text-muted-foreground">total points</p>
-            <p className="text-[11px] text-muted-foreground/70">
+            {/* text-pretty: this card's narrow (roughly half the already-
+                narrow xl container), so the breakdown wraps almost every
+                time — without it, the last word routinely strands itself
+                alone on a second line. */}
+            <p className="text-pretty text-[11px] text-muted-foreground/70">
               {stats.totalPoints} challenges · {profile.community_points} community ·{" "}
               {profile.referral_points} invites
             </p>

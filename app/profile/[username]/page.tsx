@@ -37,7 +37,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 import { FeedList } from "@/components/feed-list";
-import { cn, joinedDate } from "@/lib/utils";
+import { cn, joinedDate, pluralize } from "@/lib/utils";
 
 // lib/hobbies.ts's 11 categories, one icon each — the interest chips below
 // are all still the same single accent color (see the gradient-restraint
@@ -209,11 +209,12 @@ export default async function ProfilePage({
               Followers/Following already link to their own pages. */}
           <div className="mt-4 flex items-center gap-4 border-t border-border pt-4 text-sm">
             <a href="#posts" className="hover:underline">
-              <strong>{items.length}</strong> <span className="text-muted-foreground">posts</span>
+              <strong>{items.length}</strong>{" "}
+              <span className="text-muted-foreground">{pluralize(items.length, "post")}</span>
             </a>
             <Link href={`/profile/${profile.username}/followers`} className="hover:underline">
               <strong>{followers}</strong>{" "}
-              <span className="text-muted-foreground">followers</span>
+              <span className="text-muted-foreground">{pluralize(followers, "follower")}</span>
             </Link>
             <Link href={`/profile/${profile.username}/following`} className="hover:underline">
               <strong>{following}</strong>{" "}

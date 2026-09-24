@@ -112,22 +112,34 @@ export default async function CommunityPage({
         </div>
       </form>
 
-      <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-        <Link
-          href={withParams("/community", { topic: undefined })}
-          className={cn(chipClass, !activeTopic ? activeChip : inactiveChip)}
-        >
-          All
-        </Link>
-        {topics.map((t) => (
+      {/* relative+overlay, not overflow-hidden on this wrapper — the chip
+          row itself still needs its own overflow-x-auto to scroll. The
+          overlay just hints "more chips this way" (narrowing the page to
+          match the rest of the app, see the container-width commit, made
+          this row clip mid-word more often) the way most apps fade a
+          horizontal-scroll edge instead of clipping it bare. */}
+      <div className="relative mt-3">
+        <div className="flex gap-2 overflow-x-auto pb-1">
           <Link
-            key={t.id}
-            href={withParams("/community", { topic: t.slug })}
-            className={cn(chipClass, activeTopic?.id === t.id ? activeChip : inactiveChip)}
+            href={withParams("/community", { topic: undefined })}
+            className={cn(chipClass, !activeTopic ? activeChip : inactiveChip)}
           >
-            {t.name}
+            All
           </Link>
-        ))}
+          {topics.map((t) => (
+            <Link
+              key={t.id}
+              href={withParams("/community", { topic: t.slug })}
+              className={cn(chipClass, activeTopic?.id === t.id ? activeChip : inactiveChip)}
+            >
+              {t.name}
+            </Link>
+          ))}
+        </div>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent"
+        />
       </div>
 
       <div className="mt-2 flex items-center gap-2">
