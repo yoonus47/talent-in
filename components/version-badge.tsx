@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 // version injection exists yet, and this is a small enough surface that
 // wiring one up isn't worth it until the app actually needs it elsewhere
 // too (release notes, support requests, etc).
-export const APP_VERSION = "0.3.51";
+export const APP_VERSION = "0.3.57";
 
 /**
  * A deliberately quiet "this is early software" marker — muted-foreground,
