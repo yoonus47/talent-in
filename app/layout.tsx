@@ -92,7 +92,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             read as too loud), just a longer caption — there's room for
             it in this corner that the mobile navbar gap doesn't have. */}
         {profile && (
-          <VersionBadge className="fixed bottom-4 left-4 z-30 hidden max-w-[240px] lg:inline-flex">
+          <VersionBadge className="fixed bottom-4 left-4 z-30 hidden max-w-[360px] lg:inline-flex">
             Alpha v{APP_VERSION}. This is a pre-release version. You may encounter bugs, unstable
             features or unexpected behavior.
           </VersionBadge>
