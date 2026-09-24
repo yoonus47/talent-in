@@ -35,7 +35,7 @@ export function CoverUpload({ coverUrl }: { coverUrl: string | null }) {
         if (inputRef.current) setInputFile(inputRef.current, file);
       } catch {
         setConverting(false);
-        setError("Couldn't read that iPhone photo format — try a different one.");
+        setError("Couldn't read that iPhone photo format. Try a different one.");
         setPreview(null);
         if (inputRef.current) inputRef.current.value = "";
         return;

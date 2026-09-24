@@ -29,9 +29,9 @@ function firstNameOf(profile: { first_name: string | null; full_name: string }) 
 // instead of a static caption, so the greeting card actually reflects
 // today's state rather than reading the same on day 1 and day 30.
 function streakMessage(streak: number) {
-  if (streak === 0) return "Start today's streak — a few minutes a day adds up fast.";
+  if (streak === 0) return "Start today's streak. A few minutes a day adds up fast.";
   if (streak < 3) return `${streak}-day streak. Keep it going!`;
-  return `${streak}-day streak — you're on fire! 🔥`;
+  return `${streak}-day streak. You're on fire! 🔥`;
 }
 
 export default async function DashboardPage() {
@@ -64,7 +64,7 @@ export default async function DashboardPage() {
       <div>
         <h1 className="text-2xl font-bold">Learn & Grow</h1>
         <p className="text-sm text-muted-foreground">
-          Daily practice, vocabulary, and career guidance — a few minutes a day.
+          Daily practice, vocabulary, and career guidance. A few minutes a day.
         </p>
       </div>
 

@@ -147,7 +147,7 @@ export default async function SettingsPage({
           <div className="space-y-3 border-t border-border pt-6">
             <SectionHeading>Skills</SectionHeading>
             <p className="text-xs text-muted-foreground">
-              What you&apos;re good at — separate from your hobbies below.
+              What you&apos;re good at, separate from your hobbies below.
             </p>
             <TagInput
               name="skills"
