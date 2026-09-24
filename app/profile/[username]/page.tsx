@@ -111,7 +111,7 @@ export default async function ProfilePage({
               name={profile.full_name}
               src={profile.avatar_url}
               size={88}
-              className="-mt-11 shrink-0 ring-4 ring-card"
+              className="relative z-10 -mt-11 shrink-0 ring-4 ring-card"
             />
 
             {isOwnProfile ? (
