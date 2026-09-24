@@ -21,12 +21,19 @@ export default async function InvitePage() {
 
   return (
     <div className="mx-auto max-w-xl space-y-4 px-4 py-6">
-      <Card className="overflow-hidden p-6 text-white" style={{ background: "var(--gradient-brand)" }}>
-        <Gift className="h-8 w-8" />
-        <h1 className="mt-3 text-xl font-bold">Invite friends, earn points</h1>
-        <p className="mt-1 text-sm text-white/85">
+      {/* A solid --gradient-brand fill here read as too loud for a card
+          sitting at the very top of the page — same fix as everywhere
+          else this session: gradient moves to the headline text only
+          (matches WordOfTheDay's own word and the dashboard promo card),
+          plain card background instead. */}
+      <Card className="p-6">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10">
+          <Gift className="h-5 w-5 text-accent" />
+        </div>
+        <h1 className="brand-gradient-text mt-3 text-xl font-bold">Invite friends, earn points</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Share your link. When a friend joins TalentZify with it, you both get{" "}
-          <span className="font-semibold">50 points</span>.
+          <span className="font-semibold text-foreground">50 points</span>.
         </p>
       </Card>
 
