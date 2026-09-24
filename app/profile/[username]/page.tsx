@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
@@ -17,8 +18,10 @@ import {
   Sparkles,
   TreePine,
   UtensilsCrossed,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
+import { GithubIcon, InstagramIcon, YoutubeIcon } from "@/components/icons";
 import {
   getCurrentProfile,
   getFollowStats,
@@ -78,18 +81,25 @@ export default async function ProfilePage({
   return (
     <div className="mx-auto max-w-xl space-y-4 px-4 py-6">
       <Card className="overflow-hidden p-0">
-        {/* Twitter/Instagram-style banner + overlapping avatar. Originally
-            a solid --gradient-brand fill, same mistake as the dashboard
-            promo card and the scratch card surface — a profile is viewed
-            constantly, not a rare "special moment", so full saturated
-            brand color here read as loud rather than premium. Calm
-            muted/border foil instead (matches the scratch card's own
-            treatment) — the banner+overlap layout itself is what gives
-            this page its identity now, not the color. */}
-        <div
-          className="h-24"
-          style={{ background: "linear-gradient(135deg, var(--muted), var(--border))" }}
-        />
+        {/* Twitter/Instagram-style banner + overlapping avatar. A real
+            cover photo (Settings -> Cover photo, components/cover-
+            upload.tsx) takes over here when set; the calm muted/border
+            foil (matches the scratch card's own treatment — see the
+            gradient-restraint memory, a profile is viewed constantly, not
+            a rare "special moment") is just the fallback for anyone who
+            hasn't set one, not a permanent design choice like it used to
+            be. */}
+        <div className="relative h-24 bg-[linear-gradient(135deg,var(--muted),var(--border))]">
+          {profile.cover_url && (
+            <Image
+              src={profile.cover_url}
+              alt=""
+              fill
+              sizes="(min-width: 640px) 576px, 100vw"
+              className="object-cover"
+            />
+          )}
+        </div>
 
         <div className="px-6 pb-6">
           {/* items-end, not items-center: the avatar is much taller than
@@ -138,9 +148,57 @@ export default async function ProfilePage({
           <div className="mt-3 min-w-0">
             <h1 className="text-lg font-bold break-words">{profile.full_name}</h1>
             <p className="text-sm text-muted-foreground">@{profile.username}</p>
+            {/* A Discord-style custom status, not a presence indicator —
+                the dot is decorative (this app has no "online now" concept
+                to actually report), just a visual anchor for a short,
+                changeable line that reads as more "live" than the bio. */}
+            {profile.status && (
+              <p className="mt-1.5 flex items-center gap-1.5 text-sm italic text-muted-foreground">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                {profile.status}
+              </p>
+            )}
           </div>
 
           {profile.bio && <p className="mt-3 text-sm text-foreground">{profile.bio}</p>}
+
+          {(profile.instagram_handle || profile.youtube_handle || profile.github_handle) && (
+            <div className="mt-3 flex items-center gap-3">
+              {profile.instagram_handle && (
+                <a
+                  href={`https://instagram.com/${profile.instagram_handle}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Instagram"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <InstagramIcon className="h-5 w-5" />
+                </a>
+              )}
+              {profile.youtube_handle && (
+                <a
+                  href={`https://youtube.com/@${profile.youtube_handle}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="YouTube"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <YoutubeIcon className="h-5 w-5" />
+                </a>
+              )}
+              {profile.github_handle && (
+                <a
+                  href={`https://github.com/${profile.github_handle}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="GitHub"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <GithubIcon className="h-5 w-5" />
+                </a>
+              )}
+            </div>
+          )}
 
           {/* Posts · Followers · Following — karma used to sit here
               (profiles.community_points) but comes out for now, not
@@ -187,6 +245,25 @@ export default async function ProfilePage({
           </div>
         </div>
       </Card>
+
+      {profile.skills.length > 0 && (
+        <Card className="p-4">
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Skills</h2>
+          {/* Outline, not the filled accent Interests use below — "what
+              I'm good at" reads as more understated/credible than "what
+              I'm into", same restraint logic as everywhere else (one
+              consistent icon here too, since skills aren't categorized
+              the way lib/hobbies.ts's interests are). */}
+          <div className="flex flex-wrap gap-2">
+            {profile.skills.map((skill) => (
+              <Badge key={skill} variant="outline" className="gap-1">
+                <Zap className="h-3 w-3 text-muted-foreground" />
+                {skill}
+              </Badge>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {profile.interests.length > 0 && (
         <Card className="p-4">

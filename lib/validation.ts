@@ -42,6 +42,39 @@ export const onboardingSchema = z.object({
     .default([]),
 });
 
+export const MAX_SKILLS = 12;
+
+// Accepts a bare handle, a "@handle", or a pasted full profile URL — all
+// three transform down to the same bare handle before being stored, so
+// app/profile/[username]/page.tsx can build one consistent link shape per
+// platform regardless of what the user actually typed.
+function socialHandleField() {
+  return z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/^@/, "").replace(/^https?:\/\/[^/]+\//, "").replace(/\/$/, ""))
+    .refine(
+      (v) => v === "" || /^[a-zA-Z0-9._-]{1,30}$/.test(v),
+      "Letters, numbers, dots, underscores, and hyphens only",
+    );
+}
+
+// Not part of onboardingSchema on purpose — these are "customize later"
+// profile flair, not part of the already-long first-time setup form. Used
+// only by updateProfile (lib/actions/profile.ts), alongside (not merged
+// into) onboardingSchema.omit({ username: true }) for the rest of that
+// same settings form.
+export const profileFlairSchema = z.object({
+  status: z.string().trim().max(80, "Keep it under 80 characters").optional().or(z.literal("")),
+  skills: z
+    .array(z.string().trim().min(1).max(30))
+    .max(MAX_SKILLS, `Add up to ${MAX_SKILLS} skills`)
+    .default([]),
+  instagramHandle: socialHandleField(),
+  youtubeHandle: socialHandleField(),
+  githubHandle: socialHandleField(),
+});
+
 export const postSchema = z.object({
   content: z.string().trim().min(1, "Say something first").max(1000),
 });

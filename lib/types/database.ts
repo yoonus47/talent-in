@@ -70,12 +70,26 @@ export interface Database {
           first_name: string | null;
           last_name: string | null;
           avatar_url: string | null;
+          cover_url: string | null;
           bio: string | null;
           grade: number | null;
           school: string | null;
           city: string | null;
           state: string | null;
           interests: string[];
+          // Self-expression fields (0042_profile_flair.sql) — status is a
+          // short one-liner ("currently: prepping for JEE"), skills is
+          // deliberately separate from interests ("what I'm good at" vs
+          // "what I'm into"), and the three handles are bare usernames
+          // (no @, no URL — stripped at the validation layer,
+          // lib/validation.ts's socialHandleField) so app/profile/
+          // [username]/page.tsx can build a consistent profile link per
+          // platform. All plain user-editable, same trust level as bio.
+          status: string | null;
+          skills: string[];
+          instagram_handle: string | null;
+          youtube_handle: string | null;
+          github_handle: string | null;
           is_minor: boolean;
           // No self-serve upgrade path exists yet (no payment integration)
           // — set via service-role/SQL only. See 0023_voice_messages.sql.
@@ -120,12 +134,18 @@ export interface Database {
           first_name?: string | null;
           last_name?: string | null;
           avatar_url?: string | null;
+          cover_url?: string | null;
           bio?: string | null;
           grade?: number | null;
           school?: string | null;
           city?: string | null;
           state?: string | null;
           interests?: string[];
+          status?: string | null;
+          skills?: string[];
+          instagram_handle?: string | null;
+          youtube_handle?: string | null;
+          github_handle?: string | null;
           is_minor?: boolean;
           tier?: "free" | "pro";
           platform_os?: string | null;

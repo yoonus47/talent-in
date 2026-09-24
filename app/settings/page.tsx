@@ -2,14 +2,17 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data";
 import { updateProfile } from "@/lib/actions/profile";
 import { signOut } from "@/app/auth/actions";
+import { MAX_SKILLS } from "@/lib/validation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { HobbyPicker } from "@/components/hobby-picker";
+import { TagInput } from "@/components/tag-input";
 import { SubmitButton } from "@/components/submit-button";
 import { AvatarUpload } from "@/components/avatar-upload";
+import { CoverUpload } from "@/components/cover-upload";
 import { DeleteAccount } from "@/components/delete-account";
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -44,6 +47,13 @@ export default async function SettingsPage({
         <SectionHeading>Photo</SectionHeading>
         <div className="mt-3">
           <AvatarUpload name={profile.full_name} avatarUrl={profile.avatar_url} />
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <SectionHeading>Cover photo</SectionHeading>
+        <div className="mt-3">
+          <CoverUpload coverUrl={profile.cover_url} />
         </div>
       </Card>
 
@@ -119,8 +129,71 @@ export default async function SettingsPage({
           <div className="space-y-3 border-t border-border pt-6">
             <SectionHeading>About you</SectionHeading>
             <div className="space-y-1.5">
+              <Label htmlFor="status">Status</Label>
+              <Input
+                id="status"
+                name="status"
+                maxLength={80}
+                placeholder="What are you up to right now?"
+                defaultValue={profile.status ?? ""}
+              />
+            </div>
+            <div className="space-y-1.5">
               <Label htmlFor="bio">Bio</Label>
               <Textarea id="bio" name="bio" maxLength={280} defaultValue={profile.bio ?? ""} />
+            </div>
+          </div>
+
+          <div className="space-y-3 border-t border-border pt-6">
+            <SectionHeading>Skills</SectionHeading>
+            <p className="text-xs text-muted-foreground">
+              What you&apos;re good at — separate from your hobbies below.
+            </p>
+            <TagInput
+              name="skills"
+              defaultValue={profile.skills}
+              placeholder="e.g. Public Speaking, Python…"
+              max={MAX_SKILLS}
+            />
+          </div>
+
+          <div className="space-y-3 border-t border-border pt-6">
+            <SectionHeading>Social links</SectionHeading>
+            <div className="space-y-1.5">
+              <Label htmlFor="instagramHandle">Instagram</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">@</span>
+                <Input
+                  id="instagramHandle"
+                  name="instagramHandle"
+                  placeholder="yourusername"
+                  defaultValue={profile.instagram_handle ?? ""}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="youtubeHandle">YouTube</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">@</span>
+                <Input
+                  id="youtubeHandle"
+                  name="youtubeHandle"
+                  placeholder="yourchannel"
+                  defaultValue={profile.youtube_handle ?? ""}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="githubHandle">GitHub</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">@</span>
+                <Input
+                  id="githubHandle"
+                  name="githubHandle"
+                  placeholder="yourusername"
+                  defaultValue={profile.github_handle ?? ""}
+                />
+              </div>
             </div>
           </div>
 

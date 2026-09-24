@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { headers, cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { onboardingSchema } from "@/lib/validation";
+import { onboardingSchema, profileFlairSchema } from "@/lib/validation";
 import { notify } from "@/lib/notify";
 import { REFERRAL_COOKIE } from "@/lib/referrals";
 import { validateImageFile, extensionFor } from "@/lib/uploads";
@@ -185,7 +185,24 @@ export async function updateProfile(formData: FormData) {
     );
   }
 
+  // Separate schema, not merged into onboardingSchema — see
+  // profileFlairSchema's own comment in lib/validation.ts.
+  const flairParsed = profileFlairSchema.safeParse({
+    status: formData.get("status"),
+    skills: formData.getAll("skills"),
+    instagramHandle: formData.get("instagramHandle"),
+    youtubeHandle: formData.get("youtubeHandle"),
+    githubHandle: formData.get("githubHandle"),
+  });
+
+  if (!flairParsed.success) {
+    redirect(
+      `/settings?error=${encodeURIComponent(flairParsed.error.issues[0]?.message ?? "Invalid input")}`,
+    );
+  }
+
   const { firstName, lastName, grade, school, city, state, bio, interests } = parsed.data;
+  const { status, skills, instagramHandle, youtubeHandle, githubHandle } = flairParsed.data;
 
   const { error } = await supabase
     .from("profiles")
@@ -199,6 +216,11 @@ export async function updateProfile(formData: FormData) {
       state: state || null,
       bio: bio || null,
       interests,
+      status: status || null,
+      skills,
+      instagram_handle: instagramHandle || null,
+      youtube_handle: youtubeHandle || null,
+      github_handle: githubHandle || null,
     })
     .eq("id", user.id);
 
@@ -284,6 +306,74 @@ export async function removeAvatar() {
   redirect("/settings?saved=1");
 }
 
+const MAX_COVER_BYTES = 5 * 1024 * 1024; // 5MB — a wider image than an avatar, same reasoning
+
+export async function uploadCover(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const file = formData.get("cover");
+  if (!(file instanceof File) || file.size === 0) {
+    redirect(`/settings?error=${encodeURIComponent("Choose an image first.")}`);
+  }
+
+  const validationError = validateImageFile(file, MAX_COVER_BYTES);
+  if (validationError) {
+    redirect(`/settings?error=${encodeURIComponent(validationError)}`);
+  }
+
+  const path = `${user.id}/cover.${extensionFor(file.type)}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("covers")
+    .upload(path, file, { upsert: true, contentType: file.type });
+
+  if (uploadError) {
+    redirect(`/settings?error=${encodeURIComponent(uploadError.message)}`);
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("covers").getPublicUrl(path);
+  // Cache-bust: upsert keeps the same path, so browsers/CDNs would
+  // otherwise keep showing the old image after a re-upload.
+  const coverUrl = `${publicUrl}?t=${Date.now()}`;
+
+  await supabase.from("profiles").update({ cover_url: coverUrl }).eq("id", user.id);
+
+  revalidatePath("/settings");
+  revalidateSocialSurfaces();
+  redirect("/settings?saved=1");
+}
+
+/** Mirrors removeAvatarFiles above — same reasoning, different bucket. */
+async function removeCoverFiles(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+) {
+  await supabase.storage
+    .from("covers")
+    .remove(["jpeg", "png", "webp", "gif"].map((ext) => `${userId}/cover.${ext}`));
+}
+
+export async function removeCover() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  await removeCoverFiles(supabase, user.id);
+  await supabase.from("profiles").update({ cover_url: null }).eq("id", user.id);
+
+  revalidatePath("/settings");
+  revalidateSocialSurfaces();
+  redirect("/settings?saved=1");
+}
+
 export async function deleteAccount() {
   const supabase = await createClient();
   const {
@@ -292,6 +382,7 @@ export async function deleteAccount() {
   if (!user) redirect("/login");
 
   await removeAvatarFiles(supabase, user.id);
+  await removeCoverFiles(supabase, user.id);
 
   const { error } = await supabase.rpc("delete_own_account");
   if (error) {
