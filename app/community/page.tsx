@@ -66,7 +66,7 @@ export default async function CommunityPage({
   const inactiveChip = "border-border text-muted-foreground hover:bg-muted";
 
   return (
-    <div className="animate-fade-up mx-auto max-w-2xl px-4 py-6">
+    <div className="animate-fade-up mx-auto max-w-xl px-4 py-6">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Community</h1>

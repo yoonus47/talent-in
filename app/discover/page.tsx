@@ -42,7 +42,7 @@ export default async function DiscoverPage({
   const tab = params.tab === "content" ? "content" : "people";
 
   return (
-    <div className="animate-fade-up mx-auto max-w-3xl px-4 py-6">
+    <div className="animate-fade-up mx-auto max-w-xl px-4 py-6">
       <h1 className="text-2xl font-bold">Discover</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Fellow students and career resources, in one place.

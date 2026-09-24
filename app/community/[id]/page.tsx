@@ -97,7 +97,7 @@ export default async function CommunityThreadPage({
   const shareText = `"${thread.title}"\n\n${thread.body.slice(0, 200)}${thread.body.length > 200 ? "…" : ""}\n\n${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/community/${thread.id}`;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6">
+    <div className="mx-auto max-w-xl px-4 py-6">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <BackLink fallbackHref="/community" aria-label="Back to community">
           <ArrowLeft className="h-5 w-5 text-muted-foreground hover:text-foreground" />
