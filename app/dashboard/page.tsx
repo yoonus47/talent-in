@@ -14,8 +14,25 @@ import { DailyChallenge } from "@/components/daily-challenge";
 import { CareerQuizCard } from "@/components/career-quiz-card";
 import { WordOfTheDay } from "@/components/word-of-the-day";
 import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+
+// A first name is required going forward (app/settings/page.tsx), but the
+// column itself is nullable in the DB (pre-dates that requirement) — this
+// is the one spot on the page that reads it, so the fallback lives here
+// rather than widening the column's guarantees everywhere else.
+function firstNameOf(profile: { first_name: string | null; full_name: string }) {
+  return profile.first_name || profile.full_name.split(" ")[0];
+}
+
+// Same "contextual encouragement" idea DailyChallenge's own ScoreHeader
+// already uses (this file's sibling component) — a streak-aware line
+// instead of a static caption, so the greeting card actually reflects
+// today's state rather than reading the same on day 1 and day 30.
+function streakMessage(streak: number) {
+  if (streak === 0) return "Start today's streak — a few minutes a day adds up fast.";
+  if (streak < 3) return `${streak}-day streak. Keep it going!`;
+  return `${streak}-day streak — you're on fire! 🔥`;
+}
 
 export default async function DashboardPage() {
   const profile = await getCurrentProfile();
@@ -36,22 +53,28 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-xl space-y-4 px-4 py-6">
-      <Card className="p-6">
-        <div className="flex items-center gap-4">
-          <Avatar name={profile.full_name} src={profile.avatar_url} size={56} />
-          <div>
-            <h1 className="text-lg font-bold">{profile.full_name}</h1>
-            <p className="text-sm text-muted-foreground">@{profile.username}</p>
-          </div>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {profile.grade && <Badge variant="outline">Class {profile.grade}</Badge>}
-          {profile.school && <Badge variant="outline">{profile.school}</Badge>}
-          {(profile.city || profile.state) && (
-            <Badge variant="outline">
-              {[profile.city, profile.state].filter(Boolean).join(", ")}
-            </Badge>
-          )}
+      {/* Every other tab (Discover, Community) opens with a real page
+          title matching its nav label — this one didn't, and used to open
+          instead with a full name/avatar/grade/school/location card that
+          just duplicated the Profile page (now the actual home for that
+          info, see its own header/About-card redesign). Swapped for a
+          proper heading plus a compact, streak-aware greeting: still
+          personal, but pointed at *today*, which is what a "Learn & Grow"
+          tab should be about. */}
+      <div>
+        <h1 className="text-2xl font-bold">Learn & Grow</h1>
+        <p className="text-sm text-muted-foreground">
+          Daily practice, vocabulary, and career guidance — a few minutes a day.
+        </p>
+      </div>
+
+      <Card className="flex items-center gap-3 p-4">
+        <Avatar name={profile.full_name} src={profile.avatar_url} size={44} />
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">
+            Welcome back, {firstNameOf(profile)}
+          </p>
+          <p className="text-xs text-muted-foreground">{streakMessage(stats.currentStreak)}</p>
         </div>
       </Card>
 
