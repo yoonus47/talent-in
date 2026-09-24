@@ -1,6 +1,24 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { MessageCircle, PenLine, Trophy } from "lucide-react";
+import {
+  BookOpen,
+  Calendar,
+  Cpu,
+  Dumbbell,
+  Globe,
+  GraduationCap,
+  HeartHandshake,
+  MapPin,
+  MessageCircle,
+  Music,
+  Palette,
+  PenLine,
+  PenTool,
+  Sparkles,
+  TreePine,
+  UtensilsCrossed,
+  type LucideIcon,
+} from "lucide-react";
 import {
   getCurrentProfile,
   getFollowStats,
@@ -9,13 +27,33 @@ import {
 } from "@/lib/data";
 import { toggleFollow } from "@/lib/actions/profile";
 import { startConversation } from "@/lib/actions/chat";
+import { categoryForHobby } from "@/lib/hobbies";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 import { FeedList } from "@/components/feed-list";
-import { cn } from "@/lib/utils";
+import { cn, joinedDate } from "@/lib/utils";
+
+// lib/hobbies.ts's 11 categories, one icon each — the interest chips below
+// are all still the same single accent color (see the gradient-restraint
+// memory: variety belongs in the icons here, not in per-category colors),
+// so this is what actually differentiates "Chess" from "Guitar" at a
+// glance instead of a wall of identical gray-then-pink pills.
+const HOBBY_CATEGORY_ICONS: Record<string, LucideIcon> = {
+  "Outdoor & Nature": TreePine,
+  "Sports & Fitness": Dumbbell,
+  "Music & Performance": Music,
+  "Arts & Crafts": Palette,
+  Writing: PenTool,
+  "Volunteering & Community": HeartHandshake,
+  "Technology & Digital": Cpu,
+  "Internet & Online": Globe,
+  Intellectual: BookOpen,
+  "Food & Drink": UtensilsCrossed,
+  Miscellaneous: Sparkles,
+};
 
 export default async function ProfilePage({
   params,
@@ -35,6 +73,7 @@ export default async function ProfilePage({
     getUserPosts(profile.id, viewer.id),
   ]);
   const isMutual = isFollowing && isFollowedBy;
+  const hasLocation = Boolean(profile.city || profile.state);
 
   return (
     <div className="mx-auto max-w-xl space-y-4 px-4 py-6">
@@ -103,27 +142,17 @@ export default async function ProfilePage({
 
           {profile.bio && <p className="mt-3 text-sm text-foreground">{profile.bio}</p>}
 
-          <div className="mt-3 flex flex-wrap gap-2 text-sm text-muted-foreground">
-            {profile.grade && <Badge variant="outline">Class {profile.grade}</Badge>}
-            {profile.school && <Badge variant="outline">{profile.school}</Badge>}
-            {(profile.city || profile.state) && (
-              <Badge variant="outline">
-                {[profile.city, profile.state].filter(Boolean).join(", ")}
-              </Badge>
-            )}
-          </div>
-
-          {profile.interests.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {profile.interests.map((interest) => (
-                <Badge key={interest} variant="accent">
-                  {interest}
-                </Badge>
-              ))}
-            </div>
-          )}
-
+          {/* Posts · Followers · Following — karma used to sit here
+              (profiles.community_points) but comes out for now, not
+              replaced with another number: it was crowding out the
+              bigger profile upgrade this stat row is now part of, and
+              it'll get a proper home again later rather than a stand-in
+              here. Posts links to the #posts section below, the same way
+              Followers/Following already link to their own pages. */}
           <div className="mt-4 flex items-center gap-4 border-t border-border pt-4 text-sm">
+            <a href="#posts" className="hover:underline">
+              <strong>{items.length}</strong> <span className="text-muted-foreground">posts</span>
+            </a>
             <Link href={`/profile/${profile.username}/followers`} className="hover:underline">
               <strong>{followers}</strong>{" "}
               <span className="text-muted-foreground">followers</span>
@@ -132,29 +161,63 @@ export default async function ProfilePage({
               <strong>{following}</strong>{" "}
               <span className="text-muted-foreground">following</span>
             </Link>
-            {/* Community karma — profiles.community_points is publicly
-                readable (unlike challenge_attempts, which is locked to
-                auth.uid() via RLS and would silently show 0 for anyone
-                but the viewer's own profile), same Trophy icon
-                app/dashboard/page.tsx uses for its own points stat. Not a
-                link: no per-user community-activity page exists yet. */}
-            <span className="flex items-center gap-1" title="Community karma">
-              <Trophy className="h-3.5 w-3.5 text-accent" />
-              <strong>{profile.community_points}</strong>{" "}
-              <span className="text-muted-foreground">karma</span>
-            </span>
           </div>
         </div>
       </Card>
 
-      {items.length === 0 ? (
-        <EmptyState
-          icon={PenLine}
-          title={isOwnProfile ? "You haven't posted yet" : `${profile.full_name} hasn't posted yet`}
-        />
-      ) : (
-        <FeedList items={items} viewer={viewer} />
+      <Card className="p-4">
+        <h2 className="mb-3 text-sm font-semibold text-muted-foreground">About</h2>
+        <div className="space-y-2.5 text-sm text-foreground">
+          <div className="flex items-center gap-2.5">
+            <GraduationCap className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span>
+              Class {profile.grade}
+              {profile.school ? ` · ${profile.school}` : ""}
+            </span>
+          </div>
+          {hasLocation && (
+            <div className="flex items-center gap-2.5">
+              <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span>{[profile.city, profile.state].filter(Boolean).join(", ")}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2.5">
+            <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span>Joined {joinedDate(profile.created_at)}</span>
+          </div>
+        </div>
+      </Card>
+
+      {profile.interests.length > 0 && (
+        <Card className="p-4">
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Interests</h2>
+          <div className="flex flex-wrap gap-2">
+            {profile.interests.map((interest) => {
+              const Icon = HOBBY_CATEGORY_ICONS[categoryForHobby(interest) ?? "Miscellaneous"];
+              return (
+                <Badge key={interest} variant="accent" className="gap-1">
+                  <Icon className="h-3 w-3" />
+                  {interest}
+                </Badge>
+              );
+            })}
+          </div>
+        </Card>
       )}
+
+      <div>
+        <h2 id="posts" className="mb-2 text-sm font-semibold text-muted-foreground">
+          Posts
+        </h2>
+        {items.length === 0 ? (
+          <EmptyState
+            icon={PenLine}
+            title={isOwnProfile ? "You haven't posted yet" : `${profile.full_name} hasn't posted yet`}
+          />
+        ) : (
+          <FeedList items={items} viewer={viewer} />
+        )}
+      </div>
     </div>
   );
 }

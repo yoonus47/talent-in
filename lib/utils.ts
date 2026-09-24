@@ -74,6 +74,11 @@ export function postImageCssAspectRatio(image: {
   return image.imageWidth / image.imageHeight;
 }
 
+/** "September 2026" — components/profile page's "Joined ..." fact row. */
+export function joinedDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
 export function timeAgo(iso: string) {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   const units: [number, string][] = [
