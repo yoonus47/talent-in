@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { getCurrentProfile } from "@/lib/data";
 import { updateProfile } from "@/lib/actions/profile";
 import { signOut } from "@/app/auth/actions";
 import { MAX_SKILLS } from "@/lib/validation";
+import { BackLink } from "@/components/back-link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,7 +36,15 @@ export default async function SettingsPage({
 
   return (
     <div className="mx-auto max-w-lg space-y-4 px-4 py-6">
-      <h1 className="text-2xl font-bold">Settings</h1>
+      {/* Settings has no bottom-tab entry of its own (reached from the
+          account menu or Profile's "Edit profile" button) — without this,
+          the only way back was the browser/device back gesture. */}
+      <div className="flex items-center gap-3">
+        <BackLink fallbackHref={`/profile/${profile.username}`} aria-label="Back to profile">
+          <ArrowLeft className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+        </BackLink>
+        <h1 className="text-2xl font-bold">Settings</h1>
+      </div>
 
       {error && (
         <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>

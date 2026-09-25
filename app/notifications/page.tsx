@@ -1,9 +1,22 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AtSign, Award, Bell, Gift, Heart, MessageCircle, Reply, Repeat2, UserPlus, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  AtSign,
+  Award,
+  Bell,
+  Gift,
+  Heart,
+  MessageCircle,
+  Reply,
+  Repeat2,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { getCurrentProfile, getNotifications, type FeedNotification } from "@/lib/data";
 import { markAllNotificationsRead } from "@/lib/actions/notifications";
 import { REACTIONS } from "@/lib/reactions";
+import { BackLink } from "@/components/back-link";
 import { Avatar } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
@@ -100,7 +113,15 @@ export default async function NotificationsPage() {
 
   return (
     <div className="mx-auto max-w-xl px-4 py-6">
-      <h1 className="text-2xl font-bold">Notifications</h1>
+      {/* Notifications has no bottom-tab entry of its own (reached from
+          the bell icon, available on every page) — without this, the only
+          way back was the browser/device back gesture. */}
+      <div className="flex items-center gap-3">
+        <BackLink fallbackHref="/feed" aria-label="Back">
+          <ArrowLeft className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+        </BackLink>
+        <h1 className="text-2xl font-bold">Notifications</h1>
+      </div>
 
       {notifications.length === 0 ? (
         <EmptyState

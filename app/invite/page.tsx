@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
-import { Gift, Share2, Sparkles, UserPlus } from "lucide-react";
+import { ArrowLeft, Gift, Share2, Sparkles, UserPlus } from "lucide-react";
 import { getCurrentProfile, getReferralStats } from "@/lib/data";
+import { BackLink } from "@/components/back-link";
 import { Avatar } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
@@ -21,6 +22,13 @@ export default async function InvitePage() {
 
   return (
     <div className="mx-auto max-w-xl space-y-4 px-4 py-6">
+      {/* Invite has no bottom-tab entry of its own (reached from the
+          account menu or the dashboard promo card) — without this, the
+          only way back was the browser/device back gesture. */}
+      <BackLink fallbackHref="/dashboard" aria-label="Back" className="inline-flex">
+        <ArrowLeft className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+      </BackLink>
+
       {/* A solid --gradient-brand fill here read as too loud for a card
           sitting at the very top of the page — same fix as everywhere
           else this session: gradient moves to the headline text only

@@ -16,7 +16,10 @@ export const APP_VERSION = "0.3.57";
  * treatment existed briefly but read as too loud, so both are back to
  * this same text weight/size, just with different copy passed as
  * children (desktop has room for a longer explanatory sentence, the
- * mobile navbar gap doesn't).
+ * mobile navbar gap doesn't) and desktop overriding to left-aligned text
+ * (its multi-line sentence read as more deliberate/formal ragged-right
+ * than centered; the mobile pill's shorter text stays centered, its
+ * default here).
  *
  * No `whitespace-nowrap` and `min-w-0` included on purpose: text is
  * allowed to wrap rather than overflow its flex container — the same fix
