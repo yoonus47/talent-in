@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { setCommentReaction } from "@/lib/actions/comments";
+import { getCommentReactors, setCommentReaction } from "@/lib/actions/comments";
 import type { FeedComment } from "@/lib/data";
 import { Avatar } from "@/components/ui/avatar";
 import { ReactionRow } from "@/components/reaction-row";
 import { ReactionSummary } from "@/components/reaction-summary";
+import { ReactorsModal } from "@/components/reactors-modal";
 import { CommentContent } from "@/components/comment-content";
 import { DeleteCommentButton } from "@/components/delete-comment-button";
 import { DoubleTapReact, DOUBLE_TAP_REACTION } from "@/components/double-tap-react";
@@ -23,6 +24,7 @@ function CommentRow({
   canReply: boolean;
 }) {
   const [replying, setReplying] = useState(false);
+  const [showReactors, setShowReactors] = useState(false);
 
   return (
     <div className="text-sm">
@@ -61,7 +63,11 @@ function CommentRow({
               getting squeezed and overflowing. */}
           <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 pl-3 text-xs text-muted-foreground">
             <span>{timeAgo(comment.created_at)}</span>
-            <ReactionSummary counts={comment.reactionCounts} size="sm" />
+            <ReactionSummary
+              counts={comment.reactionCounts}
+              size="sm"
+              onOpenReactors={() => setShowReactors(true)}
+            />
             <ReactionRow
               size="sm"
               counts={comment.reactionCounts}
@@ -98,6 +104,13 @@ function CommentRow({
           )}
         </div>
       </div>
+
+      {showReactors && (
+        <ReactorsModal
+          fetchReactors={() => getCommentReactors(comment.id)}
+          onClose={() => setShowReactors(false)}
+        />
+      )}
 
       {comment.replies.length > 0 && (
         // The left border is a thread line connecting a reply run back up

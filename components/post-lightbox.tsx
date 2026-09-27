@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { X } from "lucide-react";
-import { setReaction } from "@/lib/actions/posts";
+import { getPostReactors, setReaction } from "@/lib/actions/posts";
 import type { FeedPost } from "@/lib/data";
 import { Avatar } from "@/components/ui/avatar";
 import { ReactionRow } from "@/components/reaction-row";
 import { ReactionSummary } from "@/components/reaction-summary";
+import { ReactorsModal } from "@/components/reactors-modal";
 import { CommentThread } from "@/components/comment-thread";
 import { MentionInput } from "@/components/mention-input";
 import { Portal } from "@/components/portal";
@@ -24,6 +25,7 @@ import { cn, postImageCssAspectRatio, timeAgo } from "@/lib/utils";
  */
 export function PostLightbox({ post, onClose }: { post: FeedPost; onClose: () => void }) {
   const [mounted, setMounted] = useState(false);
+  const [showReactors, setShowReactors] = useState(false);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setMounted(true));
@@ -112,8 +114,18 @@ export function PostLightbox({ post, onClose }: { post: FeedPost; onClose: () =>
             </p>
 
             <div className="mt-3">
-              <ReactionSummary counts={post.reactionCounts} />
+              <ReactionSummary
+                counts={post.reactionCounts}
+                onOpenReactors={() => setShowReactors(true)}
+              />
             </div>
+
+            {showReactors && (
+              <ReactorsModal
+                fetchReactors={() => getPostReactors(post.id)}
+                onClose={() => setShowReactors(false)}
+              />
+            )}
             <div className="mt-1 border-t border-border pt-3">
               <ReactionRow
                 counts={post.reactionCounts}

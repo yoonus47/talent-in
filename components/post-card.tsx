@@ -4,12 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, MessageCircle, Repeat2 } from "lucide-react";
 import type { FeedAuthor, FeedPost } from "@/lib/data";
-import { setReaction, toggleShare } from "@/lib/actions/posts";
+import { getPostReactors, setReaction, toggleShare } from "@/lib/actions/posts";
 import { Avatar } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { DeletePostButton } from "@/components/delete-post-button";
 import { ReactionRow } from "@/components/reaction-row";
 import { ReactionSummary } from "@/components/reaction-summary";
+import { ReactorsModal } from "@/components/reactors-modal";
 import { DoubleTapReact, DOUBLE_TAP_REACTION } from "@/components/double-tap-react";
 import { PostImage } from "@/components/post-image";
 import { PostContent } from "@/components/post-content";
@@ -41,6 +42,7 @@ export function PostCard({ post, viewer }: { post: FeedPost; viewer: FeedAuthor 
   // opens it, since typing one is a pretty clear signal you want to see
   // where it landed.
   const [open, setOpen] = useState(false);
+  const [showReactors, setShowReactors] = useState(false);
 
   // A post never stacks two "media-like" blocks — a link preview only
   // shows up when there's no uploaded photo. Matches lib/data.ts's
@@ -93,8 +95,18 @@ export function PostCard({ post, viewer }: { post: FeedPost; viewer: FeedAuthor 
       {previewUrl && <LinkPreviewCard url={previewUrl} initialPreview={post.linkPreview} />}
 
       <div className="mt-3">
-        <ReactionSummary counts={post.reactionCounts} />
+        <ReactionSummary
+          counts={post.reactionCounts}
+          onOpenReactors={() => setShowReactors(true)}
+        />
       </div>
+
+      {showReactors && (
+        <ReactorsModal
+          fetchReactors={() => getPostReactors(post.id)}
+          onClose={() => setShowReactors(false)}
+        />
+      )}
 
       <div className="mt-1 flex flex-wrap items-center gap-1 border-t border-border pt-3">
         {/* size="sm" — this row also has to fit the comment count and

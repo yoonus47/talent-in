@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { postSchema } from "@/lib/validation";
-import type { ReactionType } from "@/lib/reactions";
+import type { ReactionType, Reactor } from "@/lib/reactions";
 import { notify } from "@/lib/notify";
 import { validateImageFile, extensionFor, storagePathFromPublicUrl } from "@/lib/uploads";
 import { revalidatePostSurfaces } from "@/lib/revalidate";
@@ -153,6 +153,37 @@ export async function setReaction(
   }
 
   revalidatePostSurfaces();
+}
+
+/** Who reacted to a post, and with what — for the reactors modal opened
+ * from ReactionSummary. A passive read, not a page load, so an
+ * unauthenticated caller just gets an empty list rather than a redirect
+ * (same convention as searchMentionCandidates). */
+export async function getPostReactors(postId: string): Promise<Reactor[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("reactions")
+    .select("reaction_type, created_at, profiles(id, username, full_name, avatar_url)")
+    .eq("post_id", postId)
+    .order("created_at", { ascending: false });
+
+  return (data ?? [])
+    .map((row) => {
+      const profile = row.profiles as unknown as {
+        id: string;
+        username: string;
+        full_name: string;
+        avatar_url: string | null;
+      } | null;
+      if (!profile) return null;
+      return { ...profile, reactionType: row.reaction_type };
+    })
+    .filter((r): r is Reactor => r !== null);
 }
 
 export async function toggleShare(postId: string, authorId: string, isShared: boolean) {

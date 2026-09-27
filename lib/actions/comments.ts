@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { commentSchema } from "@/lib/validation";
-import type { ReactionType } from "@/lib/reactions";
+import type { ReactionType, Reactor } from "@/lib/reactions";
 import { notify } from "@/lib/notify";
 import { revalidatePostSurfaces } from "@/lib/revalidate";
 
@@ -136,6 +136,36 @@ export async function setCommentReaction(
   }
 
   revalidatePostSurfaces();
+}
+
+/** Who reacted to a comment, and with what — see getPostReactors in
+ * lib/actions/posts.ts, same shape and same "empty list, not a redirect"
+ * convention for an unauthenticated caller. */
+export async function getCommentReactors(commentId: string): Promise<Reactor[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("comment_reactions")
+    .select("reaction_type, created_at, profiles(id, username, full_name, avatar_url)")
+    .eq("comment_id", commentId)
+    .order("created_at", { ascending: false });
+
+  return (data ?? [])
+    .map((row) => {
+      const profile = row.profiles as unknown as {
+        id: string;
+        username: string;
+        full_name: string;
+        avatar_url: string | null;
+      } | null;
+      if (!profile) return null;
+      return { ...profile, reactionType: row.reaction_type };
+    })
+    .filter((r): r is Reactor => r !== null);
 }
 
 /** Mention autocomplete — anyone on the platform, not just people followed. */

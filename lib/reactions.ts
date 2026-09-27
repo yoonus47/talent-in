@@ -10,3 +10,14 @@ export const REACTIONS: { type: ReactionType; emoji: string; label: string }[] =
   { type: "smart", emoji: "💡", label: "Smart" },
   { type: "respect", emoji: "🙌", label: "Respect" },
 ];
+
+/** One person who reacted, for the "see who reacted" list — components/
+ * reactors-modal.tsx and its two data sources, getPostReactors/
+ * getCommentReactors. */
+export type Reactor = {
+  id: string;
+  username: string;
+  full_name: string;
+  avatar_url: string | null;
+  reactionType: ReactionType;
+};
