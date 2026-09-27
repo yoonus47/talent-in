@@ -163,7 +163,6 @@ export interface Database {
         Row: {
           id: string;
           user_id: string;
-          kind: "achievement" | "certificate";
           title: string;
           issuer: string | null;
           earned_on: string | null;
@@ -175,7 +174,6 @@ export interface Database {
         Insert: {
           id?: string;
           user_id: string;
-          kind?: "achievement" | "certificate";
           title: string;
           issuer?: string | null;
           earned_on?: string | null;

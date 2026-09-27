@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { BadgeCheck, ExternalLink, Trophy } from "lucide-react";
+import { Award, ExternalLink } from "lucide-react";
 import { ImageLightbox } from "@/components/image-lightbox";
 import { joinedDate } from "@/lib/utils";
 import type { Achievement } from "@/lib/types/database";
@@ -18,7 +18,6 @@ export function AchievementList({ achievements }: { achievements: Achievement[] 
   return (
     <div className="space-y-3">
       {achievements.map((achievement) => {
-        const Icon = achievement.kind === "certificate" ? BadgeCheck : Trophy;
         const meta = [
           achievement.issuer,
           achievement.earned_on ? joinedDate(achievement.earned_on) : null,
@@ -38,12 +37,12 @@ export function AchievementList({ achievements }: { achievements: Achievement[] 
               </button>
             ) : (
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
-                <Icon className="h-5 w-5" />
+                <Award className="h-5 w-5" />
               </div>
             )}
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                {achievement.image_url && <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                {achievement.image_url && <Award className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                 {achievement.title}
               </p>
               {meta && <p className="text-xs text-muted-foreground">{meta}</p>}

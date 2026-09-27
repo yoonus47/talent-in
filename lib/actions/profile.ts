@@ -181,7 +181,7 @@ export async function updateProfile(formData: FormData) {
 
   if (!parsed.success) {
     redirect(
-      `/settings?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "Invalid input")}`,
+      `/edit-profile?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "Invalid input")}`,
     );
   }
 
@@ -197,7 +197,7 @@ export async function updateProfile(formData: FormData) {
 
   if (!flairParsed.success) {
     redirect(
-      `/settings?error=${encodeURIComponent(flairParsed.error.issues[0]?.message ?? "Invalid input")}`,
+      `/edit-profile?error=${encodeURIComponent(flairParsed.error.issues[0]?.message ?? "Invalid input")}`,
     );
   }
 
@@ -225,12 +225,12 @@ export async function updateProfile(formData: FormData) {
     .eq("id", user.id);
 
   if (error) {
-    redirect(`/settings?error=${encodeURIComponent(error.message)}`);
+    redirect(`/edit-profile?error=${encodeURIComponent(error.message)}`);
   }
 
-  revalidatePath("/settings");
+  revalidatePath("/edit-profile");
   revalidateSocialSurfaces();
-  redirect("/settings?saved=1");
+  redirect("/edit-profile?saved=1");
 }
 
 const MAX_AVATAR_BYTES = 3 * 1024 * 1024; // 3MB
@@ -244,12 +244,12 @@ export async function uploadAvatar(formData: FormData) {
 
   const file = formData.get("avatar");
   if (!(file instanceof File) || file.size === 0) {
-    redirect(`/settings?error=${encodeURIComponent("Choose an image first.")}`);
+    redirect(`/edit-profile?error=${encodeURIComponent("Choose an image first.")}`);
   }
 
   const validationError = validateImageFile(file, MAX_AVATAR_BYTES);
   if (validationError) {
-    redirect(`/settings?error=${encodeURIComponent(validationError)}`);
+    redirect(`/edit-profile?error=${encodeURIComponent(validationError)}`);
   }
 
   const path = `${user.id}/avatar.${extensionFor(file.type)}`;
@@ -259,7 +259,7 @@ export async function uploadAvatar(formData: FormData) {
     .upload(path, file, { upsert: true, contentType: file.type });
 
   if (uploadError) {
-    redirect(`/settings?error=${encodeURIComponent(uploadError.message)}`);
+    redirect(`/edit-profile?error=${encodeURIComponent(uploadError.message)}`);
   }
 
   const {
@@ -271,9 +271,9 @@ export async function uploadAvatar(formData: FormData) {
 
   await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("id", user.id);
 
-  revalidatePath("/settings");
+  revalidatePath("/edit-profile");
   revalidateSocialSurfaces();
-  redirect("/settings?saved=1");
+  redirect("/edit-profile?saved=1");
 }
 
 /** Best-effort avatar cleanup — tries common extensions, ignores errors if
@@ -301,9 +301,9 @@ export async function removeAvatar() {
   await removeAvatarFiles(supabase, user.id);
   await supabase.from("profiles").update({ avatar_url: null }).eq("id", user.id);
 
-  revalidatePath("/settings");
+  revalidatePath("/edit-profile");
   revalidateSocialSurfaces();
-  redirect("/settings?saved=1");
+  redirect("/edit-profile?saved=1");
 }
 
 const MAX_COVER_BYTES = 5 * 1024 * 1024; // 5MB — a wider image than an avatar, same reasoning
@@ -317,12 +317,12 @@ export async function uploadCover(formData: FormData) {
 
   const file = formData.get("cover");
   if (!(file instanceof File) || file.size === 0) {
-    redirect(`/settings?error=${encodeURIComponent("Choose an image first.")}`);
+    redirect(`/edit-profile?error=${encodeURIComponent("Choose an image first.")}`);
   }
 
   const validationError = validateImageFile(file, MAX_COVER_BYTES);
   if (validationError) {
-    redirect(`/settings?error=${encodeURIComponent(validationError)}`);
+    redirect(`/edit-profile?error=${encodeURIComponent(validationError)}`);
   }
 
   const path = `${user.id}/cover.${extensionFor(file.type)}`;
@@ -332,7 +332,7 @@ export async function uploadCover(formData: FormData) {
     .upload(path, file, { upsert: true, contentType: file.type });
 
   if (uploadError) {
-    redirect(`/settings?error=${encodeURIComponent(uploadError.message)}`);
+    redirect(`/edit-profile?error=${encodeURIComponent(uploadError.message)}`);
   }
 
   const {
@@ -344,9 +344,9 @@ export async function uploadCover(formData: FormData) {
 
   await supabase.from("profiles").update({ cover_url: coverUrl }).eq("id", user.id);
 
-  revalidatePath("/settings");
+  revalidatePath("/edit-profile");
   revalidateSocialSurfaces();
-  redirect("/settings?saved=1");
+  redirect("/edit-profile?saved=1");
 }
 
 /** Mirrors removeAvatarFiles above — same reasoning, different bucket. */
@@ -369,9 +369,9 @@ export async function removeCover() {
   await removeCoverFiles(supabase, user.id);
   await supabase.from("profiles").update({ cover_url: null }).eq("id", user.id);
 
-  revalidatePath("/settings");
+  revalidatePath("/edit-profile");
   revalidateSocialSurfaces();
-  redirect("/settings?saved=1");
+  redirect("/edit-profile?saved=1");
 }
 
 export async function deleteAccount() {

@@ -119,7 +119,7 @@ export default async function ProfilePage({
 
             {isOwnProfile ? (
               <a
-                href="/settings"
+                href="/edit-profile"
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0")}
               >
                 Edit profile
@@ -271,9 +271,7 @@ export default async function ProfilePage({
 
       {achievements.length > 0 && (
         <Card className="p-4">
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
-            Achievements & certificates
-          </h2>
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Achievements</h2>
           <AchievementList achievements={achievements} />
         </Card>
       )}

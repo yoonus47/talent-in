@@ -78,7 +78,6 @@ export const profileFlairSchema = z.object({
 export const MAX_ACHIEVEMENTS = 12;
 
 export const achievementSchema = z.object({
-  kind: z.enum(["achievement", "certificate"]).default("achievement"),
   title: z.string().trim().min(1, "Give it a title").max(120),
   issuer: z.string().trim().max(120).optional().or(z.literal("")),
   // "YYYY-MM" from <input type="month">; addAchievement/updateAchievement

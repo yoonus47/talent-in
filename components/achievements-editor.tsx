@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
-import { BadgeCheck, Camera, Pencil, Plus, Trash2, Trophy } from "lucide-react";
+import { Award, Camera, Pencil, Plus, Trash2 } from "lucide-react";
 import { addAchievement, deleteAchievement, updateAchievement } from "@/lib/actions/achievements";
 import { validateImageFile } from "@/lib/uploads";
 import { isHeicFile, convertToJpeg, setInputFile } from "@/lib/image-client";
@@ -11,18 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { cn, joinedDate } from "@/lib/utils";
+import { joinedDate } from "@/lib/utils";
 import type { Achievement } from "@/lib/types/database";
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
-
-function KindIcon({ kind, className }: { kind: Achievement["kind"]; className?: string }) {
-  return kind === "certificate" ? (
-    <BadgeCheck className={className} />
-  ) : (
-    <Trophy className={className} />
-  );
-}
 
 /** The add/edit form — one component for both, since they're identical
  * apart from what's pre-filled. Not a plain <form action={fn}>, unlike
@@ -41,7 +33,6 @@ function AchievementForm({
   onCancel: () => void;
 }) {
   const isNew = achievement === "new";
-  const [kind, setKind] = useState<Achievement["kind"]>(isNew ? "achievement" : achievement.kind);
   const [preview, setPreview] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [converting, setConverting] = useState(false);
@@ -100,25 +91,6 @@ function AchievementForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 rounded-lg border border-border p-4">
-      <div className="flex gap-2">
-        {(["achievement", "certificate"] as const).map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => setKind(option)}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
-              kind === option
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border text-muted-foreground hover:bg-muted",
-            )}
-          >
-            <KindIcon kind={option} className="h-4 w-4" />
-            {option === "certificate" ? "Certificate" : "Achievement"}
-          </button>
-        ))}
-      </div>
-
       <div className="space-y-1.5">
         <Label htmlFor="ach-title">Title</Label>
         <Input
@@ -126,7 +98,7 @@ function AchievementForm({
           name="title"
           required
           maxLength={120}
-          placeholder={kind === "certificate" ? "Python for Everybody" : "1st place, State Science Fair"}
+          placeholder="1st place, State Science Fair"
           defaultValue={isNew ? "" : achievement.title}
         />
       </div>
@@ -138,7 +110,7 @@ function AchievementForm({
             id="ach-issuer"
             name="issuer"
             maxLength={120}
-            placeholder={kind === "certificate" ? "Coursera" : "CBSE Regional"}
+            placeholder="CBSE Regional, Coursera…"
             defaultValue={isNew ? "" : (achievement.issuer ?? "")}
           />
         </div>
@@ -237,7 +209,7 @@ function AchievementRow({
         </div>
       ) : (
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-          <KindIcon kind={achievement.kind} className="h-5 w-5" />
+          <Award className="h-5 w-5" />
         </div>
       )}
       <div className="min-w-0 flex-1">
@@ -297,7 +269,7 @@ export function AchievementsEditor({ achievements }: { achievements: Achievement
       {editing === null &&
         (atCap ? (
           <p className="text-xs text-muted-foreground">
-            {MAX_ACHIEVEMENTS}/{MAX_ACHIEVEMENTS} — remove one to add another.
+            {MAX_ACHIEVEMENTS}/{MAX_ACHIEVEMENTS}. Remove one to add another.
           </p>
         ) : (
           <Button type="button" variant="outline" size="sm" onClick={() => setEditing("new")}>

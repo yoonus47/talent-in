@@ -1,21 +1,10 @@
 import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getAchievements, getCurrentProfile } from "@/lib/data";
-import { updateProfile } from "@/lib/actions/profile";
+import { getCurrentProfile } from "@/lib/data";
 import { signOut } from "@/app/auth/actions";
-import { MAX_SKILLS } from "@/lib/validation";
 import { BackLink } from "@/components/back-link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { HobbyPicker } from "@/components/hobby-picker";
-import { TagInput } from "@/components/tag-input";
-import { SubmitButton } from "@/components/submit-button";
-import { AvatarUpload } from "@/components/avatar-upload";
-import { CoverUpload } from "@/components/cover-upload";
-import { AchievementsEditor } from "@/components/achievements-editor";
 import { DeleteAccount } from "@/components/delete-account";
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -26,214 +15,42 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default async function SettingsPage({
+/**
+ * Account-level actions only — Log out and deleting the account. Used to
+ * also hold every public-profile field (photo, bio, skills, hobbies…),
+ * which moved to its own /edit-profile page: "Edit profile" and "Account
+ * settings" are different mental models for a user (LinkedIn/Instagram/
+ * Twitter all keep them separate too), and cramming both into one page
+ * under the ambiguous name "Settings" was the actual confusion. This page
+ * keeps the URL (still reached from the account menu) but not the scope —
+ * short on purpose, with obvious room for real account settings later
+ * (password/email changes, notification preferences) without another
+ * reshuffle.
+ */
+export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; saved?: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
-  const { error, saved } = await searchParams;
+  const { error } = await searchParams;
   const profile = await getCurrentProfile();
   if (!profile) redirect("/onboarding");
-  const achievements = await getAchievements(profile.id);
 
   return (
     <div className="mx-auto max-w-lg space-y-4 px-4 py-6">
-      {/* Settings has no bottom-tab entry of its own (reached from the
-          account menu or Profile's "Edit profile" button) — without this,
-          the only way back was the browser/device back gesture. */}
+      {/* No bottom-tab entry of its own (reached from the account menu) —
+          without this, the only way back was the browser/device back
+          gesture. */}
       <div className="flex items-center gap-3">
-        <BackLink fallbackHref={`/profile/${profile.username}`} aria-label="Back to profile">
+        <BackLink fallbackHref="/feed" aria-label="Back">
           <ArrowLeft className="h-5 w-5 text-muted-foreground hover:text-foreground" />
         </BackLink>
-        <h1 className="text-2xl font-bold">Settings</h1>
+        <h1 className="text-2xl font-bold">Account</h1>
       </div>
 
       {error && (
         <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
       )}
-      {saved && (
-        <p className="rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">Profile updated.</p>
-      )}
-
-      <Card className="p-6">
-        <SectionHeading>Photo</SectionHeading>
-        <div className="mt-3">
-          <AvatarUpload name={profile.full_name} avatarUrl={profile.avatar_url} />
-        </div>
-      </Card>
-
-      <Card className="p-6">
-        <SectionHeading>Cover photo</SectionHeading>
-        <div className="mt-3">
-          <CoverUpload coverUrl={profile.cover_url} />
-        </div>
-      </Card>
-
-      <Card className="p-6">
-        <form action={updateProfile} className="space-y-6">
-          <div className="space-y-3">
-            <SectionHeading>Your name</SectionHeading>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="firstName">First name</Label>
-                <Input
-                  id="firstName"
-                  name="firstName"
-                  required
-                  maxLength={50}
-                  defaultValue={profile.first_name ?? ""}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="lastName">Last name</Label>
-                <Input
-                  id="lastName"
-                  name="lastName"
-                  required
-                  maxLength={50}
-                  defaultValue={profile.last_name ?? ""}
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Username</Label>
-              <Input value={`@${profile.username}`} disabled />
-              <p className="text-xs text-muted-foreground">
-                Usernames can&apos;t be changed in v1.
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-3 border-t border-border pt-6">
-            <SectionHeading>School</SectionHeading>
-            <div className="space-y-1.5">
-              <Label htmlFor="grade">Grade / Class</Label>
-              <select
-                id="grade"
-                name="grade"
-                required
-                defaultValue={profile.grade ?? ""}
-                className="flex h-10 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {[6, 7, 8, 9, 10, 11, 12].map((g) => (
-                  <option key={g} value={g}>
-                    Class {g}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="school">School</Label>
-              <Input id="school" name="school" defaultValue={profile.school ?? ""} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="city">City</Label>
-                <Input id="city" name="city" defaultValue={profile.city ?? ""} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="state">State</Label>
-                <Input id="state" name="state" defaultValue={profile.state ?? ""} />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3 border-t border-border pt-6">
-            <SectionHeading>About you</SectionHeading>
-            <div className="space-y-1.5">
-              <Label htmlFor="status">Status</Label>
-              <Input
-                id="status"
-                name="status"
-                maxLength={80}
-                placeholder="What are you up to right now?"
-                defaultValue={profile.status ?? ""}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="bio">Bio</Label>
-              <Textarea id="bio" name="bio" maxLength={280} defaultValue={profile.bio ?? ""} />
-            </div>
-          </div>
-
-          <div className="space-y-3 border-t border-border pt-6">
-            <SectionHeading>Skills</SectionHeading>
-            <p className="text-xs text-muted-foreground">
-              What you&apos;re good at, separate from your hobbies below.
-            </p>
-            <TagInput
-              name="skills"
-              defaultValue={profile.skills}
-              placeholder="e.g. Public Speaking, Python…"
-              max={MAX_SKILLS}
-            />
-          </div>
-
-          <div className="space-y-3 border-t border-border pt-6">
-            <SectionHeading>Social links</SectionHeading>
-            <div className="space-y-1.5">
-              <Label htmlFor="instagramHandle">Instagram</Label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">@</span>
-                <Input
-                  id="instagramHandle"
-                  name="instagramHandle"
-                  placeholder="yourusername"
-                  defaultValue={profile.instagram_handle ?? ""}
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="youtubeHandle">YouTube</Label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">@</span>
-                <Input
-                  id="youtubeHandle"
-                  name="youtubeHandle"
-                  placeholder="yourchannel"
-                  defaultValue={profile.youtube_handle ?? ""}
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="githubHandle">GitHub</Label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">@</span>
-                <Input
-                  id="githubHandle"
-                  name="githubHandle"
-                  placeholder="yourusername"
-                  defaultValue={profile.github_handle ?? ""}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3 border-t border-border pt-6">
-            <SectionHeading>Hobbies & interests</SectionHeading>
-            <HobbyPicker defaultSelected={profile.interests} />
-          </div>
-
-          <SubmitButton className="w-full" pendingText="Saving…">
-            Save changes
-          </SubmitButton>
-        </form>
-      </Card>
-
-      {/* Its own Card, not another section inside the form above — every
-          entry here is its own row with its own add/edit/delete action
-          (lib/actions/achievements.ts), and nested <form>s (this
-          component renders its own) aren't valid HTML, the same reason
-          AvatarUpload/CoverUpload above are separate Cards too. */}
-      <Card className="p-6">
-        <SectionHeading>Achievements & certificates</SectionHeading>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Competitions, honors, and completed courses — proof of what you&apos;ve done.
-        </p>
-        <div className="mt-3">
-          <AchievementsEditor achievements={achievements} />
-        </div>
-      </Card>
 
       <form action={signOut}>
         <Button type="submit" variant="outline" className="w-full">

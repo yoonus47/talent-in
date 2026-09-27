@@ -12,7 +12,6 @@ const MAX_ACHIEVEMENT_IMAGE_BYTES = 4 * 1024 * 1024;
 
 function parseAchievementForm(formData: FormData) {
   return achievementSchema.safeParse({
-    kind: formData.get("kind") || "achievement",
     title: formData.get("title"),
     issuer: formData.get("issuer"),
     earnedOn: formData.get("earnedOn"),
@@ -90,7 +89,7 @@ export async function addAchievement(formData: FormData): Promise<AchievementAct
     return { error: `You can add up to ${MAX_ACHIEVEMENTS} achievements.` };
   }
 
-  const { kind, title, issuer, earnedOn, description, credentialUrl } = parsed.data;
+  const { title, issuer, earnedOn, description, credentialUrl } = parsed.data;
 
   let imageUrl: string | null = null;
   const file = formData.get("image");
@@ -100,7 +99,6 @@ export async function addAchievement(formData: FormData): Promise<AchievementAct
 
   const { error } = await supabase.from("achievements").insert({
     user_id: user.id,
-    kind,
     title,
     issuer: issuer || null,
     earned_on: earnedOn ? `${earnedOn}-01` : null,
@@ -110,7 +108,7 @@ export async function addAchievement(formData: FormData): Promise<AchievementAct
   });
   if (error) return { error: error.message };
 
-  revalidatePath("/settings");
+  revalidatePath("/edit-profile");
   revalidatePath("/profile/[username]", "page");
   return {};
 }
@@ -127,10 +125,9 @@ export async function updateAchievement(id: string, formData: FormData): Promise
     return { error: parsed.error.issues[0].message };
   }
 
-  const { kind, title, issuer, earnedOn, description, credentialUrl } = parsed.data;
+  const { title, issuer, earnedOn, description, credentialUrl } = parsed.data;
 
   const update: Database["public"]["Tables"]["achievements"]["Update"] = {
-    kind,
     title,
     issuer: issuer || null,
     earned_on: earnedOn ? `${earnedOn}-01` : null,
@@ -160,7 +157,7 @@ export async function updateAchievement(id: string, formData: FormData): Promise
     .eq("user_id", user.id);
   if (error) return { error: error.message };
 
-  revalidatePath("/settings");
+  revalidatePath("/edit-profile");
   revalidatePath("/profile/[username]", "page");
   return {};
 }
@@ -182,6 +179,6 @@ export async function deleteAchievement(id: string) {
   await supabase.from("achievements").delete().eq("id", id).eq("user_id", user.id);
   await removeAchievementImage(supabase, existing?.image_url ?? null);
 
-  revalidatePath("/settings");
+  revalidatePath("/edit-profile");
   revalidatePath("/profile/[username]", "page");
 }
