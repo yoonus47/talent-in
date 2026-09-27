@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getCurrentProfile } from "@/lib/data";
+import { getAchievements, getCurrentProfile } from "@/lib/data";
 import { updateProfile } from "@/lib/actions/profile";
 import { signOut } from "@/app/auth/actions";
 import { MAX_SKILLS } from "@/lib/validation";
@@ -15,6 +15,7 @@ import { TagInput } from "@/components/tag-input";
 import { SubmitButton } from "@/components/submit-button";
 import { AvatarUpload } from "@/components/avatar-upload";
 import { CoverUpload } from "@/components/cover-upload";
+import { AchievementsEditor } from "@/components/achievements-editor";
 import { DeleteAccount } from "@/components/delete-account";
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -33,6 +34,7 @@ export default async function SettingsPage({
   const { error, saved } = await searchParams;
   const profile = await getCurrentProfile();
   if (!profile) redirect("/onboarding");
+  const achievements = await getAchievements(profile.id);
 
   return (
     <div className="mx-auto max-w-lg space-y-4 px-4 py-6">
@@ -216,6 +218,21 @@ export default async function SettingsPage({
             Save changes
           </SubmitButton>
         </form>
+      </Card>
+
+      {/* Its own Card, not another section inside the form above — every
+          entry here is its own row with its own add/edit/delete action
+          (lib/actions/achievements.ts), and nested <form>s (this
+          component renders its own) aren't valid HTML, the same reason
+          AvatarUpload/CoverUpload above are separate Cards too. */}
+      <Card className="p-6">
+        <SectionHeading>Achievements & certificates</SectionHeading>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Competitions, honors, and completed courses — proof of what you&apos;ve done.
+        </p>
+        <div className="mt-3">
+          <AchievementsEditor achievements={achievements} />
+        </div>
       </Card>
 
       <form action={signOut}>

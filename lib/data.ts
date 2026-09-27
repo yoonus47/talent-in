@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createHash } from "node:crypto";
 import { extractFirstUrl } from "@/lib/links";
 import type {
+  Achievement,
   ChallengeAttempt,
   Conversation,
   DailyChallengeQuestion,
@@ -682,6 +683,24 @@ export async function getReferralStats(userId: string): Promise<ReferralStats> {
     .filter((r): r is FeedAuthor & { id: string; createdAt: string } => r !== null);
 
   return { referredCount: count ?? recentReferrals.length, recentReferrals };
+}
+
+/** A profile's self-added achievements/certificates, most recently earned
+ * first (undated ones last, via `nullsFirst: false`) — shown on both the
+ * profile page and the Settings editor. */
+export async function getAchievements(userId: string): Promise<Achievement[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("achievements")
+    .select("*")
+    .eq("user_id", userId)
+    .order("earned_on", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("getAchievements failed:", error.message);
+    return [];
+  }
+  return data ?? [];
 }
 
 /** The career quiz's questions, in display order — previously fetched

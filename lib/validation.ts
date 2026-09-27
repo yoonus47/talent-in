@@ -75,6 +75,24 @@ export const profileFlairSchema = z.object({
   githubHandle: socialHandleField(),
 });
 
+export const MAX_ACHIEVEMENTS = 12;
+
+export const achievementSchema = z.object({
+  kind: z.enum(["achievement", "certificate"]).default("achievement"),
+  title: z.string().trim().min(1, "Give it a title").max(120),
+  issuer: z.string().trim().max(120).optional().or(z.literal("")),
+  // "YYYY-MM" from <input type="month">; addAchievement/updateAchievement
+  // append "-01" before this ever reaches the database.
+  earnedOn: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}$/, "Use the month/year picker")
+    .optional()
+    .or(z.literal("")),
+  description: z.string().trim().max(280).optional().or(z.literal("")),
+  credentialUrl: z.string().trim().url("Enter a valid URL").optional().or(z.literal("")),
+});
+
 export const postSchema = z.object({
   content: z.string().trim().min(1, "Say something first").max(1000),
 });

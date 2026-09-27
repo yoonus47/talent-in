@@ -159,6 +159,42 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
         Relationships: [];
       };
+      achievements: {
+        Row: {
+          id: string;
+          user_id: string;
+          kind: "achievement" | "certificate";
+          title: string;
+          issuer: string | null;
+          earned_on: string | null;
+          description: string | null;
+          credential_url: string | null;
+          image_url: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          kind?: "achievement" | "certificate";
+          title: string;
+          issuer?: string | null;
+          earned_on?: string | null;
+          description?: string | null;
+          credential_url?: string | null;
+          image_url?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["achievements"]["Insert"]>;
+        Relationships: [
+          {
+            foreignKeyName: "achievements_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       referrals: {
         Row: { id: string; referrer_id: string; referred_id: string; created_at: string };
         Insert: {
@@ -1265,6 +1301,7 @@ export interface Database {
 }
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+export type Achievement = Database["public"]["Tables"]["achievements"]["Row"];
 export type Post = Database["public"]["Tables"]["posts"]["Row"];
 export type ContentItem = Database["public"]["Tables"]["content_items"]["Row"];
 export type QuizQuestion = Database["public"]["Tables"]["quiz_questions"]["Row"];

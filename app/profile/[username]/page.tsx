@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { GithubIcon, InstagramIcon, YoutubeIcon } from "@/components/icons";
 import {
+  getAchievements,
   getCurrentProfile,
   getFollowStats,
   getProfileByUsername,
@@ -31,6 +32,7 @@ import {
 import { toggleFollow } from "@/lib/actions/profile";
 import { startConversation } from "@/lib/actions/chat";
 import { categoryForHobby } from "@/lib/hobbies";
+import { AchievementList } from "@/components/achievement-list";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -71,9 +73,10 @@ export default async function ProfilePage({
   if (!profile) notFound();
 
   const isOwnProfile = profile.id === viewer.id;
-  const [{ followers, following, isFollowing, isFollowedBy }, items] = await Promise.all([
+  const [{ followers, following, isFollowing, isFollowedBy }, items, achievements] = await Promise.all([
     getFollowStats(profile.id, viewer.id),
     getUserPosts(profile.id, viewer.id),
+    getAchievements(profile.id),
   ]);
   const isMutual = isFollowing && isFollowedBy;
   const hasLocation = Boolean(profile.city || profile.state);
@@ -263,6 +266,15 @@ export default async function ProfilePage({
               </Badge>
             ))}
           </div>
+        </Card>
+      )}
+
+      {achievements.length > 0 && (
+        <Card className="p-4">
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
+            Achievements & certificates
+          </h2>
+          <AchievementList achievements={achievements} />
         </Card>
       )}
 
