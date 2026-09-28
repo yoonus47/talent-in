@@ -114,7 +114,7 @@ export function VoiceRecorderButton({
       elapsedTimerRef.current = setInterval(() => setElapsedMs(Date.now() - startedAt), 200);
       rafRef.current = requestAnimationFrame(tickLevel);
     } catch {
-      setError("Couldn't access the microphone — check your browser's permission for this site.");
+      setError("Couldn't access the microphone. Check your browser's permission for this site.");
     }
   }
 

@@ -46,7 +46,7 @@ function ScoreHeader({ score, total }: { score: number; total: number }) {
       ? "Perfect round! 🎉"
       : score >= total / 2
         ? "Solid! Check the ones you missed below."
-        : "Every round teaches you something — recap's below.";
+        : "Every round teaches you something. Recap's below.";
 
   return (
     <div className="flex flex-col items-center py-2 text-center">

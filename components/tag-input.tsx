@@ -85,7 +85,7 @@ export function TagInput({
       </div>
       {max !== undefined && (
         <p className="mt-1 text-xs text-muted-foreground">
-          {tags.length}/{max} — press Enter or comma to add
+          {tags.length}/{max}, press Enter or comma to add
         </p>
       )}
     </div>

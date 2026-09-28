@@ -62,7 +62,7 @@ function describe(n: FeedNotification): string {
     case "community_best_answer":
       return "marked your reply as the best answer";
     case "referral_joined":
-      return "joined TalentZify using your invite — you both earned 50 points!";
+      return "joined TalentZify using your invite. You both earned 50 points!";
   }
 }
 

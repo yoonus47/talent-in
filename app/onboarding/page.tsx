@@ -140,7 +140,7 @@ export default async function OnboardingPage({
           <div className="space-y-3 border-t border-border pt-6">
             <SectionHeading>Hobbies & interests</SectionHeading>
             <p className="text-xs text-muted-foreground">
-              Pick what you&apos;re into — this is how we connect you with people who share it.
+              Pick what you&apos;re into. This is how we connect you with people who share it.
             </p>
             <HobbyPicker />
           </div>

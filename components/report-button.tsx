@@ -112,7 +112,7 @@ export function ReportButton({
             >
               {submitted ? (
                 <>
-                  <p className="text-sm font-medium text-foreground">Thanks — we&apos;ll look into it.</p>
+                  <p className="text-sm font-medium text-foreground">Thanks, we&apos;ll look into it.</p>
                   <button
                     type="button"
                     onClick={close}

@@ -81,7 +81,7 @@ export function GroupInfoPanel({
         if (iconInputRef.current) setInputFile(iconInputRef.current, file);
       } catch {
         setIconConverting(false);
-        setError("Couldn't read that iPhone photo format — try a different one.");
+        setError("Couldn't read that iPhone photo format. Try a different one.");
         if (iconInputRef.current) iconInputRef.current.value = "";
         return;
       }

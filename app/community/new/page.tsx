@@ -27,7 +27,7 @@ export default async function NewCommunityThreadPage({
 
       {topics.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Topics aren&apos;t set up yet — check back soon.
+          Topics aren&apos;t set up yet. Check back soon.
         </p>
       ) : (
         <NewThreadForm topics={topics} defaultTopicId={defaultTopic?.id} />

@@ -55,7 +55,7 @@ export function ReferralShareCard({ username }: { username: string }) {
     navigator
       .share({
         title: "Join me on TalentZify",
-        text: "Join me on TalentZify — we both get 50 points when you sign up with my link!",
+        text: "Join me on TalentZify, we both get 50 points when you sign up with my link!",
         url: link,
       })
       .catch(() => {});

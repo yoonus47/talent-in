@@ -63,7 +63,7 @@ export function ReferralBonusToast() {
         style={{ background: "var(--gradient-brand)" }}
       >
         <Gift className="h-4 w-4 shrink-0" />
-        +50 points — thanks for joining with an invite!
+        +50 points, thanks for joining with an invite!
       </div>
     </div>
   );

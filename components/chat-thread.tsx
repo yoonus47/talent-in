@@ -726,7 +726,7 @@ export function ChatThread({
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
             <MessageCircle className="h-8 w-8 opacity-40" />
-            <p className="text-sm">No messages yet — say hi 👋</p>
+            <p className="text-sm">No messages yet, say hi 👋</p>
           </div>
         ) : (
           renderItems.map((item) =>
