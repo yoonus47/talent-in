@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FileText, Sparkles, Video, ExternalLink, Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentProfile, getSuggestedProfiles, searchProfiles } from "@/lib/data";
+import { getCurrentProfile, getNewMembers, getSuggestedProfiles, searchProfiles } from "@/lib/data";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
@@ -29,6 +29,7 @@ type DiscoverSearchParams = {
   q?: string;
   grade?: string;
   interest?: string;
+  school?: string;
 };
 
 export default async function DiscoverPage({
@@ -79,15 +80,20 @@ export default async function DiscoverPage({
       </div>
 
       {tab === "content" ? (
-        <ContentTab category={params.category} />
+        <ContentTab category={params.category} query={params.q} />
       ) : (
-        <PeopleTab query={params.q} grade={params.grade} interest={params.interest} />
+        <PeopleTab
+          query={params.q}
+          grade={params.grade}
+          interest={params.interest}
+          school={params.school}
+        />
       )}
     </div>
   );
 }
 
-async function ContentTab({ category }: { category?: string }) {
+async function ContentTab({ category, query: searchQuery }: { category?: string; query?: string }) {
   const supabase = await createClient();
 
   let query = supabase
@@ -98,34 +104,62 @@ async function ContentTab({ category }: { category?: string }) {
   if (category && category !== "all" && VALID_CATEGORIES.has(category as ContentCategory)) {
     query = query.eq("category", category as ContentCategory);
   }
+  if (searchQuery) {
+    const escaped = searchQuery.replace(/[%,]/g, "");
+    query = query.or(`title.ilike.%${escaped}%,description.ilike.%${escaped}%`);
+  }
 
   const { data: items } = await query;
 
+  // Category links carry the current search forward — switching category
+  // mid-search shouldn't silently drop it, the same expectation the
+  // People tab's filter form already meets by resubmitting everything
+  // together.
+  const qParam = searchQuery ? `q=${encodeURIComponent(searchQuery)}` : "";
+
   return (
     <div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {CATEGORIES.map((c) => (
-          <Link
-            key={c.value}
-            href={c.value === "all" ? "/discover" : `/discover?category=${c.value}`}
-            className={cn(
-              "rounded-full border border-border px-3 py-1 text-sm font-medium",
-              (category ?? "all") === c.value
-                ? "border-primary bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted",
-            )}
-          >
-            {c.label}
-          </Link>
-        ))}
+      <form method="get" className="mt-4">
+        <input type="hidden" name="tab" value="content" />
+        {category && category !== "all" && <input type="hidden" name="category" value={category} />}
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            name="q"
+            defaultValue={searchQuery}
+            placeholder="Search resources…"
+            className="pl-9"
+          />
+        </div>
+      </form>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {CATEGORIES.map((c) => {
+          const base = c.value === "all" ? "/discover?tab=content" : `/discover?tab=content&category=${c.value}`;
+          return (
+            <Link
+              key={c.value}
+              href={qParam ? `${base}&${qParam}` : base}
+              className={cn(
+                "rounded-full border border-border px-3 py-1 text-sm font-medium",
+                (category ?? "all") === c.value
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted",
+              )}
+            >
+              {c.label}
+            </Link>
+          );
+        })}
       </div>
 
       {!items || items.length === 0 ? (
         <EmptyState
           className="mt-5"
-          icon={Sparkles}
-          title="Nothing here yet"
-          description="Check back soon."
+          icon={searchQuery ? Search : Sparkles}
+          title={searchQuery ? "No matches" : "Nothing here yet"}
+          description={searchQuery ? "Try a different search or category." : "Check back soon."}
         />
       ) : (
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -164,21 +198,29 @@ async function PeopleTab({
   query,
   grade,
   interest,
+  school,
 }: {
   query?: string;
   grade?: string;
   interest?: string;
+  school?: string;
 }) {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/onboarding");
 
-  const hasFilters = Boolean(query || grade || interest);
+  const hasFilters = Boolean(query || grade || interest || school);
   const gradeNum = grade ? Number(grade) : undefined;
 
-  const [results, suggested] = await Promise.all([
-    searchProfiles(profile.id, { query, grade: gradeNum, interest }),
+  const [results, suggested, newMembers] = await Promise.all([
+    searchProfiles(profile.id, { query, grade: gradeNum, interest, school }),
     hasFilters ? Promise.resolve([]) : getSuggestedProfiles(profile.id, profile),
+    hasFilters ? Promise.resolve([]) : getNewMembers(profile.id),
   ]);
+  // Both sections independently exclude self/already-followed, but not
+  // each other — a person could legitimately be both new AND a school/
+  // hobby match. Dedupe so nobody's row shows up twice on the page.
+  const suggestedIds = new Set(suggested.map((p) => p.id));
+  const freshMembers = newMembers.filter((p) => !suggestedIds.has(p.id));
 
   const selectClass =
     "h-10 rounded-lg border border-border bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -226,6 +268,22 @@ async function PeopleTab({
               Apply
             </button>
           </div>
+          {/* Only students who've actually set a school get the option —
+              a checkbox, not a full school-name dropdown: "students at my
+              own school" is the one signal worth a one-tap filter here,
+              not free browsing by arbitrary school name. */}
+          {profile.school && (
+            <label className="flex w-fit cursor-pointer items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs has-checked:border-primary has-checked:bg-primary/10 has-checked:text-primary">
+              <input
+                type="checkbox"
+                name="school"
+                value={profile.school}
+                defaultChecked={school === profile.school}
+                className="sr-only"
+              />
+              My school only
+            </label>
+          )}
         </form>
       </Card>
 
@@ -239,6 +297,17 @@ async function PeopleTab({
                 profile={{ ...p, isFollowing: false }}
                 meta={p.sharedHobbies.length > 0 ? `Into ${p.sharedHobbies.slice(0, 2).join(", ")}` : undefined}
               />
+            ))}
+          </Card>
+        </div>
+      )}
+
+      {!hasFilters && freshMembers.length > 0 && (
+        <div className="mt-5">
+          <h2 className="text-sm font-semibold text-muted-foreground">New to TalentZify</h2>
+          <Card className="mt-2 divide-y divide-border px-4">
+            {freshMembers.map((p) => (
+              <ProfileRow key={p.id} profile={{ ...p, isFollowing: false }} />
             ))}
           </Card>
         </div>

@@ -21,6 +21,18 @@ export const signInSchema = z.object({
   password: z.string().min(1, "Enter your password"),
 });
 
+export const updateEmailSchema = z.object({
+  email: z.string().trim().email("Enter a valid email address"),
+});
+
+// Same min-length rule as signUpSchema's password — new-vs-confirm
+// matching is checked in lib/actions/account.ts itself, not here (it
+// needs the "don't match" error to redirect back to the settings page,
+// same as every other action-level check in this app).
+export const updatePasswordSchema = z.object({
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
 export const onboardingSchema = z.object({
   username: z
     .string()

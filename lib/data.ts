@@ -416,7 +416,12 @@ export async function getFollowingList(
   return attachIsFollowing(supabase, profiles, viewerId);
 }
 
-export type ProfileSearchFilters = { query?: string; grade?: number; interest?: string };
+export type ProfileSearchFilters = {
+  query?: string;
+  grade?: number;
+  interest?: string;
+  school?: string;
+};
 
 /** Search/browse students for the Discover -> People tab. */
 export async function searchProfiles(
@@ -436,6 +441,9 @@ export async function searchProfiles(
   }
   if (filters.interest) {
     query = query.contains("interests", [filters.interest]);
+  }
+  if (filters.school) {
+    query = query.eq("school", filters.school);
   }
 
   const { data, error } = await query.order("full_name", { ascending: true });
@@ -493,6 +501,37 @@ export async function getSuggestedProfiles(
     ...p,
     sharedHobbies: p.interests.filter((h) => myHobbies.has(h)),
   }));
+}
+
+/**
+ * Most-recently-joined students, not already followed — Discover's
+ * "New to TalentZify" section. A distinct signal from getSuggestedProfiles
+ * above (recency, not affinity): someone with no shared school/interests
+ * yet never surfaces there unless nobody has any signal at all, which
+ * means a brand-new member can otherwise go completely undiscoverable.
+ */
+export async function getNewMembers(currentUserId: string): Promise<Profile[]> {
+  const supabase = await createClient();
+
+  const { data: following } = await supabase
+    .from("follows")
+    .select("following_id")
+    .eq("follower_id", currentUserId);
+  const excludeIds = [currentUserId, ...(following?.map((f) => f.following_id) ?? [])];
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .not("id", "in", `(${excludeIds.join(",")})`)
+    .order("created_at", { ascending: false })
+    .limit(6);
+
+  if (error) {
+    console.error("getNewMembers failed:", error.message);
+    return [];
+  }
+
+  return data ?? [];
 }
 
 /** Unread notification count, for the navbar bell badge. */

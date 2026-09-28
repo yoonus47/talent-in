@@ -1,10 +1,15 @@
 import { redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Lock } from "lucide-react";
 import { getCurrentProfile } from "@/lib/data";
+import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
+import { updateEmail, updatePassword } from "@/lib/actions/account";
 import { BackLink } from "@/components/back-link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { SubmitButton } from "@/components/submit-button";
 import { DeleteAccount } from "@/components/delete-account";
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -16,25 +21,35 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Account-level actions only — Log out and deleting the account. Used to
- * also hold every public-profile field (photo, bio, skills, hobbies…),
- * which moved to its own /edit-profile page: "Edit profile" and "Account
- * settings" are different mental models for a user (LinkedIn/Instagram/
- * Twitter all keep them separate too), and cramming both into one page
- * under the ambiguous name "Settings" was the actual confusion. This page
- * keeps the URL (still reached from the account menu) but not the scope —
- * short on purpose, with obvious room for real account settings later
- * (password/email changes, notification preferences) without another
- * reshuffle.
+ * Account-level actions only — login credentials, logging out, deleting
+ * the account. Used to also hold every public-profile field (photo, bio,
+ * skills, hobbies…), which moved to its own /edit-profile page: "Edit
+ * profile" and "Account settings" are different mental models for a user
+ * (LinkedIn/Instagram/Twitter all keep them separate too), and cramming
+ * both into one page under the ambiguous name "Settings" was the actual
+ * confusion. This page keeps the URL (still reached from the account
+ * menu) but not the scope.
  */
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; emailUpdated?: string; passwordUpdated?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, emailUpdated, passwordUpdated } = await searchParams;
   const profile = await getCurrentProfile();
   if (!profile) redirect("/onboarding");
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // A Google-only sign-up has no "email" provider identity yet — no
+  // password exists to re-verify against, so both forms below drop the
+  // "current password" field, and email (tied to the Google account)
+  // renders read-only instead of an editable field pointing nowhere useful.
+  const hasPassword = user.identities?.some((i) => i.provider === "email") ?? false;
 
   return (
     <div className="mx-auto max-w-lg space-y-4 px-4 py-6">
@@ -45,12 +60,110 @@ export default async function AccountPage({
         <BackLink fallbackHref="/feed" aria-label="Back">
           <ArrowLeft className="h-5 w-5 text-muted-foreground hover:text-foreground" />
         </BackLink>
-        <h1 className="text-2xl font-bold">Account</h1>
+        <h1 className="text-2xl font-bold">Account Settings</h1>
       </div>
 
       {error && (
         <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
       )}
+      {emailUpdated && (
+        <p className="rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">
+          Check your new email to confirm the change — it won&apos;t take effect until you click
+          the link.
+        </p>
+      )}
+      {passwordUpdated && (
+        <p className="rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">
+          Password {hasPassword ? "updated" : "set"}.
+        </p>
+      )}
+
+      <Card className="space-y-4 p-6">
+        <SectionHeading>
+          <span className="flex items-center gap-1.5">
+            <Lock className="h-3.5 w-3.5" />
+            Login & security
+          </span>
+        </SectionHeading>
+
+        {hasPassword ? (
+          <form action={updateEmail} className="space-y-2.5">
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" name="email" type="email" required defaultValue={user.email ?? ""} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="currentPasswordForEmail">Current password</Label>
+              <Input
+                id="currentPasswordForEmail"
+                name="currentPassword"
+                type="password"
+                required
+                autoComplete="current-password"
+              />
+            </div>
+            <SubmitButton variant="outline" size="sm" pendingText="Updating…">
+              Update email
+            </SubmitButton>
+          </form>
+        ) : (
+          <div className="space-y-1.5">
+            <Label>Email</Label>
+            <Input value={user.email ?? ""} disabled />
+            <p className="text-xs text-muted-foreground">
+              Managed by your Google account.
+            </p>
+          </div>
+        )}
+
+        <div className="border-t border-border pt-4">
+          <form action={updatePassword} className="space-y-2.5">
+            {hasPassword && (
+              <div className="space-y-1.5">
+                <Label htmlFor="currentPassword">Current password</Label>
+                <Input
+                  id="currentPassword"
+                  name="currentPassword"
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                />
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label htmlFor="newPassword">New password</Label>
+              <Input
+                id="newPassword"
+                name="newPassword"
+                type="password"
+                required
+                minLength={8}
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="confirmPassword">Confirm new password</Label>
+              <Input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                required
+                minLength={8}
+                autoComplete="new-password"
+              />
+            </div>
+            <SubmitButton variant="outline" size="sm" pendingText="Saving…">
+              {hasPassword ? "Update password" : "Set password"}
+            </SubmitButton>
+            {!hasPassword && (
+              <p className="text-xs text-muted-foreground">
+                You signed up with Google — set a password to also be able to log in with your
+                email.
+              </p>
+            )}
+          </form>
+        </div>
+      </Card>
 
       <form action={signOut}>
         <Button type="submit" variant="outline" className="w-full">

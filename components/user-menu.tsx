@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Gift, LogOut, Moon, Pencil, Settings, Sun } from "lucide-react";
+import { Gift, LogOut, Moon, Settings, Sun, User } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
 import { useThemeToggle } from "@/components/theme-toggle";
 import { Avatar } from "@/components/ui/avatar";
@@ -100,13 +100,13 @@ export function UserMenu({
           </div>
 
           <div className="border-t border-border py-1">
-            <Link href="/edit-profile" onClick={close} className={itemClass}>
-              <Pencil className="h-4 w-4 text-muted-foreground" />
-              Edit profile
+            <Link href={`/profile/${username}`} onClick={close} className={itemClass}>
+              <User className="h-4 w-4 text-muted-foreground" />
+              View profile
             </Link>
             <Link href="/settings" onClick={close} className={itemClass}>
               <Settings className="h-4 w-4 text-muted-foreground" />
-              Account
+              Account Settings
             </Link>
             <Link href="/invite" onClick={close} className={itemClass}>
               <Gift className="h-4 w-4 text-muted-foreground" />
