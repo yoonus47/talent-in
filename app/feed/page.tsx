@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/empty-state";
 export default async function FeedPage({
   searchParams,
 }: {
-  searchParams: Promise<{ prefill?: string }>;
+  searchParams: Promise<{ prefill?: string; error?: string }>;
 }) {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/onboarding");
@@ -21,10 +21,17 @@ export default async function FeedPage({
   // an auto-posted rich embed card. Deliberately the lightweight version:
   // a real nested "shared thread" preview would need FeedPost/getFeedItems
   // changes disproportionate to that round's actual scope.
-  const { prefill } = await searchParams;
+  const { prefill, error } = await searchParams;
 
   return (
     <div className="mx-auto max-w-xl space-y-4 px-4 py-6">
+      {/* The only failure mode createPost (lib/actions/posts.ts) actually
+          redirects with an error for is hitting the post rate limit
+          (0049_rate_limits.sql) — every other failure there stays silent,
+          unrelated to this. */}
+      {error && (
+        <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+      )}
       <Composer profile={profile} defaultContent={prefill} />
 
       {items.length === 0 ? (

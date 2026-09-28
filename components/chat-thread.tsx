@@ -22,6 +22,16 @@ type LocalMessage = Message & {
 };
 type SenderProfile = { full_name: string; avatar_url: string | null };
 
+/** Strips the "RATE_LIMITED:" prefix 0049_rate_limits.sql's trigger adds
+ * so the raw Postgres exception text is detectable without ever showing
+ * that prefix itself to a user. Returns null for any other kind of
+ * error, which keeps this app's existing silent-fail behavior for
+ * everything that isn't the rate limit. */
+function rateLimitMessage(error: { message?: string } | null): string | null {
+  if (!error?.message?.startsWith("RATE_LIMITED:")) return null;
+  return error.message.replace("RATE_LIMITED: ", "").trim();
+}
+
 /** What's being replied to, kept in ChatThread (a sibling of both the
  * message list and the composer) rather than in ChatComposer itself —
  * it's set from a message row, not from anything the composer owns. Built
@@ -209,6 +219,11 @@ export function ChatThread({
   const [deliveryReceipts, setDeliveryReceipts] = useState(initialDeliveryReceipts);
   const [replyingTo, setReplyingTo] = useState<ReplyingTo | null>(null);
   const [infoMessage, setInfoMessage] = useState<LocalMessage | null>(null);
+  // Set only for the one failure mode worth telling the user about here
+  // (the rate limit, 0049_rate_limits.sql) — every other send failure
+  // keeps its existing silent-fail behavior (optimistic message just
+  // disappears), unrelated to this. Cleared on the next successful send.
+  const [sendError, setSendError] = useState<string | null>(null);
   // userId -> Date.now() of the last "typing" heartbeat seen from them.
   // Never includes myId (the broadcast listener below skips my own
   // echoes) and is pruned on an interval (see the effect near the bottom)
@@ -518,8 +533,10 @@ export function ChatThread({
     if (error || !data) {
       console.error("send message failed:", error?.message);
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
+      setSendError(rateLimitMessage(error));
       return;
     }
+    setSendError(null);
 
     setMessages((prev) => {
       if (prev.some((m) => m.id === data.id)) {
@@ -614,8 +631,10 @@ export function ChatThread({
       await supabase.storage.from("voice-messages").remove([path]);
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
       URL.revokeObjectURL(localUrl);
+      setSendError(rateLimitMessage(error));
       return;
     }
+    setSendError(null);
 
     setMessages((prev) => {
       if (prev.some((m) => m.id === data.id)) {
@@ -792,6 +811,12 @@ export function ChatThread({
           </span>
           {typingText}…
         </div>
+      )}
+
+      {sendError && (
+        <p className="border-t border-border bg-destructive/10 px-4 py-2 text-xs text-destructive">
+          {sendError}
+        </p>
       )}
 
       <ChatComposer

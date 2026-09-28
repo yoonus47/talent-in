@@ -30,7 +30,15 @@ export async function createPost(formData: FormData) {
     .select("id")
     .single();
 
-  if (error || !newPost) return;
+  if (error || !newPost) {
+    // The rate-limit trigger (0049_rate_limits.sql) is the one failure
+    // mode here worth telling the user about — everything else keeps the
+    // existing silent-fail behavior (not this task's concern to change).
+    if (error?.message.startsWith("RATE_LIMITED:")) {
+      redirect(`/feed?error=${encodeURIComponent(error.message.replace("RATE_LIMITED: ", ""))}`);
+    }
+    return;
+  }
 
   const file = formData.get("image");
   if (file instanceof File && file.size > 0) {
