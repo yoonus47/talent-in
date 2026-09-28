@@ -2,12 +2,12 @@ import { REACTIONS, type ReactionType } from "@/lib/reactions";
 import { cn } from "@/lib/utils";
 
 /**
- * The "combined counter" — stacked reaction emojis (only types anyone
+ * The "combined counter": stacked reaction emojis (only types anyone
  * actually used) plus the total count, as one small chip. Replaces
  * separately showing an emoji breakdown and a count as two things.
  *
  * `onOpenReactors`, when passed, turns this from a static chip into the
- * trigger for components/reactors-modal.tsx's "who reacted" list — the
+ * trigger for components/reactors-modal.tsx's "who reacted" list, the
  * same LinkedIn convention where tapping the reaction count itself (not
  * just double-tapping to react) shows who's behind it.
  */

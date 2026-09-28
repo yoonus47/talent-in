@@ -4,11 +4,11 @@ import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 
 /**
- * Root 404 — since Next 13.3, app/not-found.tsx handles both an explicit
+ * Root 404. Since Next 13.3, app/not-found.tsx handles both an explicit
  * notFound() call from any page (e.g. a blocked/missing profile, see
  * app/profile/[username]/page.tsx) and any unmatched URL app-wide, so
  * this one file covers both without a separate global-not-found.js.
- * Renders inside the root layout, same as any other page — normal
+ * Renders inside the root layout, same as any other page, so normal
  * theming/Tailwind applies, unlike app/global-error.tsx.
  */
 export default function NotFound() {

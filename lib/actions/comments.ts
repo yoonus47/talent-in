@@ -138,7 +138,7 @@ export async function setCommentReaction(
   revalidatePostSurfaces();
 }
 
-/** Who reacted to a comment, and with what — see getPostReactors in
+/** Who reacted to a comment, and with what. See getPostReactors in
  * lib/actions/posts.ts, same shape and same "empty list, not a redirect"
  * convention for an unauthenticated caller. */
 export async function getCommentReactors(commentId: string): Promise<Reactor[]> {

@@ -11,7 +11,7 @@ export const REACTIONS: { type: ReactionType; emoji: string; label: string }[] =
   { type: "respect", emoji: "🙌", label: "Respect" },
 ];
 
-/** One person who reacted, for the "see who reacted" list — components/
+/** One person who reacted, for the "see who reacted" list. components/
  * reactors-modal.tsx and its two data sources, getPostReactors/
  * getCommentReactors. */
 export type Reactor = {

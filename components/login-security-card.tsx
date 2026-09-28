@@ -9,7 +9,7 @@ import { SubmitButton } from "@/components/submit-button";
 
 /**
  * Email + password, each collapsed to a single read-only line with a
- * "Change" button until tapped — someone who lands on Account Settings
+ * "Change" button until tapped. Someone who lands on Account Settings
  * out of curiosity used to be greeted by three password fields with
  * nothing to change yet. Only the person who actually wants to change
  * something now sees a form at all, the same reveal-on-demand shape this
@@ -17,7 +17,7 @@ import { SubmitButton } from "@/components/submit-button";
  *
  * `defaultEditingEmail`/`defaultChangingPassword` come from
  * app/settings/page.tsx reading the `context` search param
- * lib/actions/account.ts's failWith sets on a validation failure — so a
+ * lib/actions/account.ts's failWith sets on a validation failure, so a
  * rejected submit re-opens the same form with the error next to it,
  * instead of collapsing back and losing everything just typed.
  */

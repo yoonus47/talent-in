@@ -6,13 +6,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 /**
- * Root error boundary — catches anything that throws while rendering a
+ * Root error boundary: catches anything that throws while rendering a
  * page or component (not the root layout itself, see app/global-error.tsx
  * for that). Error boundaries must be Client Components.
  *
  * This build's error.js takes `{ error, retry }`, not the `{ error,
- * reset }` shape from older Next.js docs/training data — `retry` went
- * stable in 16.3 (this project's version); confirmed against
+ * reset }` shape from older Next.js docs/training data. `retry` went
+ * stable in 16.3 (this project's version), confirmed against
  * node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/
  * error.md per this repo's own AGENTS.md instruction to check docs before
  * writing code here, since this is not the Next.js you know.

@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * Last-resort boundary — only fires if the root layout itself throws
+ * Last-resort boundary: only fires if the root layout itself throws
  * (app/error.tsx covers everything else, and won't catch that case per
  * Next's docs). This replaces the *entire* HTML document, so it must
- * define its own <html>/<body> and — per node_modules/next/dist/docs/
- * 01-app/03-api-reference/03-file-conventions/error.md — never receives
+ * define its own <html>/<body> and, per node_modules/next/dist/docs/
+ * 01-app/03-api-reference/03-file-conventions/error.md, never receives
  * this app's global stylesheet or theme: inline styles only, no
  * Tailwind classes, no CSS variables from globals.css.
  */

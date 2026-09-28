@@ -18,7 +18,7 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Account-level actions only — login credentials, logging out, deleting
+ * Account-level actions only: login credentials, logging out, deleting
  * the account. Used to also hold every public-profile field (photo, bio,
  * skills, hobbies…), which moved to its own /edit-profile page: "Edit
  * profile" and "Account settings" are different mental models for a user
@@ -47,7 +47,7 @@ export default async function AccountPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // A Google-only sign-up has no "email" provider identity — its email
+  // A Google-only sign-up has no "email" provider identity. Its email
   // and password are both managed by Google, not by us. Changing a
   // password here would be a login method these kids never chose to
   // have, so neither field below applies: email renders read-only, and
@@ -57,8 +57,8 @@ export default async function AccountPage({
 
   return (
     <div className="mx-auto max-w-lg space-y-4 px-4 py-6">
-      {/* No bottom-tab entry of its own (reached from the account menu) —
-          without this, the only way back was the browser/device back
+      {/* No bottom-tab entry of its own (reached from the account menu).
+          Without this, the only way back was the browser/device back
           gesture. */}
       <div className="flex items-center gap-3">
         <BackLink fallbackHref="/feed" aria-label="Back">
@@ -72,7 +72,7 @@ export default async function AccountPage({
       )}
       {emailUpdated && (
         <p className="rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">
-          Check your new email to confirm the change — it won&apos;t take effect until you click
+          Check your new email to confirm the change. It won&apos;t take effect until you click
           the link.
         </p>
       )}

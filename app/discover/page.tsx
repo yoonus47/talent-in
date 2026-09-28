@@ -38,7 +38,7 @@ export default async function DiscoverPage({
   searchParams: Promise<DiscoverSearchParams>;
 }) {
   const params = await searchParams;
-  // People is the default now — a bare /discover means People,
+  // People is the default now: a bare /discover means People,
   // ?tab=content is the explicit opt-in (the inverse of before).
   const tab = params.tab === "content" ? "content" : "people";
 
@@ -111,7 +111,7 @@ async function ContentTab({ category, query: searchQuery }: { category?: string;
 
   const { data: items } = await query;
 
-  // Category links carry the current search forward — switching category
+  // Category links carry the current search forward: switching category
   // mid-search shouldn't silently drop it, the same expectation the
   // People tab's filter form already meets by resubmitting everything
   // together.
@@ -217,7 +217,7 @@ async function PeopleTab({
     hasFilters ? Promise.resolve([]) : getNewMembers(profile.id),
   ]);
   // Both sections independently exclude self/already-followed, but not
-  // each other — a person could legitimately be both new AND a school/
+  // each other: a person could legitimately be both new AND a school/
   // hobby match. Dedupe so nobody's row shows up twice on the page.
   const suggestedIds = new Set(suggested.map((p) => p.id));
   const freshMembers = newMembers.filter((p) => !suggestedIds.has(p.id));
@@ -268,8 +268,8 @@ async function PeopleTab({
               Apply
             </button>
           </div>
-          {/* Only students who've actually set a school get the option —
-              a checkbox, not a full school-name dropdown: "students at my
+          {/* Only students who've actually set a school get the option:
+              a checkbox, not a full school-name dropdown, since "students at my
               own school" is the one signal worth a one-tap filter here,
               not free browsing by arbitrary school name. */}
           {profile.school && (

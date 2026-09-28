@@ -25,7 +25,7 @@ export const updateEmailSchema = z.object({
   email: z.string().trim().email("Enter a valid email address"),
 });
 
-// Same min-length rule as signUpSchema's password — new-vs-confirm
+// Same min-length rule as signUpSchema's password. New-vs-confirm
 // matching is checked in lib/actions/account.ts itself, not here (it
 // needs the "don't match" error to redirect back to the settings page,
 // same as every other action-level check in this app).

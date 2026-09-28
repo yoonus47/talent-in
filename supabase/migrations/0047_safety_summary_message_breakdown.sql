@@ -1,15 +1,15 @@
 -- messages_sent_count lumped DMs and group chats, sent and received, into
--- one number — not enough signal to actually see a pattern (e.g. someone
+-- one number: not enough signal to actually see a pattern (e.g. someone
 -- DMing heavily vs. just active in one big group chat look identical).
 -- Splits it into 4: dms_sent_count, dms_received_count,
 -- gc_messages_sent_count, gc_messages_received_count.
 --
 -- Also adds 3 more monitoring columns while touching this:
---   - comments_count: posts_count's counterpart — comments are the
+--   - comments_count: posts_count's counterpart. Comments are the
 --     higher-volume, lower-friction content surface (also a report
 --     target, see reports_received below), worth tracking separately.
 --   - group_chats_count: how many group chats this user currently
---     belongs to — a fan-out signal for groups the same way
+--     belongs to. A fan-out signal for groups the same way
 --     followers/following already are for follows, sitting alongside
 --     them rather than the volume columns.
 --   - voice_messages_sent_count: voice messages can't be scanned for
@@ -17,12 +17,12 @@
 --     messaging is voice is a genuinely different signal than raw
 --     volume, not just a subset of it.
 --
--- And moves is_minor to the very end — it sat awkwardly between the
+-- And moves is_minor to the very end: it sat awkwardly between the
 -- readable timestamps and grade, more prominent than a single boolean
 -- flag needs to be among a dashboard of counts.
 --
 -- Column reorder + a dropped column both require drop/recreate (CREATE
--- OR REPLACE VIEW only allows appending) — same reasoning as every prior
+-- OR REPLACE VIEW only allows appending), same reasoning as every prior
 -- rebuild of this view (0035/0037/0038/0039), with the revoke re-applied
 -- at the bottom as always.
 drop view if exists public.user_safety_summary;
@@ -35,7 +35,7 @@ select
   to_char(p.last_active_at at time zone 'Australia/Sydney', 'DD Mon YYYY FMHH12:MI AM') as last_active_at_sydney,
   to_char(p.created_at at time zone 'Australia/Sydney', 'DD Mon YYYY FMHH12:MI AM') as joined_at_sydney,
   p.grade,
-  -- Computed from the raw timestamptz, not the formatted text above —
+  -- Computed from the raw timestamptz, not the formatted text above:
   -- comparisons against now() need to stay timezone-aware.
   (p.last_active_at > now() - interval '5 minutes') as online_now,
   coalesce(reports_received.count, 0) as reports_received,
@@ -123,7 +123,7 @@ left join (
 ) dms_sent on dms_sent.sender_id = p.id
 left join (
   -- The DM's *other* party gets a "received" for every message its
-  -- sender sent — same case-expression shape dm_partners above already
+  -- sender sent, the same case-expression shape dm_partners above already
   -- uses to find "whichever side isn't the sender".
   select
     case when c.user_a_id = m.sender_id then c.user_b_id else c.user_a_id end as recipient_id,
@@ -140,7 +140,7 @@ left join (
 ) gc_sent on gc_sent.sender_id = p.id
 left join (
   -- Every *current* member of the group other than the sender counts
-  -- one "received" per message — total message exposure across all of
+  -- one "received" per message: total message exposure across all of
   -- this user's group chats, the group-chat counterpart to dms_received.
   select cm.user_id, count(*) as count
   from public.messages m

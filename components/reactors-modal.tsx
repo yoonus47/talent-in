@@ -9,12 +9,12 @@ import { REACTIONS, type ReactionType, type Reactor } from "@/lib/reactions";
 import { cn } from "@/lib/utils";
 
 /**
- * LinkedIn-style "who reacted" list — a tab per reaction type across the
+ * LinkedIn-style "who reacted" list: a tab per reaction type across the
  * top (plus "All"), a scrollable list of people below. Deliberately
  * generic: it takes a `fetchReactors` loader instead of a postId/commentId
  * + a "kind" flag, so it never has to branch on post-vs-comment itself
  * (the achievements feature backed out of exactly that kind of needless
- * type-branching once already — see the settings-IA memory).
+ * type-branching once already, see the settings-IA memory).
  *
  * Overlay mechanics (Portal, fade-in via `mounted`, Escape/backdrop to
  * close) copied from components/image-lightbox.tsx.
@@ -44,7 +44,7 @@ export function ReactorsModal({
       cancelled = true;
     };
     // fetchReactors is a fresh closure each render by design (it just
-    // binds an id) — only run this once per mount, not on every render.
+    // binds an id). Only run this once per mount, not on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -155,7 +155,7 @@ export async function setReaction(
   revalidatePostSurfaces();
 }
 
-/** Who reacted to a post, and with what — for the reactors modal opened
+/** Who reacted to a post, and with what. For the reactors modal opened
  * from ReactionSummary. A passive read, not a page load, so an
  * unauthenticated caller just gets an empty list rather than a redirect
  * (same convention as searchMentionCandidates). */

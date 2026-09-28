@@ -504,7 +504,7 @@ export async function getSuggestedProfiles(
 }
 
 /**
- * Most-recently-joined students, not already followed — Discover's
+ * Most-recently-joined students, not already followed. Discover's
  * "New to TalentZify" section. A distinct signal from getSuggestedProfiles
  * above (recency, not affinity): someone with no shared school/interests
  * yet never surfaces there unless nobody has any signal at all, which
