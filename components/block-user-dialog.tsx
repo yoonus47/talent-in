@@ -65,8 +65,9 @@ export function BlockUserDialog({
         >
           <h2 className="text-sm font-semibold text-foreground">Block @{targetUsername}?</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            They won&apos;t be able to follow you, message you, or view your profile, and you
-            won&apos;t see theirs either. You can unblock them later from Account Settings.
+            They won&apos;t be able to follow you or message you, and neither of you will see the
+            other&apos;s profile or messages, including in any group chats you&apos;re both in.
+            You can unblock them later from Account Settings.
           </p>
           <div className="mt-4 flex justify-end gap-2">
             <button
