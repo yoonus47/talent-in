@@ -22,6 +22,15 @@ function hasPasswordIdentity(user: { identities?: { provider: string }[] | null 
   return user.identities?.some((i) => i.provider === "email") ?? false;
 }
 
+/** Both forms on the settings page are collapsed until the user opts in
+ * to changing something (see components/login-security-card.tsx) — on a
+ * validation failure, `context` tells the page which one to re-expand so
+ * the error lands next to the fields it's actually about, instead of a
+ * banner above two closed sections with no obvious form to retry in. */
+function failWith(context: "email" | "password", message: string): never {
+  redirect(`/settings?context=${context}&error=${encodeURIComponent(message)}`);
+}
+
 /**
  * Changes the account's login email. Supabase sends a confirmation link
  * to the *new* address before this actually takes effect — the existing
@@ -47,24 +56,24 @@ export async function updateEmail(formData: FormData) {
   if (!user) redirect("/login");
 
   if (!hasPasswordIdentity(user)) {
-    redirect("/settings?error=Your account email is managed by Google");
+    failWith("email", "Your account email is managed by Google");
   }
 
   const parsed = updateEmailSchema.safeParse({ email: formData.get("email") });
   if (!parsed.success) {
-    redirect(`/settings?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "Invalid input")}`);
+    failWith("email", parsed.error.issues[0]?.message ?? "Invalid input");
   }
 
   const currentPassword = formData.get("currentPassword");
   if (typeof currentPassword !== "string" || !currentPassword) {
-    redirect("/settings?error=Enter your current password to confirm this change");
+    failWith("email", "Enter your current password to confirm this change");
   }
   const { error: authError } = await supabase.auth.signInWithPassword({
     email: user.email!,
     password: currentPassword,
   });
   if (authError) {
-    redirect("/settings?error=Current password is incorrect");
+    failWith("email", "Current password is incorrect");
   }
 
   const { error } = await supabase.auth.updateUser(
@@ -72,7 +81,7 @@ export async function updateEmail(formData: FormData) {
     { emailRedirectTo: `${await siteUrl()}/auth/callback` },
   );
   if (error) {
-    redirect(`/settings?error=${encodeURIComponent(error.message)}`);
+    failWith("email", error.message);
   }
 
   redirect("/settings?emailUpdated=1");
@@ -93,33 +102,33 @@ export async function updatePassword(formData: FormData) {
   if (!user) redirect("/login");
 
   if (!hasPasswordIdentity(user)) {
-    redirect("/settings?error=Your account password is managed by Google");
+    failWith("password", "Your account password is managed by Google");
   }
 
   const parsed = updatePasswordSchema.safeParse({ password: formData.get("newPassword") });
   if (!parsed.success) {
-    redirect(`/settings?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "Invalid input")}`);
+    failWith("password", parsed.error.issues[0]?.message ?? "Invalid input");
   }
 
   if (formData.get("newPassword") !== formData.get("confirmPassword")) {
-    redirect("/settings?error=New passwords don't match");
+    failWith("password", "New passwords don't match");
   }
 
   const currentPassword = formData.get("currentPassword");
   if (typeof currentPassword !== "string" || !currentPassword) {
-    redirect("/settings?error=Enter your current password to confirm this change");
+    failWith("password", "Enter your current password to confirm this change");
   }
   const { error: authError } = await supabase.auth.signInWithPassword({
     email: user.email!,
     password: currentPassword,
   });
   if (authError) {
-    redirect("/settings?error=Current password is incorrect");
+    failWith("password", "Current password is incorrect");
   }
 
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
   if (error) {
-    redirect(`/settings?error=${encodeURIComponent(error.message)}`);
+    failWith("password", error.message);
   }
 
   redirect("/settings?passwordUpdated=1");

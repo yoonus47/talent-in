@@ -3,13 +3,10 @@ import { ArrowLeft, Lock } from "lucide-react";
 import { getCurrentProfile } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
-import { updateEmail, updatePassword } from "@/lib/actions/account";
 import { BackLink } from "@/components/back-link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { SubmitButton } from "@/components/submit-button";
+import { LoginSecurityCard } from "@/components/login-security-card";
 import { DeleteAccount } from "@/components/delete-account";
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -33,9 +30,14 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; emailUpdated?: string; passwordUpdated?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    context?: string;
+    emailUpdated?: string;
+    passwordUpdated?: string;
+  }>;
 }) {
-  const { error, emailUpdated, passwordUpdated } = await searchParams;
+  const { error, context, emailUpdated, passwordUpdated } = await searchParams;
   const profile = await getCurrentProfile();
   if (!profile) redirect("/onboarding");
 
@@ -86,84 +88,12 @@ export default async function AccountPage({
           </span>
         </SectionHeading>
 
-        {hasPassword ? (
-          <form action={updateEmail} className="space-y-2.5">
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" required defaultValue={user.email ?? ""} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="currentPasswordForEmail">Current password</Label>
-              <Input
-                id="currentPasswordForEmail"
-                name="currentPassword"
-                type="password"
-                required
-                autoComplete="current-password"
-              />
-            </div>
-            <SubmitButton variant="outline" size="sm" pendingText="Updating…">
-              Update email
-            </SubmitButton>
-          </form>
-        ) : (
-          <div className="space-y-1.5">
-            <Label>Email</Label>
-            <Input value={user.email ?? ""} disabled />
-            <p className="text-xs text-muted-foreground">
-              Managed by your Google account.
-            </p>
-          </div>
-        )}
-
-        <div className="border-t border-border pt-4">
-          {hasPassword ? (
-            <form action={updatePassword} className="space-y-2.5">
-              <div className="space-y-1.5">
-                <Label htmlFor="currentPassword">Current password</Label>
-                <Input
-                  id="currentPassword"
-                  name="currentPassword"
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="newPassword">New password</Label>
-                <Input
-                  id="newPassword"
-                  name="newPassword"
-                  type="password"
-                  required
-                  minLength={8}
-                  autoComplete="new-password"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="confirmPassword">Confirm new password</Label>
-                <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  required
-                  minLength={8}
-                  autoComplete="new-password"
-                />
-              </div>
-              <SubmitButton variant="outline" size="sm" pendingText="Saving…">
-                Update password
-              </SubmitButton>
-            </form>
-          ) : (
-            <div className="space-y-1.5">
-              <Label>Password</Label>
-              <p className="text-xs text-muted-foreground">
-                Managed by your Google account.
-              </p>
-            </div>
-          )}
-        </div>
+        <LoginSecurityCard
+          email={user.email ?? ""}
+          hasPassword={hasPassword}
+          defaultEditingEmail={context === "email"}
+          defaultChangingPassword={context === "password"}
+        />
       </Card>
 
       <form action={signOut}>
