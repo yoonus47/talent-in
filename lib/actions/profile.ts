@@ -9,16 +9,7 @@ import { notify } from "@/lib/notify";
 import { REFERRAL_COOKIE } from "@/lib/referrals";
 import { validateImageFile, extensionFor } from "@/lib/uploads";
 import { parsePlatformOs, parsePlatformBrowser } from "@/lib/user-agent";
-
-/** Follows/reactions/comments/shares render on the feed, profiles, and
- * follower/following lists — revalidate all of them after a graph change. */
-function revalidateSocialSurfaces() {
-  revalidatePath("/feed");
-  revalidatePath("/discover");
-  revalidatePath("/profile/[username]", "page");
-  revalidatePath("/profile/[username]/followers", "page");
-  revalidatePath("/profile/[username]/following", "page");
-}
+import { revalidateSocialSurfaces } from "@/lib/revalidate";
 
 // Throttle window for touchLastActive — matches the WHERE clause below.
 const ACTIVITY_TOUCH_INTERVAL_MS = 2 * 60 * 1000;
@@ -408,9 +399,18 @@ export async function toggleFollow(targetUserId: string, isFollowing: boolean) {
       .eq("follower_id", user.id)
       .eq("following_id", targetUserId);
   } else {
-    await supabase
+    // A blocked-relationship insert is rejected by RLS (0048_user_blocking.sql).
+    // In practice a real user can't reach this: blocking already hides each
+    // other's profile entirely, so there's no Follow button left to press.
+    // Logged like setReaction's own RLS-blocked-write case, not surfaced to
+    // the user with a dedicated error path.
+    const { error } = await supabase
       .from("follows")
       .insert({ follower_id: user.id, following_id: targetUserId });
+    if (error) {
+      console.error("toggleFollow failed:", error.message);
+      return;
+    }
     await notify(supabase, { recipientId: targetUserId, actorId: user.id, type: "follow" });
   }
 

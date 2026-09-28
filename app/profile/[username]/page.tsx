@@ -33,6 +33,7 @@ import { toggleFollow } from "@/lib/actions/profile";
 import { startConversation } from "@/lib/actions/chat";
 import { categoryForHobby } from "@/lib/hobbies";
 import { AchievementList } from "@/components/achievement-list";
+import { ProfileActionsMenu } from "@/components/profile-actions-menu";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -69,7 +70,7 @@ export default async function ProfilePage({
   const viewer = await getCurrentProfile();
   if (!viewer) redirect("/login");
 
-  const profile = await getProfileByUsername(username);
+  const profile = await getProfileByUsername(username, viewer.id);
   if (!profile) notFound();
 
   const isOwnProfile = profile.id === viewer.id;
@@ -138,6 +139,7 @@ export default async function ProfilePage({
                     {isFollowing ? "Following" : "Follow"}
                   </Button>
                 </form>
+                <ProfileActionsMenu targetUserId={profile.id} targetUsername={profile.username} />
               </div>
             )}
           </div>

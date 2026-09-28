@@ -8,3 +8,14 @@ export function revalidatePostSurfaces() {
   revalidatePath("/feed");
   revalidatePath("/profile/[username]", "page");
 }
+
+/** Follows/blocks render on the feed, discover, profiles, and
+ * follower/following lists — revalidate all of them after a graph change.
+ * Shared by lib/actions/profile.ts and lib/actions/block.ts. */
+export function revalidateSocialSurfaces() {
+  revalidatePath("/feed");
+  revalidatePath("/discover");
+  revalidatePath("/profile/[username]", "page");
+  revalidatePath("/profile/[username]/followers", "page");
+  revalidatePath("/profile/[username]/following", "page");
+}

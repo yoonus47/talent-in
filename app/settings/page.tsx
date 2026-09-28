@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
-import { ArrowLeft, Lock } from "lucide-react";
-import { getCurrentProfile } from "@/lib/data";
+import { ArrowLeft, Lock, UserX } from "lucide-react";
+import { getBlockedProfiles, getCurrentProfile } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
+import { unblockUser } from "@/lib/actions/block";
 import { BackLink } from "@/components/back-link";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LoginSecurityCard } from "@/components/login-security-card";
@@ -54,6 +56,7 @@ export default async function AccountPage({
   // the password form doesn't render at all (see lib/actions/account.ts's
   // updatePassword, which refuses this server-side too, not just here).
   const hasPassword = user.identities?.some((i) => i.provider === "email") ?? false;
+  const blockedProfiles = await getBlockedProfiles(profile.id);
 
   return (
     <div className="mx-auto max-w-lg space-y-4 px-4 py-6">
@@ -94,6 +97,38 @@ export default async function AccountPage({
           defaultEditingEmail={context === "email"}
           defaultChangingPassword={context === "password"}
         />
+      </Card>
+
+      <Card className="space-y-3 p-6">
+        <SectionHeading>
+          <span className="flex items-center gap-1.5">
+            <UserX className="h-3.5 w-3.5" />
+            Blocked accounts
+          </span>
+        </SectionHeading>
+
+        {blockedProfiles.length === 0 ? (
+          <p className="text-sm text-muted-foreground">You haven&apos;t blocked anyone.</p>
+        ) : (
+          <div className="divide-y divide-border">
+            {blockedProfiles.map((p) => (
+              <div key={p.id} className="flex items-center justify-between gap-3 py-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar name={p.full_name} src={p.avatar_url} size={40} />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">{p.full_name}</p>
+                    <p className="truncate text-xs text-muted-foreground">@{p.username}</p>
+                  </div>
+                </div>
+                <form action={unblockUser.bind(null, p.id)}>
+                  <Button type="submit" variant="outline" size="sm" className="shrink-0">
+                    Unblock
+                  </Button>
+                </form>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       <form action={signOut}>

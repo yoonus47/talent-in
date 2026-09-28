@@ -314,14 +314,28 @@ async function getFeedItems(authorIds: string[], currentUserId: string): Promise
   return items.slice(0, 50);
 }
 
-export async function getProfileByUsername(username: string): Promise<Profile | null> {
+/** `viewerId` gates visibility: a block between the viewer and this
+ * profile (either direction) makes it invisible to them, same as if it
+ * didn't exist. The profile page's existing `if (!profile) notFound()`
+ * needs no further changes to handle that. */
+export async function getProfileByUsername(
+  username: string,
+  viewerId: string,
+): Promise<Profile | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("profiles")
     .select("*")
     .eq("username", username)
     .maybeSingle();
-  return data;
+  if (!data) return null;
+  if (data.id === viewerId) return data;
+
+  const { data: blocked } = await supabase.rpc("users_blocked_each_other", {
+    a: viewerId,
+    b: data.id,
+  });
+  return blocked ? null : data;
 }
 
 export async function getFollowStats(profileId: string, viewerId: string) {
@@ -423,14 +437,29 @@ export type ProfileSearchFilters = {
   school?: string;
 };
 
+/** Ids blocked-related to the current session's user, either direction —
+ * see supabase/migrations/0048_user_blocking.sql's blocked_user_ids for
+ * why this has to be an RPC rather than a plain `blocks` select (RLS only
+ * lets a user see blocks *they* filed, not ones filed against them, and
+ * this needs both). Shared by every "who should Discover show" query
+ * below so a blocked relationship stops surfacing on either side. */
+async function getBlockedIds(supabase: Awaited<ReturnType<typeof createClient>>): Promise<string[]> {
+  const { data } = await supabase.rpc("blocked_user_ids");
+  return (data ?? []).map((row) => row.user_id);
+}
+
 /** Search/browse students for the Discover -> People tab. */
 export async function searchProfiles(
   currentUserId: string,
   filters: ProfileSearchFilters,
 ): Promise<ProfileWithFollowState[]> {
   const supabase = await createClient();
+  const blockedIds = await getBlockedIds(supabase);
 
   let query = supabase.from("profiles").select("*").neq("id", currentUserId).limit(30);
+  if (blockedIds.length > 0) {
+    query = query.not("id", "in", `(${blockedIds.join(",")})`);
+  }
 
   if (filters.query) {
     const escaped = filters.query.replace(/[%,]/g, "");
@@ -468,11 +497,15 @@ export async function getSuggestedProfiles(
 ): Promise<SuggestedProfile[]> {
   const supabase = await createClient();
 
-  const { data: following } = await supabase
-    .from("follows")
-    .select("following_id")
-    .eq("follower_id", currentUserId);
-  const excludeIds = [currentUserId, ...(following?.map((f) => f.following_id) ?? [])];
+  const [{ data: following }, blockedIds] = await Promise.all([
+    supabase.from("follows").select("following_id").eq("follower_id", currentUserId),
+    getBlockedIds(supabase),
+  ]);
+  const excludeIds = [
+    currentUserId,
+    ...(following?.map((f) => f.following_id) ?? []),
+    ...blockedIds,
+  ];
 
   let query = supabase
     .from("profiles")
@@ -513,11 +546,15 @@ export async function getSuggestedProfiles(
 export async function getNewMembers(currentUserId: string): Promise<Profile[]> {
   const supabase = await createClient();
 
-  const { data: following } = await supabase
-    .from("follows")
-    .select("following_id")
-    .eq("follower_id", currentUserId);
-  const excludeIds = [currentUserId, ...(following?.map((f) => f.following_id) ?? [])];
+  const [{ data: following }, blockedIds] = await Promise.all([
+    supabase.from("follows").select("following_id").eq("follower_id", currentUserId),
+    getBlockedIds(supabase),
+  ]);
+  const excludeIds = [
+    currentUserId,
+    ...(following?.map((f) => f.following_id) ?? []),
+    ...blockedIds,
+  ];
 
   const { data, error } = await supabase
     .from("profiles")
@@ -532,6 +569,28 @@ export async function getNewMembers(currentUserId: string): Promise<Profile[]> {
   }
 
   return data ?? [];
+}
+
+/** Profiles `userId` has blocked — for Account Settings' Blocked accounts
+ * list. Only ever the caller's own blocker_id rows (the RLS select
+ * policy on `blocks` allows nothing else), so `userId` here is always
+ * the current session's own id in practice. */
+export async function getBlockedProfiles(userId: string): Promise<Profile[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("blocks")
+    .select("created_at, profiles!blocks_blocked_id_fkey(*)")
+    .eq("blocker_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("getBlockedProfiles failed:", error.message);
+    return [];
+  }
+
+  return (data ?? [])
+    .map((row) => row.profiles as unknown as Profile)
+    .filter(Boolean);
 }
 
 /** Unread notification count, for the navbar bell badge. */

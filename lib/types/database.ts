@@ -246,6 +246,31 @@ export interface Database {
           },
         ];
       };
+      blocks: {
+        Row: { blocker_id: string; blocked_id: string; created_at: string };
+        Insert: {
+          blocker_id: string;
+          blocked_id: string;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "blocks_blocker_id_fkey";
+            columns: ["blocker_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "blocks_blocked_id_fkey";
+            columns: ["blocked_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       posts: {
         Row: {
           id: string;
@@ -1293,6 +1318,14 @@ export interface Database {
       redeem_referral: {
         Args: { p_referrer_username: string };
         Returns: string | null;
+      };
+      users_blocked_each_other: {
+        Args: { a: string; b: string };
+        Returns: boolean;
+      };
+      blocked_user_ids: {
+        Args: Record<PropertyKey, never>;
+        Returns: { user_id: string }[];
       };
     };
   };

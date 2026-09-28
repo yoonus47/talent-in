@@ -15,7 +15,7 @@ export default async function FollowingPage({
   const viewer = await getCurrentProfile();
   if (!viewer) redirect("/login");
 
-  const profile = await getProfileByUsername(username);
+  const profile = await getProfileByUsername(username, viewer.id);
   if (!profile) notFound();
 
   const following = await getFollowingList(profile.id, viewer.id);
