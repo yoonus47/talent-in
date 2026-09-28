@@ -45,10 +45,12 @@ export default async function AccountPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // A Google-only sign-up has no "email" provider identity yet — no
-  // password exists to re-verify against, so both forms below drop the
-  // "current password" field, and email (tied to the Google account)
-  // renders read-only instead of an editable field pointing nowhere useful.
+  // A Google-only sign-up has no "email" provider identity — its email
+  // and password are both managed by Google, not by us. Changing a
+  // password here would be a login method these kids never chose to
+  // have, so neither field below applies: email renders read-only, and
+  // the password form doesn't render at all (see lib/actions/account.ts's
+  // updatePassword, which refuses this server-side too, not just here).
   const hasPassword = user.identities?.some((i) => i.provider === "email") ?? false;
 
   return (
@@ -73,9 +75,7 @@ export default async function AccountPage({
         </p>
       )}
       {passwordUpdated && (
-        <p className="rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">
-          Password {hasPassword ? "updated" : "set"}.
-        </p>
+        <p className="rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary">Password updated.</p>
       )}
 
       <Card className="space-y-4 p-6">
@@ -117,8 +117,8 @@ export default async function AccountPage({
         )}
 
         <div className="border-t border-border pt-4">
-          <form action={updatePassword} className="space-y-2.5">
-            {hasPassword && (
+          {hasPassword ? (
+            <form action={updatePassword} className="space-y-2.5">
               <div className="space-y-1.5">
                 <Label htmlFor="currentPassword">Current password</Label>
                 <Input
@@ -129,39 +129,40 @@ export default async function AccountPage({
                   autoComplete="current-password"
                 />
               </div>
-            )}
+              <div className="space-y-1.5">
+                <Label htmlFor="newPassword">New password</Label>
+                <Input
+                  id="newPassword"
+                  name="newPassword"
+                  type="password"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="confirmPassword">Confirm new password</Label>
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                />
+              </div>
+              <SubmitButton variant="outline" size="sm" pendingText="Saving…">
+                Update password
+              </SubmitButton>
+            </form>
+          ) : (
             <div className="space-y-1.5">
-              <Label htmlFor="newPassword">New password</Label>
-              <Input
-                id="newPassword"
-                name="newPassword"
-                type="password"
-                required
-                minLength={8}
-                autoComplete="new-password"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="confirmPassword">Confirm new password</Label>
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                required
-                minLength={8}
-                autoComplete="new-password"
-              />
-            </div>
-            <SubmitButton variant="outline" size="sm" pendingText="Saving…">
-              {hasPassword ? "Update password" : "Set password"}
-            </SubmitButton>
-            {!hasPassword && (
+              <Label>Password</Label>
               <p className="text-xs text-muted-foreground">
-                You signed up with Google — set a password to also be able to log in with your
-                email.
+                Managed by your Google account.
               </p>
-            )}
-          </form>
+            </div>
+          )}
         </div>
       </Card>
 
