@@ -12,7 +12,7 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  // Same guard as app/page.tsx — an already-authenticated session has no
+  // Same guard as app/page.tsx: an already-authenticated session has no
   // business seeing a login form (it was rendering the logged-in Navbar
   // stacked above this page's own centered card, which looked broken).
   const supabase = await createClient();
@@ -46,7 +46,12 @@ export default async function LoginPage({
             <Input id="email" name="email" type="email" required autoComplete="email" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="password">Password</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Password</Label>
+              <Link href="/forgot-password" className="text-xs font-medium text-primary hover:underline">
+                Forgot password?
+              </Link>
+            </div>
             <Input
               id="password"
               name="password"
