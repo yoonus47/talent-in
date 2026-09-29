@@ -120,13 +120,22 @@ export function SwipeNavigator({ links, children }: { links: NavRoute[]; childre
   // the browser back/forward button), reset transforms instantly with no
   // transition — before paint, so the new content never flashes at a
   // leftover offset from the page this replaced.
+  //
+  // Skipped entirely while a gesture is actively in progress (finger still
+  // down): every tab route is server-rendered, so a swipe's own commit can
+  // take a while to actually land here — long enough that the user can
+  // already be mid-drag on a *second* swipe by the time it does. This
+  // pathname change is stale background noise to that second gesture, not
+  // a reason to blow it away; onTouchEnd already clears gesture.current
+  // itself the moment any gesture actually finishes, so there's nothing
+  // left to reset by the time a pathname change from *that* commit lands.
   useIsomorphicLayoutEffect(() => {
+    if (gesture.current) return;
     if (pageRef.current) {
       pageRef.current.style.transition = "none";
       pageRef.current.style.transform = "translateX(0)";
     }
     animating.current = false;
-    gesture.current = null;
     setPeek(null);
   }, [pathname]);
 
