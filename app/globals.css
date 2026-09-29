@@ -116,6 +116,11 @@
 body {
   background: var(--background);
   color: var(--foreground);
+  /* Suppresses the browser's own native pull-to-refresh/overscroll
+     navigation at the top of the page — components/pull-to-refresh.tsx
+     is the only pull-to-refresh gesture that should ever fire, not a
+     second, uncontrolled native one racing it. */
+  overscroll-behavior-y: contain;
 }
 
 * {

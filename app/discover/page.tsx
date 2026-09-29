@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
 import { Input } from "@/components/ui/input";
 import { ProfileRow } from "@/components/profile-row";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 import { categoryLabel, cn } from "@/lib/utils";
 import { HOBBY_CATEGORIES } from "@/lib/hobbies";
 import type { ContentCategory } from "@/lib/types/database";
@@ -43,53 +44,55 @@ export default async function DiscoverPage({
   const tab = params.tab === "content" ? "content" : "people";
 
   return (
-    <div className="animate-fade-up mx-auto max-w-xl px-4 py-6">
-      <h1 className="text-2xl font-bold">Discover</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Fellow students and career resources, in one place.
-      </p>
+    <PullToRefresh>
+      <div className="animate-fade-up mx-auto max-w-xl px-4 py-6">
+        <h1 className="text-2xl font-bold">Discover</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Fellow students and career resources, in one place.
+        </p>
 
-      <div className="mt-4 rounded-lg border border-border bg-muted p-1">
-        <div className="relative flex">
-          <div
-            aria-hidden
-            className={cn(
-              "absolute inset-y-0 h-full w-1/2 rounded-md bg-primary transition-transform duration-300 ease-out",
-              tab === "content" && "translate-x-full",
-            )}
-          />
-          <Link
-            href="/discover"
-            className={cn(
-              "relative z-10 flex-1 rounded-md py-2 text-center text-sm font-medium transition-colors",
-              tab === "people" ? "text-primary-foreground" : "text-muted-foreground",
-            )}
-          >
-            People
-          </Link>
-          <Link
-            href="/discover?tab=content"
-            className={cn(
-              "relative z-10 flex-1 rounded-md py-2 text-center text-sm font-medium transition-colors",
-              tab === "content" ? "text-primary-foreground" : "text-muted-foreground",
-            )}
-          >
-            Content
-          </Link>
+        <div className="mt-4 rounded-lg border border-border bg-muted p-1">
+          <div className="relative flex">
+            <div
+              aria-hidden
+              className={cn(
+                "absolute inset-y-0 h-full w-1/2 rounded-md bg-primary transition-transform duration-300 ease-out",
+                tab === "content" && "translate-x-full",
+              )}
+            />
+            <Link
+              href="/discover"
+              className={cn(
+                "relative z-10 flex-1 rounded-md py-2 text-center text-sm font-medium transition-colors",
+                tab === "people" ? "text-primary-foreground" : "text-muted-foreground",
+              )}
+            >
+              People
+            </Link>
+            <Link
+              href="/discover?tab=content"
+              className={cn(
+                "relative z-10 flex-1 rounded-md py-2 text-center text-sm font-medium transition-colors",
+                tab === "content" ? "text-primary-foreground" : "text-muted-foreground",
+              )}
+            >
+              Content
+            </Link>
+          </div>
         </div>
-      </div>
 
-      {tab === "content" ? (
-        <ContentTab category={params.category} query={params.q} />
-      ) : (
-        <PeopleTab
-          query={params.q}
-          grade={params.grade}
-          interest={params.interest}
-          school={params.school}
-        />
-      )}
-    </div>
+        {tab === "content" ? (
+          <ContentTab category={params.category} query={params.q} />
+        ) : (
+          <PeopleTab
+            query={params.q}
+            grade={params.grade}
+            interest={params.interest}
+            school={params.school}
+          />
+        )}
+      </div>
+    </PullToRefresh>
   );
 }
 

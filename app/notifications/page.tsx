@@ -20,6 +20,7 @@ import { BackLink } from "@/components/back-link";
 import { Avatar } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 import { timeAgo } from "@/lib/utils";
 
 function describe(n: FeedNotification): string {
@@ -112,73 +113,75 @@ export default async function NotificationsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-xl px-4 py-6">
-      {/* Notifications has no bottom-tab entry of its own (reached from
-          the bell icon, available on every page) — without this, the only
-          way back was the browser/device back gesture. */}
-      <div className="flex items-center gap-3">
-        <BackLink fallbackHref="/feed" aria-label="Back">
-          <ArrowLeft className="h-5 w-5 text-muted-foreground hover:text-foreground" />
-        </BackLink>
-        <h1 className="text-2xl font-bold">Notifications</h1>
-      </div>
+    <PullToRefresh>
+      <div className="mx-auto max-w-xl px-4 py-6">
+        {/* Notifications has no bottom-tab entry of its own (reached from
+            the bell icon, available on every page) — without this, the only
+            way back was the browser/device back gesture. */}
+        <div className="flex items-center gap-3">
+          <BackLink fallbackHref="/feed" aria-label="Back">
+            <ArrowLeft className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+          </BackLink>
+          <h1 className="text-2xl font-bold">Notifications</h1>
+        </div>
 
-      {notifications.length === 0 ? (
-        <EmptyState
-          className="mt-4"
-          icon={Bell}
-          title="You're all caught up"
-          description="When someone follows you, reacts, comments, or shares your posts, you'll see it here."
-        />
-      ) : (
-        <Card className="mt-4 divide-y divide-border px-4">
-          {notifications.map((n) => {
-            const Icon = iconFor(n.type);
-            const isCommunity =
-              n.type === "community_reply" ||
-              n.type === "community_mention" ||
-              n.type === "community_reaction" ||
-              n.type === "community_best_answer";
-            const href =
-              n.type === "follow" || n.type === "referral_joined"
-                ? `/profile/${n.actor.username}`
-                : (n.type === "group_added" || n.type === "mention") && n.conversation
-                  ? `/chat/${n.conversation.id}`
-                  : isCommunity && n.communityThread
-                    ? `/community/${n.communityThread.id}`
-                    : n.post
-                      ? "/feed"
-                      : "/feed";
-            const previewText =
-              n.comment?.content ?? n.post?.content ?? n.communityReply?.content ?? n.communityThread?.title ?? null;
-            return (
-              <Link
-                key={n.id}
-                href={href}
-                className="flex items-start gap-3 py-3 hover:bg-muted"
-              >
-                <div className="relative shrink-0">
-                  <Avatar name={n.actor.full_name} src={n.actor.avatar_url} size={40} />
-                  <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-card text-primary ring-2 ring-card">
-                    <Icon className="h-3 w-3" />
-                  </span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-foreground">
-                    <span className="font-semibold">{n.actor.full_name}</span>{" "}
-                    {describe(n)}
-                  </p>
-                  {previewText && (
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{previewText}</p>
-                  )}
-                  <p className="mt-0.5 text-xs text-muted-foreground">{timeAgo(n.createdAt)}</p>
-                </div>
-                {!n.readAt && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />}
-              </Link>
-            );
-          })}
-        </Card>
-      )}
-    </div>
+        {notifications.length === 0 ? (
+          <EmptyState
+            className="mt-4"
+            icon={Bell}
+            title="You're all caught up"
+            description="When someone follows you, reacts, comments, or shares your posts, you'll see it here."
+          />
+        ) : (
+          <Card className="mt-4 divide-y divide-border px-4">
+            {notifications.map((n) => {
+              const Icon = iconFor(n.type);
+              const isCommunity =
+                n.type === "community_reply" ||
+                n.type === "community_mention" ||
+                n.type === "community_reaction" ||
+                n.type === "community_best_answer";
+              const href =
+                n.type === "follow" || n.type === "referral_joined"
+                  ? `/profile/${n.actor.username}`
+                  : (n.type === "group_added" || n.type === "mention") && n.conversation
+                    ? `/chat/${n.conversation.id}`
+                    : isCommunity && n.communityThread
+                      ? `/community/${n.communityThread.id}`
+                      : n.post
+                        ? "/feed"
+                        : "/feed";
+              const previewText =
+                n.comment?.content ?? n.post?.content ?? n.communityReply?.content ?? n.communityThread?.title ?? null;
+              return (
+                <Link
+                  key={n.id}
+                  href={href}
+                  className="flex items-start gap-3 py-3 hover:bg-muted"
+                >
+                  <div className="relative shrink-0">
+                    <Avatar name={n.actor.full_name} src={n.actor.avatar_url} size={40} />
+                    <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-card text-primary ring-2 ring-card">
+                      <Icon className="h-3 w-3" />
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-foreground">
+                      <span className="font-semibold">{n.actor.full_name}</span>{" "}
+                      {describe(n)}
+                    </p>
+                    {previewText && (
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">{previewText}</p>
+                    )}
+                    <p className="mt-0.5 text-xs text-muted-foreground">{timeAgo(n.createdAt)}</p>
+                  </div>
+                  {!n.readAt && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />}
+                </Link>
+              );
+            })}
+          </Card>
+        )}
+      </div>
+    </PullToRefresh>
   );
 }

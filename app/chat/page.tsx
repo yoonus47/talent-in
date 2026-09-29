@@ -7,6 +7,7 @@ import { NewChatPicker } from "@/components/new-chat-picker";
 import { BackLink } from "@/components/back-link";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 
 export default async function ChatListPage() {
   const profile = await getCurrentProfile();
@@ -24,34 +25,36 @@ export default async function ChatListPage() {
   await Promise.all(conversations.map((c) => markConversationDelivered(c.id)));
 
   return (
-    <div className="mx-auto max-w-xl space-y-4 px-4 py-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* Wherever the viewer opened chat from (a profile, the feed,
-              wherever) — not a fixed destination, see components/back-
-              link.tsx. This is the one page in the chat section that used
-              to have no way back at all except the main nav tabs. */}
-          <BackLink fallbackHref="/feed" aria-label="Back">
-            <ArrowLeft className="h-5 w-5 text-muted-foreground hover:text-foreground" />
-          </BackLink>
-          <h1 className="text-lg font-bold">Messages</h1>
+    <PullToRefresh>
+      <div className="mx-auto max-w-xl space-y-4 px-4 py-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* Wherever the viewer opened chat from (a profile, the feed,
+                wherever) — not a fixed destination, see components/back-
+                link.tsx. This is the one page in the chat section that used
+                to have no way back at all except the main nav tabs. */}
+            <BackLink fallbackHref="/feed" aria-label="Back">
+              <ArrowLeft className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+            </BackLink>
+            <h1 className="text-lg font-bold">Messages</h1>
+          </div>
+          <NewChatPicker candidates={mutualFollows} />
         </div>
-        <NewChatPicker candidates={mutualFollows} />
-      </div>
 
-      {conversations.length === 0 ? (
-        <EmptyState
-          icon={MessageCircle}
-          title="No conversations yet"
-          description="Message someone you follow (and who follows you back) to start chatting."
-        />
-      ) : (
-        <Card className="divide-y divide-border p-0">
-          {conversations.map((conversation) => (
-            <ConversationRow key={conversation.id} conversation={conversation} />
-          ))}
-        </Card>
-      )}
-    </div>
+        {conversations.length === 0 ? (
+          <EmptyState
+            icon={MessageCircle}
+            title="No conversations yet"
+            description="Message someone you follow (and who follows you back) to start chatting."
+          />
+        ) : (
+          <Card className="divide-y divide-border p-0">
+            {conversations.map((conversation) => (
+              <ConversationRow key={conversation.id} conversation={conversation} />
+            ))}
+          </Card>
+        )}
+      </div>
+    </PullToRefresh>
   );
 }
