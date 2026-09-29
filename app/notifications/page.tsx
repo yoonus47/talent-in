@@ -106,7 +106,7 @@ export default async function NotificationsPage() {
   // Marking as read is a nice-to-have side effect, not critical to showing
   // the list — never let a failure here take down the whole page.
   try {
-    await markAllNotificationsRead(profile.id);
+    await markAllNotificationsRead();
   } catch (err) {
     console.error("markAllNotificationsRead failed:", err);
   }
