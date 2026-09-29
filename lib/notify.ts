@@ -9,6 +9,15 @@ import type { ReactionType } from "@/lib/reactions";
  * client, no separate "use server" surface.
  *
  * No-ops on self-notifications (e.g. reacting to your own post).
+ *
+ * Also no-ops when actor/recipient have blocked each other — most call
+ * sites already can't be reached in that case (their insert is refused by
+ * the matching block-aware RLS policy first, e.g. comments/reactions/
+ * community_replies, see 0051_block_social_interactions.sql), but a
+ * @mention notification's recipient is an arbitrary picked user unrelated
+ * to the post/comment/thread ownership those policies check, so it needs
+ * this check of its own — otherwise a blocked person could still get
+ * pinged by name-mention alone.
  */
 export async function notify(
   supabase: SupabaseClient<Database>,
@@ -24,6 +33,12 @@ export async function notify(
   },
 ) {
   if (params.recipientId === params.actorId) return;
+
+  const { data: blocked } = await supabase.rpc("users_blocked_each_other", {
+    a: params.actorId,
+    b: params.recipientId,
+  });
+  if (blocked) return;
 
   await supabase.from("notifications").insert({
     user_id: params.recipientId,
