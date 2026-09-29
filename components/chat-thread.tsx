@@ -272,13 +272,26 @@ export function ChatThread({
     function reconcile(newRow: Message) {
       setMessages((prev) => {
         if (prev.some((m) => m.id === newRow.id)) return prev;
+        // Drop only the single oldest matching pending echo, not every
+        // one that matches — two identical-content sends in quick
+        // succession (e.g. "ok" then "ok") produce two pending
+        // placeholders with the same sender_id/type/content, and removing
+        // both as soon as the first confirmed row arrives would strand
+        // the second: its own insert().select() response can no longer
+        // find it either, since the optimistic id it's matching against
+        // is already gone from state.
+        let removed = false;
         const withoutOwnPending = prev.filter((m) => {
-          if (!m.pending || m.sender_id !== newRow.sender_id || m.type !== newRow.type) return true;
+          if (removed || !m.pending || m.sender_id !== newRow.sender_id || m.type !== newRow.type) {
+            return true;
+          }
           const matches =
             newRow.type === "voice"
               ? Boolean(m.clientId && newRow.audio_url?.includes(m.clientId))
               : m.content === newRow.content;
-          return !matches;
+          if (!matches) return true;
+          removed = true;
+          return false;
         });
         return [...withoutOwnPending, newRow].sort((a, b) =>
           a.created_at.localeCompare(b.created_at),
