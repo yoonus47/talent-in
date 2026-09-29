@@ -45,14 +45,26 @@ export function BrandSplash() {
 
   // The dismiss timer below only needs to (re)start on the false→true
   // edge of `visible`, not on every path/query change while it's already
-  // counting down — refs let its setTimeout read the *current* path/query
-  // when it actually fires, 1.3s from now, without making those values
-  // effect dependencies.
+  // counting down — refs let its setTimeout read the *current*
+  // path/query/welcome when it actually fires, 1.3s from now, without
+  // making those values effect dependencies. `welcome` in particular
+  // *must* be a ref, not a dependency: it flips true->false the instant
+  // the user navigates away from a fresh ?welcome=1 landing (a swipe to
+  // another tab, well within this 1.3s window, is exactly that) while
+  // `visible` itself stays true (dismissed hasn't fired yet) — with
+  // `welcome` in the dependency array, that transition alone cancelled
+  // the in-flight timer and started a brand new one, silently extending
+  // how long the splash stayed on screen by a random amount depending on
+  // how quickly/often the user swiped right after landing. That's what
+  // made it look like the splash "sometimes" showed up mid-swipe: it was
+  // never re-triggering, just lingering past its intended 1.3s.
   const pathnameRef = useRef(pathname);
   const searchParamsRef = useRef(searchParams);
+  const welcomeRef = useRef(welcome);
   useEffect(() => {
     pathnameRef.current = pathname;
     searchParamsRef.current = searchParams;
+    welcomeRef.current = welcome;
   });
 
   useEffect(() => {
@@ -60,7 +72,7 @@ export function BrandSplash() {
 
     const timer = setTimeout(() => {
       setDismissed(true);
-      if (welcome) {
+      if (welcomeRef.current) {
         // Strip the param so a refresh or a Back navigation doesn't
         // replay it.
         const params = new URLSearchParams(searchParamsRef.current);
@@ -71,7 +83,7 @@ export function BrandSplash() {
     }, VISIBLE_MS);
 
     return () => clearTimeout(timer);
-  }, [visible, welcome, router]);
+  }, [visible, router]);
 
   if (!visible) return null;
 
