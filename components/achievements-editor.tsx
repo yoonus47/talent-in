@@ -198,7 +198,13 @@ function AchievementRow({
   async function handleDelete() {
     if (!confirm("Remove this achievement?")) return;
     setDeleting(true);
-    await deleteAchievement(achievement.id);
+    const result = await deleteAchievement(achievement.id);
+    if (result.error) {
+      // Row stays mounted (nothing removed server-side), so reset instead
+      // of leaving the trash icon permanently disabled with no way to retry.
+      setDeleting(false);
+      alert("Couldn't remove this achievement. Try again.");
+    }
   }
 
   return (

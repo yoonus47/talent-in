@@ -137,9 +137,15 @@ export async function updateAchievement(id: string, formData: FormData): Promise
 
   const file = formData.get("image");
   if (file instanceof File && file.size > 0) {
+    const newImageUrl = await uploadAchievementImage(supabase, user.id, file);
+    if (!newImageUrl) {
+      return { error: "Couldn't upload that image. Try a smaller file or a different format." };
+    }
     // Never trust a client-passed id alone for ownership — RLS already
-    // enforces it, this is just so a stale/removed row's image doesn't
-    // orphan Storage space, same reasoning as removeCoverFiles.
+    // enforces it, this is just so the old image doesn't orphan Storage
+    // space, same reasoning as removeCoverFiles. Only remove it once the
+    // replacement upload has actually succeeded — deleting it first meant
+    // a rejected/failed upload permanently lost the achievement's photo.
     const { data: existing } = await supabase
       .from("achievements")
       .select("image_url")
@@ -147,7 +153,7 @@ export async function updateAchievement(id: string, formData: FormData): Promise
       .eq("user_id", user.id)
       .maybeSingle();
     await removeAchievementImage(supabase, existing?.image_url ?? null);
-    update.image_url = await uploadAchievementImage(supabase, user.id, file);
+    update.image_url = newImageUrl;
   }
 
   const { error } = await supabase
@@ -162,7 +168,7 @@ export async function updateAchievement(id: string, formData: FormData): Promise
   return {};
 }
 
-export async function deleteAchievement(id: string) {
+export async function deleteAchievement(id: string): Promise<AchievementActionResult> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -176,9 +182,12 @@ export async function deleteAchievement(id: string) {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  await supabase.from("achievements").delete().eq("id", id).eq("user_id", user.id);
+  const { error } = await supabase.from("achievements").delete().eq("id", id).eq("user_id", user.id);
+  if (error) return { error: error.message };
+
   await removeAchievementImage(supabase, existing?.image_url ?? null);
 
   revalidatePath("/edit-profile");
   revalidatePath("/profile/[username]", "page");
+  return {};
 }
