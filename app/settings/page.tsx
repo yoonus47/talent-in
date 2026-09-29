@@ -11,6 +11,15 @@ import { Card } from "@/components/ui/card";
 import { LoginSecurityCard } from "@/components/login-security-card";
 import { DeleteAccount } from "@/components/delete-account";
 
+// A plain <form action> must return void | Promise<void>, but unblockUser
+// itself returns { error? } (so a client caller could surface a failure) —
+// this small inline Server Action discards that result for the form here,
+// which has no client-side error UI of its own to show it in.
+async function unblockAndIgnoreResult(userId: string) {
+  "use server";
+  await unblockUser(userId);
+}
+
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
     <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -120,7 +129,7 @@ export default async function AccountPage({
                     <p className="truncate text-xs text-muted-foreground">@{p.username}</p>
                   </div>
                 </div>
-                <form action={unblockUser.bind(null, p.id)}>
+                <form action={unblockAndIgnoreResult.bind(null, p.id)}>
                   <Button type="submit" variant="outline" size="sm" className="shrink-0">
                     Unblock
                   </Button>

@@ -27,6 +27,7 @@ export function BlockUserDialog({
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setMounted(true));
@@ -43,7 +44,13 @@ export function BlockUserDialog({
 
   async function handleConfirm() {
     setPending(true);
-    await blockUser(targetUserId);
+    setError(null);
+    const result = await blockUser(targetUserId);
+    if (result.error) {
+      setPending(false);
+      setError(result.error);
+      return;
+    }
     router.push("/feed");
   }
 
@@ -69,6 +76,7 @@ export function BlockUserDialog({
             other&apos;s profile or messages, including in any group chats you&apos;re both in.
             You can unblock them later from Account Settings.
           </p>
+          {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
           <div className="mt-4 flex justify-end gap-2">
             <button
               type="button"
