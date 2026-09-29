@@ -7,6 +7,7 @@ import { TransitionLink } from "@/components/transition-link";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
 import { Input } from "@/components/ui/input";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 import { cn } from "@/lib/utils";
 
 export default async function CommunityPage({
@@ -66,163 +67,169 @@ export default async function CommunityPage({
   const inactiveChip = "border-border text-muted-foreground hover:bg-muted";
 
   return (
-    <div className="animate-fade-up mx-auto max-w-xl px-4 py-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Community</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Threads, topics, and people figuring things out together.
-          </p>
-        </div>
-        <TransitionLink
-          href={activeTopic ? `/community/new?topic=${activeTopic.slug}` : "/community/new"}
-          direction="forward"
-          className={cn(buttonVariants({ size: "sm" }), "shrink-0")}
-        >
-          <Plus className="h-4 w-4" />
-          New thread
-        </TransitionLink>
-      </div>
-
-      <form method="get" className="mt-4">
-        {activeTopic && <input type="hidden" name="topic" value={activeTopic.slug} />}
-        {sort === "hot" && <input type="hidden" name="sort" value="hot" />}
-        {onlyFollowing && <input type="hidden" name="mine" value="1" />}
-        {onlySaved && <input type="hidden" name="saved" value="1" />}
-        <div className="relative">
-          {/* A real submit button, not just a decorative icon — unlike
-              Discover's own search field (app/discover/page.tsx), which
-              always sits next to an explicit "Apply" button for its other
-              filters, this field has nothing else nearby to submit it, so
-              it can't rely on implicit Enter-to-submit alone. */}
-          <button
-            type="submit"
-            aria-label="Search"
-            className="absolute left-0 top-0 flex h-full w-9 items-center justify-center text-muted-foreground hover:text-foreground"
+    <PullToRefresh>
+      <div className="animate-fade-up mx-auto max-w-xl px-4 py-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold">Community</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Threads, topics, and people figuring things out together.
+            </p>
+          </div>
+          <TransitionLink
+            href={activeTopic ? `/community/new?topic=${activeTopic.slug}` : "/community/new"}
+            direction="forward"
+            className={cn(buttonVariants({ size: "sm" }), "shrink-0")}
           >
-            <Search className="h-4 w-4" />
-          </button>
-          <Input
-            type="search"
-            name="q"
-            defaultValue={query}
-            placeholder="Search threads…"
-            className="pl-9"
-          />
+            <Plus className="h-4 w-4" />
+            New thread
+          </TransitionLink>
         </div>
-      </form>
 
-      {/* relative+overlay, not overflow-hidden on this wrapper — the chip
-          row itself still needs its own overflow-x-auto to scroll. The
-          overlay just hints "more chips this way" (narrowing the page to
-          match the rest of the app, see the container-width commit, made
-          this row clip mid-word more often) the way most apps fade a
-          horizontal-scroll edge instead of clipping it bare. */}
-      <div className="relative mt-3">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          <Link
-            href={withParams("/community", { topic: undefined })}
-            className={cn(chipClass, !activeTopic ? activeChip : inactiveChip)}
-          >
-            All
-          </Link>
-          {topics.map((t) => (
-            <Link
-              key={t.id}
-              href={withParams("/community", { topic: t.slug })}
-              className={cn(chipClass, activeTopic?.id === t.id ? activeChip : inactiveChip)}
+        <form method="get" className="mt-4">
+          {activeTopic && <input type="hidden" name="topic" value={activeTopic.slug} />}
+          {sort === "hot" && <input type="hidden" name="sort" value="hot" />}
+          {onlyFollowing && <input type="hidden" name="mine" value="1" />}
+          {onlySaved && <input type="hidden" name="saved" value="1" />}
+          <div className="relative">
+            {/* A real submit button, not just a decorative icon — unlike
+                Discover's own search field (app/discover/page.tsx), which
+                always sits next to an explicit "Apply" button for its other
+                filters, this field has nothing else nearby to submit it, so
+                it can't rely on implicit Enter-to-submit alone. */}
+            <button
+              type="submit"
+              aria-label="Search"
+              className="absolute left-0 top-0 flex h-full w-9 items-center justify-center text-muted-foreground hover:text-foreground"
             >
-              {t.name}
+              <Search className="h-4 w-4" />
+            </button>
+            <Input
+              type="search"
+              name="q"
+              defaultValue={query}
+              placeholder="Search threads…"
+              className="pl-9"
+            />
+          </div>
+        </form>
+
+        {/* relative+overlay, not overflow-hidden on this wrapper — the chip
+            row itself still needs its own overflow-x-auto to scroll. The
+            overlay just hints "more chips this way" (narrowing the page to
+            match the rest of the app, see the container-width commit, made
+            this row clip mid-word more often) the way most apps fade a
+            horizontal-scroll edge instead of clipping it bare. */}
+        <div className="relative mt-3">
+          {/* data-swipe-ignore: opts this out of components/swipe-navigator.tsx's
+              tab-swipe gesture tracking, which otherwise fights this row's own
+              horizontal scroll (see that file's own comment on why). touch-pan-x
+              is the CSS-side half of that same fix. */}
+          <div className="flex touch-pan-x gap-2 overflow-x-auto pb-1" data-swipe-ignore>
+            <Link
+              href={withParams("/community", { topic: undefined })}
+              className={cn(chipClass, !activeTopic ? activeChip : inactiveChip)}
+            >
+              All
             </Link>
-          ))}
-        </div>
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent"
-        />
-      </div>
-
-      <div className="mt-2 flex items-center gap-2">
-        <Link
-          href={withParams("/community", { topic: activeTopic?.slug, sort: undefined })}
-          className={cn(chipClass, "gap-1", sort === "new" ? activeChip : inactiveChip)}
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-          New
-        </Link>
-        <Link
-          href={withParams("/community", { topic: activeTopic?.slug, sort: "hot" })}
-          className={cn(chipClass, "gap-1", sort === "hot" ? activeChip : inactiveChip)}
-        >
-          <Flame className="h-3.5 w-3.5" />
-          Hot
-        </Link>
-        <Link
-          href={withParams("/community", {
-            topic: activeTopic?.slug,
-            mine: onlyFollowing ? undefined : "1",
-          })}
-          className={cn(chipClass, "ml-auto", onlyFollowing ? activeChip : inactiveChip)}
-        >
-          Following
-        </Link>
-        <Link
-          href={withParams("/community", {
-            topic: activeTopic?.slug,
-            saved: onlySaved ? undefined : "1",
-          })}
-          className={cn(chipClass, "gap-1", onlySaved ? activeChip : inactiveChip)}
-        >
-          <Bookmark className="h-3.5 w-3.5" />
-          Saved
-        </Link>
-      </div>
-
-      {activeTopic && (
-        <p className="mt-2 text-sm text-muted-foreground">{activeTopic.description}</p>
-      )}
-
-      {pinnedThreads.length > 0 && (
-        <div className="mt-5 space-y-3">
-          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
-            <Pin className="h-3.5 w-3.5" />
-            Pinned
-          </h2>
-          {pinnedThreads.map((thread) => (
-            <CommunityThreadRow key={thread.id} thread={thread} viewerId={profile.id} />
-          ))}
-        </div>
-      )}
-
-      <div className="mt-5 space-y-3">
-        {regularThreads.length === 0 ? (
-          <EmptyState
-            icon={query ? Search : MessagesSquare}
-            title={
-              query
-                ? `No threads matching "${query}"`
-                : onlySaved
-                  ? "You haven't saved any threads yet"
-                  : onlyFollowing
-                    ? "You're not following any threads yet"
-                    : "No threads here yet"
-            }
-            description={
-              query
-                ? undefined
-                : onlySaved
-                  ? "Save a thread to find it here later."
-                  : onlyFollowing
-                    ? "Reply to or follow a thread to see it here."
-                    : "Be the first to start one."
-            }
+            {topics.map((t) => (
+              <Link
+                key={t.id}
+                href={withParams("/community", { topic: t.slug })}
+                className={cn(chipClass, activeTopic?.id === t.id ? activeChip : inactiveChip)}
+              >
+                {t.name}
+              </Link>
+            ))}
+          </div>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent"
           />
-        ) : (
-          regularThreads.map((thread) => (
-            <CommunityThreadRow key={thread.id} thread={thread} viewerId={profile.id} />
-          ))
+        </div>
+
+        <div className="mt-2 flex items-center gap-2">
+          <Link
+            href={withParams("/community", { topic: activeTopic?.slug, sort: undefined })}
+            className={cn(chipClass, "gap-1", sort === "new" ? activeChip : inactiveChip)}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            New
+          </Link>
+          <Link
+            href={withParams("/community", { topic: activeTopic?.slug, sort: "hot" })}
+            className={cn(chipClass, "gap-1", sort === "hot" ? activeChip : inactiveChip)}
+          >
+            <Flame className="h-3.5 w-3.5" />
+            Hot
+          </Link>
+          <Link
+            href={withParams("/community", {
+              topic: activeTopic?.slug,
+              mine: onlyFollowing ? undefined : "1",
+            })}
+            className={cn(chipClass, "ml-auto", onlyFollowing ? activeChip : inactiveChip)}
+          >
+            Following
+          </Link>
+          <Link
+            href={withParams("/community", {
+              topic: activeTopic?.slug,
+              saved: onlySaved ? undefined : "1",
+            })}
+            className={cn(chipClass, "gap-1", onlySaved ? activeChip : inactiveChip)}
+          >
+            <Bookmark className="h-3.5 w-3.5" />
+            Saved
+          </Link>
+        </div>
+
+        {activeTopic && (
+          <p className="mt-2 text-sm text-muted-foreground">{activeTopic.description}</p>
         )}
+
+        {pinnedThreads.length > 0 && (
+          <div className="mt-5 space-y-3">
+            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
+              <Pin className="h-3.5 w-3.5" />
+              Pinned
+            </h2>
+            {pinnedThreads.map((thread) => (
+              <CommunityThreadRow key={thread.id} thread={thread} viewerId={profile.id} />
+            ))}
+          </div>
+        )}
+
+        <div className="mt-5 space-y-3">
+          {regularThreads.length === 0 ? (
+            <EmptyState
+              icon={query ? Search : MessagesSquare}
+              title={
+                query
+                  ? `No threads matching "${query}"`
+                  : onlySaved
+                    ? "You haven't saved any threads yet"
+                    : onlyFollowing
+                      ? "You're not following any threads yet"
+                      : "No threads here yet"
+              }
+              description={
+                query
+                  ? undefined
+                  : onlySaved
+                    ? "Save a thread to find it here later."
+                    : onlyFollowing
+                      ? "Reply to or follow a thread to see it here."
+                      : "Be the first to start one."
+              }
+            />
+          ) : (
+            regularThreads.map((thread) => (
+              <CommunityThreadRow key={thread.id} thread={thread} viewerId={profile.id} />
+            ))
+          )}
+        </div>
       </div>
-    </div>
+    </PullToRefresh>
   );
 }

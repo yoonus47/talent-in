@@ -136,6 +136,15 @@ export function SwipeNavigator({ links, children }: { links: NavRoute[]; childre
 
     function onTouchStart(e: TouchEvent) {
       if (animating.current) return;
+      // Opt-out for content that needs real native horizontal scrolling
+      // of its own (e.g. app/community/page.tsx's topic-chip row) —
+      // touch-action restrictions are computed as the intersection
+      // across the whole ancestor chain for a touch, so once this
+      // container declares `pan-y` below, no descendant can ever regain
+      // native horizontal panning just by setting its own touch-action.
+      // Never starting gesture tracking here is the only way to actually
+      // hand a touch back to the browser for such an element.
+      if (e.target instanceof Element && e.target.closest("[data-swipe-ignore]")) return;
       const touch = e.touches[0];
       gesture.current = {
         startX: touch.clientX,
@@ -238,7 +247,21 @@ export function SwipeNavigator({ links, children }: { links: NavRoute[]; childre
           peekRef.current.style.transform = "translateX(0)";
         }
         const targetHref = state.targetLink.href;
-        setTimeout(() => router.push(targetHref), COMMIT_MS);
+        setTimeout(() => {
+          router.push(targetHref);
+          // Every tab route is server-rendered per request, so how long
+          // this actually takes to land on the new pathname depends on
+          // the network/server, not just this transition's own COMMIT_MS.
+          // Reset here (once the CSS commit animation itself is done)
+          // rather than relying solely on the pathname-keyed layout
+          // effect below — otherwise `animating.current` stays true and
+          // every touch is silently ignored for however long navigation
+          // takes, which reads as "swipe stopped working" on a slow
+          // connection. The already-fully-shown peek card doubles as the
+          // loading state in the meantime; that layout effect still runs
+          // once the new page actually lands, as the authoritative reset.
+          animating.current = false;
+        }, COMMIT_MS);
       } else {
         animating.current = true;
         if (pageRef.current) {
