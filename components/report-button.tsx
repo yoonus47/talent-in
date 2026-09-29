@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Flag } from "lucide-react";
 import { reportCommunity } from "@/lib/actions/community";
 import { Portal } from "@/components/portal";
@@ -43,6 +43,7 @@ export function ReportButton({
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -61,13 +62,29 @@ export function ReportButton({
 
   function close() {
     setMounted(false);
-    setTimeout(() => {
+    closeTimeoutRef.current = setTimeout(() => {
       setOpen(false);
       setSubmitted(false);
       setError(null);
       setReason("spam");
       setDetails("");
+      closeTimeoutRef.current = null;
     }, 200);
+  }
+
+  // If the trigger is clicked again while a close is still fading out,
+  // `open` never actually flipped to false yet, so a plain setOpen(true)
+  // would be a no-op and the dialog would stay invisible until the
+  // pending close() timeout above force-closed it and reset the fields
+  // out from under the user. Cancel that timeout and resume visibility
+  // directly instead of replaying the open transition.
+  function openDialog() {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+      setMounted(true);
+    }
+    setOpen(true);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -87,7 +104,7 @@ export function ReportButton({
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={openDialog}
         title="Report"
         className={cn("text-muted-foreground hover:text-destructive", className)}
       >
