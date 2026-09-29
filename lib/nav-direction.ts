@@ -5,10 +5,10 @@ import { isActiveRoute } from "@/lib/nav-links";
  * animation (components/swipe-navigator.tsx's AnimatedPage), communicated
  * across a navigation via sessionStorage since the two pages involved are
  * two different component trees, not something React state can carry
- * across. A completed swipe-drag gesture already reads/writes this
- * (SwipeNavigator animates the drag itself, then sets this before the
- * router.push so the *destination* page's own entrance still gets the
- * matching direction) — this module just gives a plain click the same
+ * across. A completed swipe-drag gesture never calls setNavDirection at
+ * all — it handles its own entrance motion end-to-end (the drag-follow +
+ * commit animation), see swipe-navigator.tsx's own comment — this module
+ * exists purely to give a plain tap (TransitionLink/BackLink) that same
  * capability, via setNavDirection below.
  */
 const DIRECTION_KEY = "talentzify-swipe-direction";
