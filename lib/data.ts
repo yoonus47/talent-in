@@ -400,15 +400,19 @@ export async function getFollowersList(
   viewerId: string,
 ): Promise<ProfileWithFollowState[]> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("follows")
-    .select("created_at, profiles!follows_follower_id_fkey(*)")
-    .eq("following_id", profileId)
-    .order("created_at", { ascending: false });
+  const [{ data }, blockedIds] = await Promise.all([
+    supabase
+      .from("follows")
+      .select("created_at, profiles!follows_follower_id_fkey(*)")
+      .eq("following_id", profileId)
+      .order("created_at", { ascending: false }),
+    getBlockedIds(supabase),
+  ]);
 
+  const blocked = new Set(blockedIds);
   const profiles = (data ?? [])
     .map((row) => row.profiles as unknown as Profile)
-    .filter(Boolean);
+    .filter((p): p is Profile => Boolean(p) && !blocked.has(p.id));
   return attachIsFollowing(supabase, profiles, viewerId);
 }
 
@@ -418,15 +422,19 @@ export async function getFollowingList(
   viewerId: string,
 ): Promise<ProfileWithFollowState[]> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("follows")
-    .select("created_at, profiles!follows_following_id_fkey(*)")
-    .eq("follower_id", profileId)
-    .order("created_at", { ascending: false });
+  const [{ data }, blockedIds] = await Promise.all([
+    supabase
+      .from("follows")
+      .select("created_at, profiles!follows_following_id_fkey(*)")
+      .eq("follower_id", profileId)
+      .order("created_at", { ascending: false }),
+    getBlockedIds(supabase),
+  ]);
 
+  const blocked = new Set(blockedIds);
   const profiles = (data ?? [])
     .map((row) => row.profiles as unknown as Profile)
-    .filter(Boolean);
+    .filter((p): p is Profile => Boolean(p) && !blocked.has(p.id));
   return attachIsFollowing(supabase, profiles, viewerId);
 }
 
@@ -446,6 +454,15 @@ export type ProfileSearchFilters = {
 async function getBlockedIds(supabase: Awaited<ReturnType<typeof createClient>>): Promise<string[]> {
   const { data } = await supabase.rpc("blocked_user_ids");
   return (data ?? []).map((row) => row.user_id);
+}
+
+/** PostgREST's or()/and() filter grammar splits on unguarded top-level
+ * commas/parens — wrap a value containing them in double quotes (mirroring
+ * postgrest-js's own .in() reserved-character handling) so free text like a
+ * school name ("Delhi Public School, R.K. Puram" is a common real one)
+ * doesn't get misparsed as two separate filter clauses. */
+function quotePostgrestFilterValue(value: string): string {
+  return /[,()]/.test(value) ? `"${value.replace(/"/g, '\\"')}"` : value;
 }
 
 /** Search/browse students for the Discover -> People tab. */
@@ -514,7 +531,7 @@ export async function getSuggestedProfiles(
     .limit(10);
 
   const matchParts: string[] = [];
-  if (currentProfile.school) matchParts.push(`school.eq.${currentProfile.school}`);
+  if (currentProfile.school) matchParts.push(`school.eq.${quotePostgrestFilterValue(currentProfile.school)}`);
   if (currentProfile.interests.length > 0) {
     matchParts.push(`interests.ov.{${currentProfile.interests.join(",")}}`);
   }
