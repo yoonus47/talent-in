@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { HOBBY_CATEGORIES, MAX_HOBBIES } from "@/lib/hobbies";
 import { Input } from "@/components/ui/input";
@@ -12,11 +12,15 @@ import { cn } from "@/lib/utils";
  * form (onboarding, settings) with no extra wiring. Categories collapse by
  * default (native <details>, no JS needed for that part) and auto-expand
  * to reveal matches while searching.
+ *
+ * Selection is tracked in React state (not `defaultChecked` off the props),
+ * because search filters hobbies out of the DOM entirely — an uncontrolled
+ * checkbox that gets unmounted while checked would forget that choice and
+ * revert to `defaultSelected` when it remounts on a cleared search.
  */
 export function HobbyPicker({ defaultSelected = [] }: { defaultSelected?: string[] }) {
   const [query, setQuery] = useState("");
-  const [count, setCount] = useState(defaultSelected.length);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(defaultSelected));
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -27,11 +31,16 @@ export function HobbyPicker({ defaultSelected = [] }: { defaultSelected?: string
     })).filter((c) => c.hobbies.length > 0);
   }, [query]);
 
-  function handleChange() {
-    const checked = containerRef.current?.querySelectorAll("input:checked").length ?? 0;
-    setCount(checked);
+  function toggle(hobby: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(hobby)) next.delete(hobby);
+      else next.add(hobby);
+      return next;
+    });
   }
 
+  const count = selected.size;
   const atLimit = count >= MAX_HOBBIES;
 
   return (
@@ -57,11 +66,7 @@ export function HobbyPicker({ defaultSelected = [] }: { defaultSelected?: string
         </span>
       </div>
 
-      <div
-        ref={containerRef}
-        onChange={handleChange}
-        className="mt-3 max-h-80 overflow-y-auto rounded-lg border border-border p-1"
-      >
+      <div className="mt-3 max-h-80 overflow-y-auto rounded-lg border border-border p-1">
         {filtered.length === 0 ? (
           <p className="p-6 text-center text-sm text-muted-foreground">
             No hobbies match &ldquo;{query}&rdquo;.
@@ -78,7 +83,7 @@ export function HobbyPicker({ defaultSelected = [] }: { defaultSelected?: string
               </summary>
               <div className="flex flex-wrap gap-1.5 px-3 pb-3 pt-1">
                 {category.hobbies.map((hobby) => {
-                  const isChecked = defaultSelected.includes(hobby);
+                  const isChecked = selected.has(hobby);
                   return (
                     <label
                       key={hobby}
@@ -88,7 +93,8 @@ export function HobbyPicker({ defaultSelected = [] }: { defaultSelected?: string
                         type="checkbox"
                         name="interests"
                         value={hobby}
-                        defaultChecked={isChecked}
+                        checked={isChecked}
+                        onChange={() => toggle(hobby)}
                         disabled={!isChecked && atLimit}
                         className="sr-only"
                       />
