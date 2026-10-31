@@ -220,6 +220,12 @@ body {
   color: transparent;
 }
 
+/* Solid-fill counterpart for buttons and blobs: bright end to end (no navy),
+   same colors in both themes since white text sits on top of it. */
+.hero-gradient-bg {
+  background: linear-gradient(100deg, #e11d48 0%, #c026d3 55%, #6366f1 100%);
+}
+
 :root[data-theme="dark"] .hero-gradient-text {
   background-image: linear-gradient(100deg, #fb7185 0%, #e879f9 45%, #38bdf8 100%);
 }
