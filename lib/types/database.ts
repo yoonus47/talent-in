@@ -125,6 +125,10 @@ export interface Database {
           // points" stat alongside community_points and the daily-
           // challenge total — see app/dashboard/page.tsx.
           referral_points: number;
+          // Null until accepted; which flow checks it (testing: every
+          // login, regardless; launch: once, ever) is controlled entirely
+          // in components/disclaimer-modal.tsx, not here.
+          disclaimer_accepted_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -154,6 +158,7 @@ export interface Database {
           community_points?: number;
           last_active_at?: string | null;
           referral_points?: number;
+          disclaimer_accepted_at?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;

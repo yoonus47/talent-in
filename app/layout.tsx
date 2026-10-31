@@ -7,6 +7,7 @@ import { ChatFab } from "@/components/chat-fab";
 import { MobileTabBar } from "@/components/mobile-tab-bar";
 import { SwipeNavigator } from "@/components/swipe-navigator";
 import { BrandSplash } from "@/components/brand-splash";
+import { DisclaimerModal } from "@/components/disclaimer-modal";
 import { ReferralBonusToast } from "@/components/referral-bonus-toast";
 import { APP_VERSION, VersionBadge } from "@/components/version-badge";
 import { getCurrentProfile } from "@/lib/data";
@@ -104,6 +105,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <BrandSplash />
           <ReferralBonusToast />
         </Suspense>
+        {profile && <DisclaimerModal alreadyAccepted={!!profile.disclaimer_accepted_at} />}
       </body>
     </html>
   );

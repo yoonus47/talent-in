@@ -37,6 +37,27 @@ export async function touchLastActive(userId: string) {
     .or(`last_active_at.is.null,last_active_at.lt.${staleBefore}`);
 }
 
+/** Records that the current user accepted components/disclaimer-modal.tsx
+ * — derives the user from the session itself (this is a "use server"
+ * export called directly from a client button click, not something
+ * that gets a trusted id handed to it the way touchLastActive does from
+ * a Server Component). Silent on failure: the modal already dismisses
+ * itself optimistically on click, and a missed write just means it shows
+ * again next time, not a broken experience either way. */
+export async function acceptDisclaimer() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ disclaimer_accepted_at: new Date().toISOString() })
+    .eq("id", user.id);
+  if (error) console.error("acceptDisclaimer failed:", error.message);
+}
+
 /** Splits `user.user_metadata.full_name` (from Google) into first/last, as
  * a convenience default onboarding pre-fills — the user still sees and can
  * correct it before submitting, unlike the old silent-trust behavior. */
