@@ -31,13 +31,13 @@ export default async function ComingSoonPage({
           experience (feed, career quiz, daily challenges, and more) is fully live.
         </p>
         <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-          <Link href="/student">
-            <Button className="w-full sm:w-auto">Explore as a student</Button>
+          <Link href="/signup">
+            <Button className="w-full sm:w-auto">Join as a student</Button>
           </Link>
           <BackLink fallbackHref="/">
             <Button variant="outline" className="w-full gap-1.5 sm:w-auto">
               <ArrowLeft className="h-4 w-4" />
-              Choose a different role
+              Back home
             </Button>
           </BackLink>
         </div>

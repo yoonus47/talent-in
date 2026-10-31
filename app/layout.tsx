@@ -77,8 +77,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             up hidden/unclickable underneath them. Matches NavLinks' own
             lg breakpoint (components/nav-links.tsx) for where the tab bar
             actually stops rendering — true desktop widths have no tab bar
-            and a lower-riding FAB, so they need much less. */}
-        <main className="flex-1 pb-32 lg:pb-10">
+            and a lower-riding FAB, so they need much less. Logged-out
+            visitors get neither the tab bar nor the FAB, so no floor at
+            all (it would just leave a blank strip under the landing
+            page's footer). */}
+        <main className={profile ? "flex-1 pb-32 lg:pb-10" : "flex-1"}>
           <SwipeNavigator links={navRoutes}>{children}</SwipeNavigator>
         </main>
         <ChatFab />

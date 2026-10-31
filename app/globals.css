@@ -163,7 +163,7 @@ body {
   }
 }
 
-/* Role-selection screen (app/page.tsx) — card entrance + background blobs. */
+/* Landing page (app/page.tsx) — entrance, background blobs, floating preview cards. */
 @keyframes fade-up {
   from {
     opacity: 0;
@@ -191,6 +191,37 @@ body {
 
 .animate-blob {
   animation: blob-float 10s ease-in-out infinite;
+}
+
+@keyframes float-y {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -10px;
+  }
+}
+
+/* Uses the standalone `translate` property, not `transform`, so it floats
+   without overriding the cards' own static rotate-* utilities. */
+.animate-float {
+  animation: float-y 6s ease-in-out infinite;
+}
+
+/* Big-headline variant of the brand gradient. --gradient-brand ends in the
+   very dark navy --primary, which vanishes on the dark theme's black at
+   headline size, so this one stays in the same red-to-violet family but
+   finishes on a color that reads on both backgrounds. */
+.hero-gradient-text {
+  background: linear-gradient(100deg, #e11d48 0%, #a21caf 45%, #4f46e5 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+:root[data-theme="dark"] .hero-gradient-text {
+  background-image: linear-gradient(100deg, #fb7185 0%, #e879f9 45%, #38bdf8 100%);
 }
 
 /* Swipe-between-tabs entrance (components/swipe-navigator.tsx) — a small,
@@ -367,6 +398,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .animate-blob,
+  .animate-float,
   .animate-slide-in-from-right,
   .animate-slide-in-from-left,
   .animate-wotd-reveal,
@@ -389,14 +421,4 @@ body {
   .brand-curtain-wipe {
     clip-path: inset(0 0 0 0);
   }
-}
-
-/* Per-role gradient icon badge + colored glow on hover (role-card-gradient
-   and role-card-glow are set inline per card in app/page.tsx). */
-.role-card-icon {
-  background: var(--role-card-gradient);
-}
-
-.role-card:hover {
-  box-shadow: 0 16px 40px -12px var(--role-card-glow);
 }
