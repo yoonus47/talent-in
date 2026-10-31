@@ -21,22 +21,21 @@
   --destructive-foreground: #ffffff;
   --ring: #070a8f;
 
-  /* The app's own brand gradient (wordmark, CTA glow, "special moment"
-   * text like the Word of the Day) — picked specifically to *not* match
-   * Instagram's 5-stop 45° icon gradient (a prior version of this
-   * literally reused those exact colors, which read as an obvious
-   * copycat); this shares no stops with it and sits at a different
-   * angle. --accent above is tuned from the same family for the same
-   * reason.
+  /* The app's own brand gradient — rose → magenta → indigo, bright end to
+   * end (an earlier burgundy → navy version read as dull/dark). Picked
+   * specifically to *not* match Instagram's 5-stop 45° icon gradient (a
+   * prior version literally reused those exact colors, which read as an
+   * obvious copycat); this shares no stops with it and sits at a
+   * different angle. Skips yellow/orange entirely, and starts on --accent's
+   * own rose.
    *
-   * Burgundy → crimson → violet → indigo (the app's own primary): moves
-   * from the red end of the spectrum to the cool end while deliberately
-   * skipping yellow/orange entirely, per the user's request — and the
-   * stop positions (not just an even 0/33/66/100 split) give the
-   * reddish burgundy/crimson pair a noticeably longer run — ~35% of the
-   * gradient's own length vs. ~30% for the violet→indigo end — since
-   * red is the user's favorite. */
-  --gradient-brand: linear-gradient(135deg, #881337 0%, #e11d48 35%, #7c3aed 70%, #070a8f 100%);
+   * Two forms, one palette: --gradient-brand is for SOLID FILLS with white
+   * text/icons on top (same in both themes), --gradient-brand-text is for
+   * gradient-clipped TEXT (.brand-gradient-text below), which needs a
+   * deeper variant on a white page and a lighter one on black to stay
+   * readable at every size. */
+  --gradient-brand: linear-gradient(135deg, #e11d48 0%, #c026d3 55%, #6366f1 100%);
+  --gradient-brand-text: linear-gradient(100deg, #e11d48 0%, #a21caf 45%, #4f46e5 100%);
 
   /* A solid, theme-independent cyan for messaging UI (the chat FAB) —
    * distinct from --primary on purpose, its own accent for its own
@@ -111,6 +110,7 @@
   --accent-foreground: #ffffff;
   --ring: #38bdf8;
   --read-receipt: #0c4a6e;
+  --gradient-brand-text: linear-gradient(100deg, #fb7185 0%, #e879f9 45%, #38bdf8 100%);
 }
 
 body {
@@ -128,7 +128,7 @@ body {
 }
 
 .brand-gradient-text {
-  background: var(--gradient-brand);
+  background: var(--gradient-brand-text);
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
@@ -207,27 +207,6 @@ body {
    without overriding the cards' own static rotate-* utilities. */
 .animate-float {
   animation: float-y 6s ease-in-out infinite;
-}
-
-/* Big-headline variant of the brand gradient. --gradient-brand ends in the
-   very dark navy --primary, which vanishes on the dark theme's black at
-   headline size, so this one stays in the same red-to-violet family but
-   finishes on a color that reads on both backgrounds. */
-.hero-gradient-text {
-  background: linear-gradient(100deg, #e11d48 0%, #a21caf 45%, #4f46e5 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-}
-
-/* Solid-fill counterpart for buttons and blobs: bright end to end (no navy),
-   same colors in both themes since white text sits on top of it. */
-.hero-gradient-bg {
-  background: linear-gradient(100deg, #e11d48 0%, #c026d3 55%, #6366f1 100%);
-}
-
-:root[data-theme="dark"] .hero-gradient-text {
-  background-image: linear-gradient(100deg, #fb7185 0%, #e879f9 45%, #38bdf8 100%);
 }
 
 /* Swipe-between-tabs entrance (components/swipe-navigator.tsx) — a small,

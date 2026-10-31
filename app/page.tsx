@@ -97,7 +97,8 @@ export default async function LandingPage({
       {/* Ambient background blobs, purely decorative, vivid but low-opacity */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div
-          className="animate-blob hero-gradient-bg absolute -left-32 -top-32 h-[28rem] w-[28rem] rounded-full opacity-30 blur-3xl"
+          className="animate-blob absolute -left-32 -top-32 h-[28rem] w-[28rem] rounded-full opacity-30 blur-3xl"
+          style={{ background: "var(--gradient-brand)" }}
         />
         <div
           className="animate-blob absolute -right-32 top-1/4 h-96 w-96 rounded-full opacity-25 blur-3xl"
@@ -116,7 +117,7 @@ export default async function LandingPage({
       </div>
 
       <header className="mx-auto flex max-w-5xl items-center justify-between px-4 py-5">
-        <span className="hero-gradient-text text-xl font-bold">TalentZify</span>
+        <span className="brand-gradient-text text-xl font-bold">TalentZify</span>
         <Link
           href="/login"
           className="rounded-full px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
@@ -143,7 +144,7 @@ export default async function LandingPage({
           <h1 className="mt-5 text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
             Find your path.
             <br />
-            <span className="hero-gradient-text">Build your future.</span>
+            <span className="brand-gradient-text">Build your future.</span>
           </h1>
 
           <p className="mx-auto mt-5 max-w-md text-base text-muted-foreground sm:text-lg lg:mx-0">
@@ -154,7 +155,8 @@ export default async function LandingPage({
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
             <Link
               href="/signup"
-              className="hero-gradient-bg group inline-flex h-12 items-center justify-center gap-2 rounded-xl px-7 text-base font-semibold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
+              className="group inline-flex h-12 items-center justify-center gap-2 rounded-xl px-7 text-base font-semibold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
+              style={{ background: "var(--gradient-brand)" }}
             >
               Get started for free
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -182,7 +184,7 @@ export default async function LandingPage({
               </div>
             </div>
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
-              <div className="hero-gradient-bg h-full w-3/8 rounded-full" />
+              <div className="h-full w-3/8 rounded-full" style={{ background: "var(--gradient-brand)" }} />
             </div>
             <div className="mt-3 space-y-2 text-xs">
               <div className="rounded-lg border border-primary bg-primary/10 px-3 py-2 font-medium text-foreground">
@@ -223,7 +225,7 @@ export default async function LandingPage({
               Word of the day
             </p>
             <div className="mt-1 flex items-center justify-between">
-              <p className="hero-gradient-text text-xl font-bold">Resilient</p>
+              <p className="brand-gradient-text text-xl font-bold">Resilient</p>
               <Volume2 className="h-4 w-4 text-muted-foreground" />
             </div>
             <div className="mt-3 h-8 rounded-lg bg-muted" />
@@ -264,7 +266,7 @@ export default async function LandingPage({
         <ol className="mt-10 grid gap-6 sm:grid-cols-3">
           {STEPS.map((step, index) => (
             <li key={step.title} className="text-center">
-              <span className="hero-gradient-text text-4xl font-bold">{index + 1}</span>
+              <span className="brand-gradient-text text-4xl font-bold">{index + 1}</span>
               <h3 className="mt-1 font-semibold text-foreground">{step.title}</h3>
               <p className="mx-auto mt-1 max-w-[16rem] text-sm text-muted-foreground">
                 {step.description}
@@ -277,7 +279,7 @@ export default async function LandingPage({
       <section className="mx-auto max-w-3xl px-4 pb-20">
         <Card className="p-8 text-center sm:p-12">
           <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Ready to find <span className="hero-gradient-text">your path?</span>
+            Ready to find <span className="brand-gradient-text">your path?</span>
           </h2>
           <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground sm:text-base">
             Join TalentZify today. It only takes a minute.
@@ -286,8 +288,9 @@ export default async function LandingPage({
             href="/signup"
             className={cn(
               buttonVariants({ size: "lg" }),
-              "hero-gradient-bg mt-6 rounded-xl px-8 text-white hover:opacity-90",
+              "mt-6 rounded-xl px-8 text-white hover:opacity-90",
             )}
+            style={{ background: "var(--gradient-brand)" }}
           >
             Create your account
           </Link>
