@@ -16,6 +16,8 @@ const PUBLIC_PATHS = [
   "/student",
   "/coming-soon",
   "/r",
+  "/terms",
+  "/privacy",
 ];
 
 const REFERRAL_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days

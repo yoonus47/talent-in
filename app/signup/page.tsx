@@ -84,6 +84,27 @@ export default async function SignupPage({
                 />
                 A parent or guardian is aware I&apos;m creating this account.
               </label>
+              <p className="text-xs text-muted-foreground">
+                By signing up, you agree to our{" "}
+                <Link
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary hover:underline"
+                >
+                  Terms
+                </Link>{" "}
+                and{" "}
+                <Link
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary hover:underline"
+                >
+                  Privacy Policy
+                </Link>
+                .
+              </p>
               <Button type="submit" className="w-full">
                 Sign up
               </Button>
