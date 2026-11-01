@@ -14,7 +14,6 @@ const PUBLIC_PATHS = [
   "/forgot-password",
   "/auth",
   "/student",
-  "/coming-soon",
   "/r",
   "/terms",
   "/privacy",

@@ -298,8 +298,7 @@ export default async function LandingPage({
       </section>
 
       <footer className="border-t border-border bg-muted/60 px-4 py-8 text-center text-xs text-muted-foreground">
-        <p>Teachers, parents, and schools: coming soon.</p>
-        <p className="mt-2 flex items-center justify-center gap-3">
+        <p className="flex items-center justify-center gap-3">
           <Link href="/terms" className="hover:text-foreground hover:underline">
             Terms
           </Link>
