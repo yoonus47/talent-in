@@ -169,21 +169,7 @@ export default async function LandingPage({
 
           <p className="mt-4 text-xs text-muted-foreground">
             A parent or guardian should know you&apos;re signing up.
-          </p>
-
-          <p
-            title="Early release. You may run into bugs, unstable features, or unexpected behavior."
-            className="mt-6 inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-border bg-card/80 px-3 py-1.5 font-mono text-[11px] text-muted-foreground shadow-sm backdrop-blur"
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-70" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
-            </span>
-            <span className="font-semibold text-foreground">alpha v{APP_VERSION}</span>
-            <span aria-hidden>·</span>
-            developer preview
-          </p>
-        </div>
+          </p>        </div>
 
         {/* Decorative preview of the real experience, CSS only (no images to
             load, nothing to slow the first paint). aria-hidden: it's
@@ -321,6 +307,13 @@ export default async function LandingPage({
           <Link href="/privacy" className="hover:text-foreground hover:underline">
             Privacy
           </Link>
+        </p>
+        <p
+          title="Early release. You may run into bugs, unstable features, or unexpected behavior."
+          className="mt-4 inline-flex items-center gap-2 font-mono text-[11px]"
+        >
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+          alpha v{APP_VERSION} · developer preview
         </p>
       </footer>
     </div>
