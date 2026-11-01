@@ -33,7 +33,27 @@ async function siteUrl() {
   return `${protocol}://${host}`;
 }
 
-export async function signUp(formData: FormData) {
+// Failed attempts come back as state (not a redirect to ?error=) so the form
+// can re-render with what they typed still in it, without the email ever
+// travelling through the URL. Passwords are never echoed back.
+export type SignInState = { error: string | null; email: string };
+export type SignUpState = {
+  error: string | null;
+  accountExists: boolean;
+  email: string;
+  guardianAware: boolean;
+};
+
+export async function signUp(_prev: SignUpState, formData: FormData): Promise<SignUpState> {
+  const email = String(formData.get("email") ?? "");
+  const guardianAware = formData.get("guardianAware") === "on";
+  const fail = (error: string, accountExists = false): SignUpState => ({
+    error,
+    accountExists,
+    email,
+    guardianAware,
+  });
+
   const parsed = signUpSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
@@ -41,16 +61,14 @@ export async function signUp(formData: FormData) {
   });
 
   if (!parsed.success) {
-    redirect(
-      `/signup?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "Invalid input")}`,
-    );
+    return fail(parsed.error.issues[0]?.message ?? "Invalid input");
   }
 
-  const { email, password } = parsed.data;
+  const { password } = parsed.data;
   const supabase = await createClient();
 
   const { data, error } = await supabase.auth.signUp({
-    email,
+    email: parsed.data.email,
     password,
     options: {
       emailRedirectTo: `${await siteUrl()}/auth/callback`,
@@ -58,7 +76,15 @@ export async function signUp(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/signup?error=${encodeURIComponent(error.message)}`);
+    return fail(error.message, error.code === "user_already_exists");
+  }
+
+  // With email confirmation on, Supabase answers a signup for an
+  // already-registered address with an obfuscated user: no error, and an
+  // empty identities array. Without this check they'd be told to look for
+  // a confirmation email that was never sent.
+  if (data.user && data.user.identities?.length === 0) {
+    return fail("An account with this email already exists.", true);
   }
 
   // If email confirmation is required, there's no session yet.
@@ -77,22 +103,23 @@ function loginErrorUrl(message: string, next: string | null) {
   return `/login?${params.toString()}`;
 }
 
-export async function signIn(formData: FormData) {
+export async function signIn(_prev: SignInState, formData: FormData): Promise<SignInState> {
   const next = safeNextPath(formData.get("next"));
+  const email = String(formData.get("email") ?? "");
   const parsed = signInSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
   });
 
   if (!parsed.success) {
-    redirect(loginErrorUrl(parsed.error.issues[0]?.message ?? "Invalid input", next));
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input", email };
   }
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
-    redirect(loginErrorUrl(error.message, next));
+    return { error: error.message, email };
   }
 
   if (data.user) await recordPlatform(data.user.id);
