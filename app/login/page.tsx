@@ -2,7 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signIn, signInWithGoogle } from "@/app/auth/actions";
 import { createClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
+import { safeNextPath } from "@/lib/safe-next";
+import { SubmitButton } from "@/components/submit-button";
+import { PasswordInput } from "@/components/password-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
@@ -10,7 +12,7 @@ import { Card } from "@/components/ui/card";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
   // Same guard as app/page.tsx: an already-authenticated session has no
   // business seeing a login form (it was rendering the logged-in Navbar
@@ -21,7 +23,8 @@ export default async function LoginPage({
   } = await supabase.auth.getUser();
   if (user) redirect("/feed");
 
-  const { error } = await searchParams;
+  const { error, next: rawNext } = await searchParams;
+  const next = safeNextPath(rawNext);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted px-4 py-12">
@@ -41,6 +44,7 @@ export default async function LoginPage({
         )}
 
         <form action={signIn} className="space-y-4">
+          {next && <input type="hidden" name="next" value={next} />}
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
             <Input id="email" name="email" type="email" required autoComplete="email" />
@@ -52,17 +56,16 @@ export default async function LoginPage({
                 Forgot password?
               </Link>
             </div>
-            <Input
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
               required
               autoComplete="current-password"
             />
           </div>
-          <Button type="submit" className="w-full">
+          <SubmitButton pendingText="Logging in…" className="w-full">
             Log in
-          </Button>
+          </SubmitButton>
         </form>
 
         <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
@@ -72,9 +75,10 @@ export default async function LoginPage({
         </div>
 
         <form action={signInWithGoogle}>
-          <Button type="submit" variant="outline" className="w-full">
+          {next && <input type="hidden" name="next" value={next} />}
+          <SubmitButton pendingText="Opening Google…" variant="outline" className="w-full">
             Continue with Google
-          </Button>
+          </SubmitButton>
         </form>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">

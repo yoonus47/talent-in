@@ -1,25 +1,19 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { parsePlatformOs, parsePlatformBrowser } from "@/lib/user-agent";
+import { safeNextPath } from "@/lib/safe-next";
 
 // Handles the redirect back from Supabase after email confirmation,
 // Google OAuth, or a password-reset link, exchanges the `code` for a
 // session, then sends the user on to `next` (defaults to onboarding:
 // profile creation checks whether one already exists; app/reset-password/
-// page.tsx uses `?next=/reset-password` instead). `next` must be a
-// same-site relative path (a leading `/` but not `//`, protocol-relative)
-// before use: it's only ever set by our own redirectTo/emailRedirectTo
-// calls today, but it arrives as a plain query param on a GET request,
-// so it's validated as if it weren't trusted.
-function safeNextPath(raw: string | null): string {
-  if (raw && raw.startsWith("/") && !raw.startsWith("//")) return raw;
-  return "/onboarding";
-}
-
+// page.tsx uses `?next=/reset-password` instead). `next` arrives as a
+// plain query param on a GET request, so it's validated as if it weren't
+// trusted (see lib/safe-next.ts).
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = safeNextPath(searchParams.get("next"));
+  const next = safeNextPath(searchParams.get("next")) ?? "/onboarding";
 
   // `origin` above is derived from `request.url`, which on serverless
   // platforms (e.g. AWS Amplify) often reflects the internal address the

@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { signInSchema, signUpSchema } from "@/lib/validation";
 import { parsePlatformOs, parsePlatformBrowser } from "@/lib/user-agent";
+import { safeNextPath, withWelcome } from "@/lib/safe-next";
 
 /** Refreshes the signed-in user's coarse platform on every login — see
  * lib/user-agent.ts and 0025_platform_tracking.sql. A brand-new user has
@@ -68,23 +69,30 @@ export async function signUp(formData: FormData) {
   redirect("/onboarding");
 }
 
+// Carries `next` through a failed attempt so the retry still lands on the
+// page they were originally headed to.
+function loginErrorUrl(message: string, next: string | null) {
+  const params = new URLSearchParams({ error: message });
+  if (next) params.set("next", next);
+  return `/login?${params.toString()}`;
+}
+
 export async function signIn(formData: FormData) {
+  const next = safeNextPath(formData.get("next"));
   const parsed = signInSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
   });
 
   if (!parsed.success) {
-    redirect(
-      `/login?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "Invalid input")}`,
-    );
+    redirect(loginErrorUrl(parsed.error.issues[0]?.message ?? "Invalid input", next));
   }
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`);
+    redirect(loginErrorUrl(error.message, next));
   }
 
   if (data.user) await recordPlatform(data.user.id);
@@ -93,18 +101,24 @@ export async function signIn(formData: FormData) {
   // — this redirect happens as a client-side navigation (per Next's
   // Server Action redirect behavior), so the root layout never remounts
   // for it; the query param is what lets BrandSplash notice regardless.
-  redirect("/feed?welcome=1");
+  // `next` is where lib/supabase/proxy.ts bounced them from, so a deep
+  // link survives the login detour instead of dropping them on /feed.
+  redirect(withWelcome(next ?? "/feed"));
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(formData: FormData) {
+  const next = safeNextPath(formData.get("next"));
+  const callback = `${await siteUrl()}/auth/callback`;
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: `${await siteUrl()}/auth/callback` },
+    options: {
+      redirectTo: next ? `${callback}?next=${encodeURIComponent(withWelcome(next))}` : callback,
+    },
   });
 
   if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`);
+    redirect(loginErrorUrl(error.message, next));
   }
 
   if (data.url) {

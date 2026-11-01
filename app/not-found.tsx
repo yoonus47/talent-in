@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SearchX } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
+import { getCurrentProfile } from "@/lib/data";
 
 /**
  * Root 404. Since Next 13.3, app/not-found.tsx handles both an explicit
@@ -11,7 +12,11 @@ import { buttonVariants } from "@/components/ui/button";
  * Renders inside the root layout, same as any other page, so normal
  * theming/Tailwind applies, unlike app/global-error.tsx.
  */
-export default function NotFound() {
+export default async function NotFound() {
+  // Logged-out visitors can still land here (e.g. a bad /terms/... path),
+  // and /feed would just bounce them to the login form.
+  const profile = await getCurrentProfile();
+
   return (
     <div className="mx-auto flex min-h-[80vh] max-w-lg items-center px-4">
       <Card className="animate-fade-up w-full p-8 text-center">
@@ -22,8 +27,8 @@ export default function NotFound() {
         <p className="mt-2 text-sm text-muted-foreground">
           This page doesn&apos;t exist, or you don&apos;t have access to it.
         </p>
-        <Link href="/feed" className={buttonVariants({ className: "mt-6" })}>
-          Back to feed
+        <Link href={profile ? "/feed" : "/"} className={buttonVariants({ className: "mt-6" })}>
+          {profile ? "Back to feed" : "Back to home"}
         </Link>
       </Card>
     </div>

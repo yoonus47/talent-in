@@ -17,6 +17,9 @@ const PUBLIC_PATHS = [
   "/r",
   "/terms",
   "/privacy",
+  // Link-preview crawlers (WhatsApp, Instagram, etc.) are logged out; see
+  // app/opengraph-image.tsx.
+  "/opengraph-image",
 ];
 
 const REFERRAL_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days

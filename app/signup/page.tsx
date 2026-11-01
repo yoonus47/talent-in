@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signUp, signInWithGoogle } from "@/app/auth/actions";
 import { createClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/submit-button";
+import { PasswordInput } from "@/components/password-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
@@ -38,6 +39,9 @@ export default async function SignupPage({
               We sent a confirmation link to your email. Click it to activate your account,
               then come back and log in.
             </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Can&apos;t find it? Check your spam or promotions folder; it can take a minute or two.
+            </p>
             <Link
               href="/login"
               className="mt-6 inline-block text-sm font-medium text-primary hover:underline"
@@ -65,10 +69,9 @@ export default async function SignupPage({
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="password">Password</Label>
-                <Input
+                <PasswordInput
                   id="password"
                   name="password"
-                  type="password"
                   required
                   minLength={8}
                   autoComplete="new-password"
@@ -105,9 +108,9 @@ export default async function SignupPage({
                 </Link>
                 .
               </p>
-              <Button type="submit" className="w-full">
+              <SubmitButton pendingText="Creating account…" className="w-full">
                 Sign up
-              </Button>
+              </SubmitButton>
             </form>
 
             <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
@@ -117,9 +120,9 @@ export default async function SignupPage({
             </div>
 
             <form action={signInWithGoogle}>
-              <Button type="submit" variant="outline" className="w-full">
+              <SubmitButton pendingText="Opening Google…" variant="outline" className="w-full">
                 Continue with Google
-              </Button>
+              </SubmitButton>
             </form>
 
             <p className="mt-6 text-center text-sm text-muted-foreground">

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { requestPasswordReset } from "@/lib/actions/account";
 import { createClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
@@ -53,9 +53,9 @@ export default async function ForgotPasswordPage({
               <Label htmlFor="email">Email</Label>
               <Input id="email" name="email" type="email" required autoComplete="email" autoFocus />
             </div>
-            <Button type="submit" className="w-full">
+            <SubmitButton pendingText="Sending…" className="w-full">
               Send reset link
-            </Button>
+            </SubmitButton>
           </form>
         )}
 

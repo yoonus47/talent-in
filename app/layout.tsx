@@ -25,10 +25,28 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_TITLE = "TalentZify: Career & Skills for Indian Students";
+const SITE_DESCRIPTION =
+  "A community for Indian school students (13 to 18) to build career clarity, upskill, and get job-ready, together.";
+
 export const metadata: Metadata = {
-  title: "TalentZify: Career & Skills for Indian Students",
-  description:
-    "A community for Indian school students (13 to 18) to build career clarity, upskill, and get job-ready, together.",
+  // Makes the generated og:image (app/opengraph-image.tsx) an absolute URL,
+  // which link previews require.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.talentzify.com"),
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+  applicationName: "TalentZify",
+  openGraph: {
+    type: "website",
+    siteName: "TalentZify",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
 };
 
 // Runs before paint so a previously-chosen dark theme applies with no

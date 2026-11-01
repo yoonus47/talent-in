@@ -2,8 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { resetPassword } from "@/lib/actions/account";
 import { createClient } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SubmitButton } from "@/components/submit-button";
+import { PasswordInput } from "@/components/password-input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 
@@ -48,10 +48,9 @@ export default async function ResetPasswordPage({
         <form action={resetPassword} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="newPassword">New password</Label>
-            <Input
+            <PasswordInput
               id="newPassword"
               name="newPassword"
-              type="password"
               required
               minLength={8}
               autoComplete="new-password"
@@ -60,18 +59,17 @@ export default async function ResetPasswordPage({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="confirmPassword">Confirm new password</Label>
-            <Input
+            <PasswordInput
               id="confirmPassword"
               name="confirmPassword"
-              type="password"
               required
               minLength={8}
               autoComplete="new-password"
             />
           </div>
-          <Button type="submit" className="w-full">
+          <SubmitButton pendingText="Saving…" className="w-full">
             Save new password
-          </Button>
+          </SubmitButton>
         </form>
       </Card>
     </div>
