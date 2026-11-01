@@ -117,9 +117,12 @@ export default async function LandingPage({
         />
       </div>
 
-      <header className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-5">
+      <div className="flex justify-center px-4 pt-3">
+        <VersionBadge className="whitespace-nowrap">Alpha v{APP_VERSION} · developer preview</VersionBadge>
+      </div>
+
+      <header className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 pb-5 pt-3">
         <span className="brand-gradient-text shrink-0 text-xl font-bold">TalentZify</span>
-        <VersionBadge>Alpha v{APP_VERSION} · developer preview</VersionBadge>
         <Link
           href="/login"
           className="shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
