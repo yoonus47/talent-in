@@ -15,7 +15,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
-import { APP_VERSION, VersionBadge } from "@/components/version-badge";
+import { APP_VERSION } from "@/components/version-badge";
 import { cn } from "@/lib/utils";
 
 type Feature = {
@@ -117,12 +117,17 @@ export default async function LandingPage({
         />
       </div>
 
-      <div className="flex justify-center px-4 pt-3">
-        <VersionBadge className="whitespace-nowrap">Alpha v{APP_VERSION} · developer preview</VersionBadge>
-      </div>
-
-      <header className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 pb-5 pt-3">
-        <span className="brand-gradient-text shrink-0 text-xl font-bold">TalentZify</span>
+      <header className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-5">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="brand-gradient-text shrink-0 text-xl font-bold">TalentZify</span>
+          <span
+            title="Early alpha release. You may run into bugs or unfinished features."
+            className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-card/80 px-2.5 py-1 text-[10px] font-medium text-muted-foreground shadow-sm backdrop-blur"
+          >
+            <span className="brand-gradient-text text-[10px] font-bold uppercase tracking-wider">Alpha</span>
+            v{APP_VERSION}
+          </span>
+        </div>
         <Link
           href="/login"
           className="shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
@@ -303,7 +308,8 @@ export default async function LandingPage({
       </section>
 
       <footer className="border-t border-border bg-muted/60 px-4 py-8 text-center text-xs text-muted-foreground">
-        <p>Teachers, parents, and schools: coming soon.</p>
+        <p>Alpha v{APP_VERSION}: an early release, so you may run into bugs or unfinished features.</p>
+        <p className="mt-1">Teachers, parents, and schools: coming soon.</p>
         <p className="mt-2 flex items-center justify-center gap-3">
           <Link href="/terms" className="hover:text-foreground hover:underline">
             Terms
