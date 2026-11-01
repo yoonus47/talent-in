@@ -15,6 +15,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
+import { APP_VERSION, VersionBadge } from "@/components/version-badge";
 import { cn } from "@/lib/utils";
 
 type Feature = {
@@ -116,11 +117,12 @@ export default async function LandingPage({
         />
       </div>
 
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-4 py-5">
-        <span className="brand-gradient-text text-xl font-bold">TalentZify</span>
+      <header className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-5">
+        <span className="brand-gradient-text shrink-0 text-xl font-bold">TalentZify</span>
+        <VersionBadge>Alpha v{APP_VERSION} · developer preview</VersionBadge>
         <Link
           href="/login"
-          className="rounded-full px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+          className="shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
         >
           Log in
         </Link>
