@@ -118,16 +118,7 @@ export default async function LandingPage({
       </div>
 
       <header className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-5">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="brand-gradient-text shrink-0 text-xl font-bold">TalentZify</span>
-          <span
-            title="Early alpha release. You may run into bugs or unfinished features."
-            className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-card/80 px-2.5 py-1 text-[10px] font-medium text-muted-foreground shadow-sm backdrop-blur"
-          >
-            <span className="brand-gradient-text text-[10px] font-bold uppercase tracking-wider">Alpha</span>
-            v{APP_VERSION}
-          </span>
-        </div>
+        <span className="brand-gradient-text shrink-0 text-xl font-bold">TalentZify</span>
         <Link
           href="/login"
           className="shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
@@ -178,6 +169,19 @@ export default async function LandingPage({
 
           <p className="mt-4 text-xs text-muted-foreground">
             A parent or guardian should know you&apos;re signing up.
+          </p>
+
+          <p
+            title="Early release. You may run into bugs, unstable features, or unexpected behavior."
+            className="mt-6 inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-border bg-card/80 px-3 py-1.5 font-mono text-[11px] text-muted-foreground shadow-sm backdrop-blur"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-70" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+            </span>
+            <span className="font-semibold text-foreground">alpha v{APP_VERSION}</span>
+            <span aria-hidden>·</span>
+            developer preview
           </p>
         </div>
 
@@ -308,8 +312,7 @@ export default async function LandingPage({
       </section>
 
       <footer className="border-t border-border bg-muted/60 px-4 py-8 text-center text-xs text-muted-foreground">
-        <p>Alpha v{APP_VERSION}: an early release, so you may run into bugs or unfinished features.</p>
-        <p className="mt-1">Teachers, parents, and schools: coming soon.</p>
+        <p>Teachers, parents, and schools: coming soon.</p>
         <p className="mt-2 flex items-center justify-center gap-3">
           <Link href="/terms" className="hover:text-foreground hover:underline">
             Terms
