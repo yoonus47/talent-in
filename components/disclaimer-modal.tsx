@@ -6,13 +6,6 @@ import { FlaskConical } from "lucide-react";
 import { acceptDisclaimer } from "@/lib/actions/profile";
 import { Card } from "@/components/ui/card";
 
-// Flip to false once this ships for real: true means every login shows
-// this again regardless of disclaimer_accepted_at — exactly what's
-// wanted during testing (catch every tester, every session, since the
-// text itself is still being iterated on), not what's wanted after
-// launch (show once, ever, at first use).
-const ALWAYS_SHOW = true;
-
 const POINTS = [
   "This is experimental, actively-being-built software. Expect rough edges, sudden changes, and the occasional bug.",
   "We can't promise the app is always available, error-free, or that nothing you post or save will ever be lost.",
@@ -27,13 +20,14 @@ const POINTS = [
  * as components/brand-splash.tsx, but this one is a real gate, not a
  * timed-out moment: it has no auto-dismiss timer at all.
  *
- * `ALWAYS_SHOW` above is the one toggle this whole feature hangs off of —
- * see its own comment.
+ * Shown once per account: the layout only renders it for a user with a
+ * profile, so a new signup first sees it right after onboarding, and
+ * disclaimer_accepted_at (set by acceptDisclaimer) keeps it away after.
  */
 export function DisclaimerModal({ alreadyAccepted }: { alreadyAccepted: boolean }) {
   const [dismissed, setDismissed] = useState(false);
   const [pending, setPending] = useState(false);
-  const visible = !dismissed && (ALWAYS_SHOW || !alreadyAccepted);
+  const visible = !dismissed && !alreadyAccepted;
 
   if (!visible) return null;
 
